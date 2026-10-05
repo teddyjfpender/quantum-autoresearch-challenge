@@ -205,6 +205,29 @@ def cmd_record(args) -> int:
     return 0
 
 
+def cmd_compare_row(args) -> int:
+    """[audit] A fresh validation of a recorded circuit must reproduce its ledger row."""
+    challenge = Challenge(args.challenge)
+    row = next((r for r in ledger.read(challenge.ledger) if r["submission"] == args.submission), None)
+    if row is None:
+        raise ContractError(f"no ledger row for {args.submission}")
+    score = load_json(pathlib.Path(args.score))
+    metrics = score["metrics"]
+    checks = {
+        "seed": row["seed"] == args.seed,
+        "ops_sha256": row["ops_sha256"] == metrics["digests"]["ops"],
+        "lanemap_sha256": row["lanemap_sha256"] == metrics["digests"]["lanemap"],
+        "qubits": int(row["qubits"]) == int(metrics["qubits"]),
+        "toffoli": abs(float(row["toffoli"]) - float(metrics["toffoli"])) < 5e-4,
+        "samples": int(row["samples"]) == int(metrics["samples"]),
+        "verifier_sha256": row["verifier_sha256"] == verifier.digest(challenge),
+    }
+    for name, ok in checks.items():
+        print(f"{'ok  ' if ok else 'FAIL'} {name}")
+    print(f"{args.submission}: {metrics['toffoli']:.3f} Toffolis x {metrics['qubits']} qubits; ledger {row['toffoli']} x {row['qubits']}")
+    return 0 if all(checks.values()) else 1
+
+
 def cmd_verify_ledger(_args) -> int:
     key = ledger_key(required=True)
     failed = False
@@ -400,6 +423,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--row", required=True)
     p.set_defaults(run=cmd_record)
     sub.add_parser("verify-ledger", help="[judge] verify every ledger's MAC chain").set_defaults(run=cmd_verify_ledger)
+    p = sub.add_parser("compare-row", help="[audit] check a fresh validation against a ledger row")
+    p.add_argument("challenge")
+    for name in ("submission", "score", "seed"):
+        p.add_argument(f"--{name}", required=True)
+    p.set_defaults(run=cmd_compare_row)
     p = sub.add_parser("report", help="[judge] compose the pull-request comment and verdict")
     for name in ("dir", "build", "evaluate", "approved", "run-url", "out"):
         p.add_argument(f"--{name}", required=True)

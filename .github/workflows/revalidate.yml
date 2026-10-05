@@ -1,0 +1,76 @@
+name: Re-validate a recorded circuit
+
+# Audit: rebuild one pinned circuit from main, validate it exactly as the judge does (release
+# evaluator, ledger-key seed, both stages) and require the result to equal its ledger row. No
+# pull-request code is involved. Use it after an evaluator release, or with the reference engine
+# at full size to strengthen a headline row.
+on:
+  workflow_dispatch:
+    inputs:
+      pin:
+        description: Pin name, as in the ledger's `submission` column after `pin:`
+        required: true
+        default: est_low_r
+      full_engine:
+        description: Engine of the full stage
+        type: choice
+        options: [sliced, reference]
+        default: sliced
+
+permissions:
+  contents: read
+
+jobs:
+  revalidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PIN: ${{ inputs.pin }}
+      FULL_ENGINE: ${{ inputs.full_engine }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Rebuild the pinned circuit (byte identity is asserted by the pin test)
+        working-directory: challenges/femoco
+        run: |
+          [[ "$PIN" =~ ^[a-z0-9_]+$ ]]
+          FEMOCO_PIN_EXPORT_DIR="$RUNNER_TEMP/pins" cargo test --release --locked --test sa_digests -- --exact "$PIN"
+          test -s "$RUNNER_TEMP/pins/$PIN/ops.bin"
+      - name: Trusted evaluator (release binary, or built from source)
+        working-directory: challenges/femoco
+        run: |
+          digest="$(cd "$GITHUB_WORKSPACE" && python3 challenge.py verifier-digest femoco)"
+          lock=evaluator.lock.json
+          bin="$RUNNER_TEMP/eval_circuit"
+          source=built
+          if [[ -f "$lock" && "$(jq -r '.verifierSha256' "$lock")" == "$digest" ]]; then
+            tag="$(jq -r '.tag' "$lock")"; name="$(jq -r '.assets["linux-x86_64"].name' "$lock")"
+            want="$(jq -r '.assets["linux-x86_64"].sha256' "$lock")"
+            if gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$name" --output "$bin" \
+               && [[ "$(sha256sum "$bin" | cut -d' ' -f1)" == "$want" ]]; then
+              chmod +x "$bin"; source="release $tag"
+            else
+              rm -f "$bin"
+            fi
+          fi
+          if [[ "$source" == built ]]; then
+            CARGO_TARGET_DIR="$PWD/target/trusted" cargo build --release --locked --no-default-features --bin eval_circuit
+            cp target/trusted/release/eval_circuit "$bin"
+          fi
+          echo "evaluator: $source (verifier digest $digest)" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Validate and compare with the ledger row
+        env:
+          QAC_LEDGER_KEY: ${{ secrets.QAC_LEDGER_KEY }}
+        run: |
+          root="$RUNNER_TEMP/pins/$PIN"
+          ln -s "$GITHUB_WORKSPACE/challenges/femoco/specs" "$root/specs"
+          ln -s "$GITHUB_WORKSPACE/challenges/femoco/taxonomy" "$root/taxonomy"
+          seed="$(python3 challenge.py seed --root "$root")"
+          contract=challenges/femoco/benchmark.json
+          "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$(jq -r '.validation.screen.samples' "$contract")" \
+            --engine "$(jq -r '.validation.screen.engine' "$contract")" --server-seed "$seed"
+          "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$(jq -r '.validation.full.samples' "$contract")" \
+            --engine "$FULL_ENGINE" --server-seed "$seed"
+          python3 challenge.py compare-row femoco --submission "pin:$PIN" --score "$root/score.json" --seed "$seed" | tee -a "$GITHUB_STEP_SUMMARY"

@@ -24,8 +24,8 @@ come from `main`. Its jobs are separated by what they may touch:
 | `record` | No. | write | ledger key | comment, merge, ledger commit |
 
 `record` relies only on job outputs of `intake` and `evaluate`. The circuit is handed from
-`build` to `evaluate` as a cache entry keyed by the run and is parsed as hostile data; nothing a
-job uploads is trusted, so a compromised `build` job cannot forge a result.
+`build` to `evaluate` as a workflow artifact and is parsed as hostile data; no artifact is
+trusted, so a compromised `build` job cannot forge a result.
 
 ## The evaluator binary
 
