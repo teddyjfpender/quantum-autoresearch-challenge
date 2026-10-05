@@ -88,6 +88,7 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
+      actions: write
     env:
       MANIFEST: ${{ needs.intake.outputs.manifest }}
     steps:
