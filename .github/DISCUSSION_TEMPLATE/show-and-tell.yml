@@ -1,0 +1,36 @@
+title: "[Result] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report a measured result, a failed search or a proof. Say which it is. A result becomes a leaderboard entry only through a submission pull request.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Recorded submission
+        - Local result, not submitted
+        - Bounded unsuccessful search
+        - Lower bound or proof
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Commit, submission id or pull request
+    validations:
+      required: true
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements
+      description: Toffolis per step, peak qubits, lanes sampled, engine, and the circuit's ops SHA-256.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction, trade-offs and what did not work
+    validations:
+      required: true

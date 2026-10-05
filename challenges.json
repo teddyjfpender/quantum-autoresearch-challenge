@@ -1,0 +1,12 @@
+{
+ "schema": "qac-registry-v1",
+ "challenges": [
+  {
+   "id": "femoco",
+   "path": "challenges/femoco",
+   "title": "FeMoco walk step",
+   "summary": "The cheapest controlled qubitized walk step for the FeMoco Hamiltonian, under one literature acceptance standard.",
+   "tracks": ["reiher", "li"]
+  }
+ ]
+}

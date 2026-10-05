@@ -1,0 +1,24 @@
+name: Judge or tooling problem
+description: The judge, the ledger, the site feed or the tooling misbehaved (not a soundness issue).
+labels: [judge]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Workflow run URL, pull request, or the command you ran.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and observed
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: The commit of this repository you were on.
+    validations:
+      required: true

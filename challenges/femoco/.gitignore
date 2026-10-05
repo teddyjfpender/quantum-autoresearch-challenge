@@ -1,0 +1,8 @@
+/target
+/ops.bin
+/lanemap.bin
+/family.out.json
+/score.json
+/run/
+__pycache__/
+*.part

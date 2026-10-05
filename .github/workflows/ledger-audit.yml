@@ -1,0 +1,30 @@
+name: Ledger audit
+
+# Verifies the MAC chain of every ledger under the ledger key, and the repository contract with
+# unsigned rows refused. Runs when a ledger changes on main, weekly, and on demand.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "challenges/*/results.tsv"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify the MAC chains
+        env:
+          QAC_LEDGER_KEY: ${{ secrets.QAC_LEDGER_KEY }}
+        run: python3 challenge.py verify-ledger
+      - name: Contract check, signed rows only
+        run: python3 challenge.py check --signed

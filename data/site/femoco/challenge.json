@@ -1,0 +1,44 @@
+{
+ "schema": "qac-site-content-v1",
+ "id": "femoco",
+ "name": "FeMoco walk step",
+ "group": "Quantum chemistry",
+ "headline": "The cheapest controlled qubitized walk step for FeMoco.",
+ "summary": "FeMoco is the standard benchmark molecule of fault-tolerant quantum chemistry. Phase estimation repeats one walk step tens of thousands of times, so the cost of that step sets the cost of the computation. The challenge fixes the Hamiltonian, the encoding and the error model, and asks for the best circuit.",
+ "metric": {
+  "label": "Effective 1-norm x Toffolis per step x peak qubits",
+  "direction": "lower-is-better",
+  "axes": [
+   {"id": "toffoli", "label": "Toffolis per walk step", "unit": "Toffoli gates"},
+   {"id": "qubits", "label": "Peak logical qubits", "unit": "qubits"}
+  ]
+ },
+ "tracks": [
+  {"id": "reiher", "name": "Reiher", "headline": "54 orbitals, 108 spin orbitals", "summary": "The active space of Reiher et al. 2017."},
+  {"id": "li", "name": "Li", "headline": "76 orbitals, 152 spin orbitals", "summary": "The active space of Li et al. 2019."}
+ ],
+ "levels": [
+  {"id": "architecture", "name": "Architecture", "description": "How the circuit delivers rotation angles: the primary unit of search. Each architecture keeps its own best circuit."},
+  {"id": "circuit", "name": "Circuit", "description": "One point within an architecture: its levers, widths and schedules."}
+ ],
+ "standard": "Spectrum-amplified sum-of-squares encoding with the estimated rounding class of Low et al. 2025. One standard for both tracks.",
+ "rules": [
+  "Only the circuit builders under src/walk may change.",
+  "Every sampled lane must apply exactly the declared operator, restore every ancilla and leave no phase behind.",
+  "Recorded circuits must stay byte-identical; new behaviour sits behind a new build knob.",
+  "A circuit is recorded if it is the first or the best of its architecture, or advances the Toffoli-qubit front.",
+  "The judge's run on the pull request is the result; local runs are not."
+ ],
+ "participate": [
+  {"title": "Set up", "body": "Install the pinned toolchain and build the evaluator.", "command": "python3 challenge.py setup femoco"},
+  {"title": "Start a submission", "body": "Create the submission directory for a track and an architecture.", "command": "python3 challenge.py new femoco {track} my-circuit --architecture onehot-split"},
+  {"title": "Build and check", "body": "Build the circuit and run the evaluator locally.", "command": "python3 challenge.py run femoco challenges/femoco/submissions/{track}/my-circuit -- --samples 4096"},
+  {"title": "Open a pull request", "body": "The judge validates it and a bot records the row."}
+ ],
+ "agentPrompt": "Clone {repositoryUrl}. Read AGENTS.md and challenges/femoco/TASK.md. Work on the {track} track of the FeMoco walk-step challenge: architecture first, then circuit. Change only challenges/femoco/src/walk and your submission directory, keep every recorded circuit byte-identical, and open a submission pull request.",
+ "links": {
+  "repo": "https://github.com/teddyjfpender/quantum-autoresearch-challenge",
+  "discussions": "https://github.com/teddyjfpender/quantum-autoresearch-challenge/discussions",
+  "task": "https://github.com/teddyjfpender/quantum-autoresearch-challenge/blob/main/challenges/femoco/TASK.md"
+ }
+}

@@ -1,0 +1,66 @@
+{
+ "schema": "qac-benchmark-v1",
+ "name": "femoco",
+ "title": "FeMoco walk step",
+ "description": "Build the cheapest controlled qubitized walk step for the FeMoco Hamiltonian in the spectrum-amplified encoding, under the error model of Low et al. 2025.",
+ "status": "staging",
+ "contractEpoch": "femoco-sa-est-v1",
+ "category": "rust",
+ "direction": "-",
+ "metric": {
+  "name": "score",
+  "formula": "lambda_eff x toffoli x qubits",
+  "direction": "lower-is-better",
+  "components": [
+   {"id": "toffoli", "name": "Toffolis per walk step", "unit": "Toffoli gates", "note": "Executed CCX and CCZ plus the charge of each Givens rotation, averaged over the sampled lanes."},
+   {"id": "qubits", "name": "Peak logical qubits", "unit": "qubits", "note": "High-water mark of live qubits, system register included."},
+   {"id": "lambda_eff", "name": "Effective 1-norm", "unit": "Hartree", "note": "The larger of the bound the evaluator certifies for the circuit and the published value. It depends on the spec and the circuit's coefficient precision."}
+  ]
+ },
+ "tracks": [
+  {
+   "name": "reiher",
+   "title": "Reiher active space (54 orbitals)",
+   "spec": "reiher-sa-est-v1",
+   "description": "FeMoco in the 54-orbital active space of Reiher et al. 2017: 108 spin orbitals."
+  },
+  {
+   "name": "li",
+   "title": "Li active space (76 orbitals)",
+   "spec": "li-sa-est-v1",
+   "description": "FeMoco in the 76-orbital active space of Li et al. 2019: 152 spin orbitals."
+  }
+ ],
+ "standard": {
+  "encoding": "sos-sa",
+  "roundingClass": "estimated-low2025",
+  "summary": "One acceptance standard for both tracks: the spectrum-amplified sum-of-squares encoding with Low et al. 2025's estimated rounding class. Every sampled lane must apply exactly the operator the lane map declares.",
+  "document": "spec/SPEC-SA.md"
+ },
+ "editablePaths": ["src/walk"],
+ "submissionPaths": ["submissions"],
+ "trustedPaths": ["src", "specs", "taxonomy", "tests", "Cargo.toml", "Cargo.lock", "rust-toolchain", "benchmark.sh", "setup.sh"],
+ "architectures": "architectures.json",
+ "targets": "targets.json",
+ "ledger": "results.tsv",
+ "build": {
+  "specEnv": "FEMOCO_WALK_SPEC",
+  "stageEnv": "FEMOCO_STAGE",
+  "envPattern": "^FEMOCO_(WALK_ARCH|SA_[A-Z0-9_]+)$",
+  "reservedEnv": ["FEMOCO_WALK_SPEC", "FEMOCO_ROOT", "FEMOCO_STAGE", "FEMOCO_PIN_EXPORT_DIR"],
+  "note": "Build knobs are read when build_circuit is compiled. The track sets FEMOCO_WALK_SPEC."
+ },
+ "validation": {
+  "screen": {"engine": "reference", "samples": 4096},
+  "full": {"engine": "sliced", "samples": 524288},
+  "seed": "HMAC-SHA256 of the circuit's digests under the ledger key (spec/LEDGER.md)"
+ },
+ "acceptance": {
+  "minImprovementBips": 10,
+  "rule": "Recorded if valid and it is the first circuit of its architecture, or beats that architecture's best score by the margin, or has fewer Toffolis by the margin than every recorded circuit with at most as many qubits."
+ },
+ "setupCommand": ["bash", "-lc", "./setup.sh"],
+ "benchmarkCommand": ["bash", "-lc", "./benchmark.sh \"$@\"", "benchmark"],
+ "scorePath": "score.json",
+ "runner": {"provider": "github-actions", "workflow": "submission.yml"}
+}

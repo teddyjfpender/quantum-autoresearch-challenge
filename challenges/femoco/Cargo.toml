@@ -1,0 +1,48 @@
+[package]
+name = "femoco_walk"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = ["walk"]
+# The contestant's code. eval_circuit is built with --no-default-features (see benchmark.sh).
+walk = []
+
+[[bin]]
+name = "build_circuit"
+path = "src/bin/build_circuit.rs"
+required-features = ["walk"]
+
+[[bin]]
+name = "eval_circuit"
+path = "src/bin/eval_circuit.rs"
+
+[[bin]]
+name = "eval_diff"
+path = "src/bin/eval_diff.rs"
+
+[[bin]]
+name = "femoco_serve"
+path = "src/bin/femoco_serve.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
+
+[dependencies]
+sha3 = "0.10"
+sha2 = "0.10"
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+num-bigint = "0.4"
+num-traits = "0.2"
+num-integer = "0.1"
+flate2 = "1"
+rayon = "1"
+tiny_http = "0.12"

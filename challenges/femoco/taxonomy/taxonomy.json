@@ -1,0 +1,530 @@
+{
+  "taxonomy_version": "1.3.0",
+  "challenge": "femoco-walk",
+  "family_rule": "A family is the tuple of axis values in family.out.json 'axes', one value for every axis below. Two submissions are in the same family if and only if their axes maps are equal. The family name, parent, seeds and every parameter (u, k, mu, table contents, QROAM block size k, angle bits, segment counts, threshold choices, qubit layout) are not part of the family: changing them is calibration within a family, never a new family. A value is added to an axis only when the architecture differs in how the walk step is built, with a citation or a written definition that says what differs.",
+  "versioning": "MAJOR changes when a value is removed or a signature's meaning changes; MINOR when a value, axis or rule is added or a reserved value becomes active; PATCH for wording. A family declares taxonomy_version; the harness accepts it when the MAJOR number equals this file's.",
+  "strengths": {
+    "exact": "One predicate is both necessary and sufficient: it holds if and only if the value applies. Holds -> Verified, fails -> Contradicted.",
+    "necessary": "Every correct circuit with this value satisfies the predicate. Fails -> Contradicted. Holds -> DeclaredOnly (it does not identify the value).",
+    "sufficient": "When the predicate holds the value applies. Holds -> Verified. Fails -> DeclaredOnly.",
+    "necessary+sufficient": "Separate necessary and sufficient predicates. Necessary fails -> Contradicted; sufficient holds -> Verified; otherwise DeclaredOnly.",
+    "declared": "No predicate over CircuitFacts separates this value from its siblings. Always DeclaredOnly unless a compatibility rule or reserved status contradicts it."
+  },
+  "predicate_language": "{\"all\": [p...]}, {\"any\": [p...]}, {\"not\": p}, {\"cmp\": {\"field\": path, \"op\": op, \"value\": v}} or {\"cmp\": {\"sum\": [path...], \"op\": op, \"value\": number}}. op is one of == != > >= < <=. A path is dot-separated through the serialized CircuitFacts (src/facts.rs); key matching ignores case, '_' and '-' so 'op_counts.HMR' matches kind 'Hmr'. A missing key in a map of counts reads 0; any other missing or null field is unknown. Unknown never contradicts and never verifies. Predicates over segment_* fields read the submitter's own Segment labels (op kind 40), which are hints: they can contradict a claim the labels themselves refute, but they prove nothing about unlabelled or mislabelled ops.",
+  "pending_facts": [],
+  "references": {
+    "babbush2018": { "authors": "R. Babbush, C. Gidney, D. W. Berry, N. Wiebe, J. McClean, A. Paler, A. Fowler, H. Neven", "title": "Encoding Electronic Spectra in Quantum Circuits with Linear T Complexity", "arxiv": "1805.03662", "year": 2018 },
+    "berry2019": { "authors": "D. W. Berry, C. Gidney, M. Motta, J. R. McClean, R. Babbush", "title": "Qubitization of Arbitrary Basis Quantum Chemistry Leveraging Sparsity and Low Rank Factorization", "arxiv": "1902.02134", "year": 2019 },
+    "low2018": { "authors": "G. H. Low, V. Kliuchnikov, L. Schaeffer", "title": "Trading T gates for dirty qubits in state preparation and unitary synthesis", "arxiv": "1812.00954", "year": 2018 },
+    "gidney2018": { "authors": "C. Gidney", "title": "Halving the cost of quantum addition", "arxiv": "1709.06648", "year": 2018 },
+    "gidney2025": { "authors": "C. Gidney", "title": "How to factor 2048 bit RSA integers with less than a million noisy qubits", "arxiv": "2505.15917", "year": 2025 },
+    "vonburg2021": { "authors": "V. von Burg, G. H. Low, T. Haener, D. S. Steiger, M. Reiher, M. Roetteler, M. Troyer", "title": "Quantum computing enhanced computational catalysis", "arxiv": "2007.14460", "year": 2021 },
+    "lee2021": { "authors": "J. Lee, D. W. Berry, C. Gidney, W. J. Huggins, J. R. McClean, N. Wiebe, R. Babbush", "title": "Even more efficient quantum computations of chemistry through tensor hypercontraction", "arxiv": "2011.03494", "year": 2021 },
+    "low2025": { "authors": "G. H. Low, R. King, D. W. Berry, Q. Han, A. E. DePrince III, A. F. White, R. Babbush, R. D. Somma, N. C. Rubin", "title": "Fast Quantum Simulation of Electronic Structure by Spectral Amplification", "arxiv": "2502.15882", "year": 2025 },
+    "loaiza2023": { "authors": "I. Loaiza, A. F. Izmaylov", "title": "Block-Invariant Symmetry Shift: Preprocessing technique for second-quantized Hamiltonians to improve their decompositions to Linear Combination of Unitaries", "arxiv": "2304.13772", "year": 2023 },
+    "design": { "authors": "this repository", "title": "FeMoco walk-step challenge design contract, spec/DESIGN.md", "arxiv": null, "year": 2026 },
+    "qa-candidates": { "authors": "The challenge authors (unpublished)", "title": "LiH walk-step constructions: Clifford-mask SELECT, orbit-class alias and Majorana alias (unpublished notes)", "arxiv": null, "year": 2026 }
+  },
+  "axes": [
+    {
+      "id": "encoding",
+      "definition": "Which LCU of FeMoco's Hamiltonian the walk block-encodes: the pinned spec family (spec/DESIGN.md section 7).",
+      "values": [
+        {
+          "id": "sparse",
+          "status": "active",
+          "definition": "The sparse LCU: unique one- and two-body integrals above a threshold, each expanded over its symmetry images and spins into Majorana monomials.",
+          "citations": [
+            { "ref": "lee2021", "location": "Appendix A.1", "supports": "The sparse algorithm of Berry et al. as an LCU: only permutation-unique entries are prepared and controlled swaps expand them." },
+            { "ref": "berry2019", "location": "Sec. 5", "supports": "Exploiting sparsity in the Coulomb operator; the controlled swaps of p,q and r,s." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "encoding", "op": "==", "value": "sparse" } },
+            "sufficient": { "cmp": { "field": "encoding", "op": "==", "value": "sparse" } },
+            "proves": "The harness loaded a spec whose spec.json says encoding 'sparse' and validated every sampled lane against it.",
+            "cannot_show": "Nothing further; the axis is the spec family."
+          }
+        },
+        {
+          "id": "df",
+          "status": "active",
+          "definition": "The double factorization: Cholesky vectors, eigendecomposed per leaf, truncated at the published threshold; each leaf applied in its rotated basis.",
+          "citations": [
+            { "ref": "vonburg2021", "location": "Supplementary Sec. VII, 'Qubitization of double-factorized Hamiltonian'", "supports": "The double-factorized Hamiltonian and its qubitization." },
+            { "ref": "lee2021", "location": "Appendix C", "supports": "The 'double low rank factorization' algorithm of von Burg et al., reviewed and costed." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "encoding", "op": "==", "value": "df" } },
+            "sufficient": { "cmp": { "field": "encoding", "op": "==", "value": "df" } },
+            "proves": "The harness loaded a spec whose spec.json says encoding 'df' and validated every sampled lane against it.",
+            "cannot_show": "Nothing further; the axis is the spec family."
+          }
+        },
+        {
+          "id": "thc",
+          "status": "active",
+          "definition": "The non-orthogonal tensor hypercontraction representation: the Coulomb operator as (1/2) sum zeta_{mu nu} n_mu n_nu over rotated number operators of M single normalized (not mutually orthogonal) factor vectors chi_mu, at the published rank, with the authors' rounded factors (the THC encoding; no THC spec ships here).",
+          "citations": [
+            { "ref": "lee2021", "location": "Sec. II.C-D, Eqs. (11)-(20)", "supports": "The non-orthogonal THC Hamiltonian, its rewriting in rotated Z operators and its lambda." },
+            { "ref": "lee2021", "location": "Sec. IV.A, Tables IV and V", "supports": "Ranks M = 350 (Reiher) and M = 450 (Li) with lambda 306.3 and 1201.5." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "encoding", "op": "==", "value": "thc" } },
+            "sufficient": { "cmp": { "field": "encoding", "op": "==", "value": "thc" } },
+            "proves": "The harness loaded a spec whose spec.json says encoding 'thc' and validated every sampled lane against it.",
+            "cannot_show": "Nothing further; the axis is the spec family."
+          }
+        },
+        {
+          "id": "sos-sa",
+          "status": "active",
+          "definition": "The spectrum-amplified sum-of-squares encoding: Low et al. 2025's DFTHC + BLISS Hamiltonian written as E_SOS + sum_alpha O_alpha^dagger O_alpha, from the authors' published factors, block-encoded as Lambda (H_SA / Lambda - 1) through the Chebyshev composition of each generator's LCU (spec/SPEC-SA.md).",
+          "citations": [
+            { "ref": "low2025", "location": "Phys. Rev. X 15, 041016, Sec. IV, Eqs. (23)-(33)", "supports": "The DFTHC sum-of-squares representation, its generators O_D, O_Q, O_SF and Lambda = (1/2) sum lambda_alpha^2." },
+            { "ref": "low2025", "location": "Phys. Rev. X 15, 041016, Sec. II, Eqs. (5)-(11)", "supports": "Spectral amplification: the walk on 2 H_SA / lambda_sqrt^2 - 1 and lambda_eff = sqrt(E_gap (2 Lambda - E_gap))." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "encoding", "op": "==", "value": "sos-sa" } },
+            "sufficient": { "cmp": { "field": "encoding", "op": "==", "value": "sos-sa" } },
+            "proves": "The harness loaded a spec whose spec.json says encoding 'sos-sa' and validated every sampled lane against it.",
+            "cannot_show": "Nothing further; the axis is the spec family. The operator equals the DFTHC Hamiltonian only on the BLISS electron sector (spec/SPEC-SA.md section 2)."
+          }
+        },
+        {
+          "id": "bliss",
+          "status": "reserved",
+          "todo": "TODO(BLISS): no spec in this release. The shifted operator agrees with H only on the physical particle-number sector, so the spec needs sector semantics (spec/DESIGN.md section 1).",
+          "definition": "A block-invariant symmetry shift of the Hamiltonian before factorization.",
+          "citations": [
+            { "ref": "loaiza2023", "location": "Title and abstract", "supports": "Block-invariant symmetry shift as preprocessing to reduce the LCU 1-norm." }
+          ],
+          "signature": { "strength": "declared", "proves": "Nothing; reserved.", "cannot_show": "Everything until a BLISS spec exists." }
+        }
+      ]
+    },
+    {
+      "id": "lane_map",
+      "definition": "How uniform-register values (lanes) map to terms: the structured lane-map family declared in lanemap.bin (spec/DESIGN.md section 6).",
+      "values": [
+        {
+          "id": "alias-v1",
+          "status": "active",
+          "definition": "Flat alias sampling over the spec's terms: k index bits, mu keep bits, keep/alt tables.",
+          "citations": [
+            { "ref": "babbush2018", "location": "Sec. III.D", "supports": "Coherent alias sampling: select an index uniformly, look up alt and keep, return the index with probability keep/2^mu, else alt." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "lane_map_family", "op": "==", "value": "alias-v1" } },
+            "sufficient": { "cmp": { "field": "lane_map_family", "op": "==", "value": "alias-v1" } },
+            "proves": "lanemap.bin parsed as alias-v1 and its exact counts were checked against the spec and the sampled lanes.",
+            "cannot_show": "How the circuit reads the tables (see lookup)."
+          }
+        },
+        {
+          "id": "sparse-sym-alias-v1",
+          "status": "active",
+          "definition": "Alias sampling over permutation-unique sparse entries, with extra uniform bits that pick the entry's symmetry image and spins.",
+          "citations": [
+            { "ref": "lee2021", "location": "Appendix A.1", "supports": "Only entries with p<=q, r<=s, pq<=rs are prepared; three controlled swaps on further registers expand them." },
+            { "ref": "berry2019", "location": "Sec. 5", "supports": "Sparse state preparation with the same controlled swaps." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "lane_map_family", "op": "==", "value": "sparse-sym-alias-v1" } },
+            "sufficient": { "cmp": { "field": "lane_map_family", "op": "==", "value": "sparse-sym-alias-v1" } },
+            "proves": "lanemap.bin parsed as sparse-sym-alias-v1 and its counts were checked.",
+            "cannot_show": "How the expansion bits are applied (swaps, XOR masks, ...)."
+          }
+        },
+        {
+          "id": "df-pair-alias-v1",
+          "status": "active",
+          "definition": "The flat LCU over (l, k1, k2) of products of two rotated number-type operators in one leaf basis (same lambda_F as the nested form), defined in the DF encoding; no DF spec ships here.",
+          "citations": [
+            { "ref": "design", "location": "spec/DESIGN.md section 7; the DF encoding; no DF spec ships here", "supports": "The flat pair form this repository defines. It is not itself a published construction; the nested form is von Burg et al. Sec. VII.C." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "lane_map_family", "op": "==", "value": "df-pair-alias-v1" } },
+            "sufficient": { "cmp": { "field": "lane_map_family", "op": "==", "value": "df-pair-alias-v1" } },
+            "proves": "lanemap.bin parsed as df-pair-alias-v1 and its counts were checked.",
+            "cannot_show": "Nothing further; the axis is the lane-map family."
+          }
+        },
+        {
+          "id": "df-nested-alias-v1",
+          "status": "active",
+          "definition": "The nested DF lane map: an outer alias over leaves (and the one-body terms or the one-body item), and per outer item an inner alias over its eigenvectors and spins, all inner tables sharing one width. Lanes cross one Reflect on the inner uniform register, and the harness samples the second-pass inner value (the nested DF form; no DF spec ships here).",
+          "citations": [
+            { "ref": "vonburg2021", "location": "Supplementary Sec. VII.C.4, Eqs. (77)-(80)", "supports": "State preparation over the leaf index r, then over the leaf's eigenvectors k and spin: the two alias levels of this lane map." },
+            { "ref": "lee2021", "location": "Appendix C, pp. 51-54 (Fig. 16 and steps 1-9)", "supports": "Separate state preparations on the l register and, controlled on it, the p register, with the one-electron term as an extra value of l." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "lane_map_family", "op": "==", "value": "df-nested-alias-v1" } },
+            "sufficient": { "cmp": { "field": "lane_map_family", "op": "==", "value": "df-nested-alias-v1" } },
+            "proves": "lanemap.bin parsed as df-nested-alias-v1, its exact counts were checked against the nested spec, and every sampled lane was run through the Reflect with a sampled second-pass inner value.",
+            "cannot_show": "How the circuit reads the two alias levels (see lookup)."
+          }
+        },
+        {
+          "id": "thc-pair-alias-v1",
+          "status": "active",
+          "definition": "Alias sampling over THC's unordered factor pairs mu <= nu and the one-body eigenvectors, with two spin bits and a swap bit: the block encoding flips the swap bit, and the swapped lane applies the reversed product, so SELECT is a reflection although the factors do not commute (the THC encoding; no THC spec ships here).",
+          "citations": [
+            { "ref": "lee2021", "location": "Sec. III.B, Eqs. (27)-(29)", "supports": "Prepare only mu <= nu with a contiguous index, then swap mu and nu controlled on a |+> qubit." },
+            { "ref": "lee2021", "location": "Sec. III.C, Eqs. (36)-(42), Fig. 6", "supports": "A NOT on the swap-control qubit makes select self-inverse and gives V_mu V_nu + V_nu V_mu." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "lane_map_family", "op": "==", "value": "thc-pair-alias-v1" } },
+            "sufficient": { "cmp": { "field": "lane_map_family", "op": "==", "value": "thc-pair-alias-v1" } },
+            "proves": "lanemap.bin parsed as thc-pair-alias-v1, its counts were checked, and every sampled control-1 lane ended with the swap bit flipped and applied its ordered product.",
+            "cannot_show": "How the circuit realizes the order (register swaps or two data reads); whether mu <= nu is prepared as Lee et al. do (the alias table is over the pairs directly)."
+          }
+        },
+        {
+          "id": "sa-nested-alias-v1",
+          "status": "active",
+          "definition": "The spectrum-amplified lane map: an outer alias over the generators' items (one-body eigenvectors with a free outer spin bit, and the (r, c) squares), and per item an inner alias over its LCU terms with a free inner spin bit, all inner tables sharing one width. Lanes cross one Reflect on the inner register; the reference is M(b)^dagger M(a) (spec/SPEC-SA.md section 5).",
+          "citations": [
+            { "ref": "low2025", "location": "Phys. Rev. X 15, 041016, Eqs. (7), (10) and Fig. 2", "supports": "PREP over the generators (outer state preparation on x_o with the spin qubit sigma_1), the inner state preparation over b with sigma_0, and U^dagger REF U." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "lane_map_family", "op": "==", "value": "sa-nested-alias-v1" } },
+            "sufficient": { "cmp": { "field": "lane_map_family", "op": "==", "value": "sa-nested-alias-v1" } },
+            "proves": "lanemap.bin parsed as sa-nested-alias-v1, its exact counts were checked against the sos-sa spec, and every sampled lane was run through the Reflect with a sampled second-pass inner value against M(b)^dagger M(a).",
+            "cannot_show": "How the circuit reads the two alias levels (see lookup)."
+          }
+        },
+        {
+          "id": "symmetry-class-alias",
+          "status": "reserved",
+          "todo": "TODO(symmetry-class alias): lanes select a class of equal-magnitude terms and extra uniform bits select the member. No lane-map parser in this release (spec/DESIGN.md section 6).",
+          "definition": "Alias sampling over symmetry classes of terms; member bits expand a class into its terms.",
+          "citations": [
+            { "ref": "qa-candidates", "location": "unpublished notes", "supports": "Alias over classes sharing one coefficient magnitude, member bits applied on the selected Majorana codes (LiH)." }
+          ],
+          "signature": { "strength": "declared", "proves": "Nothing; reserved.", "cannot_show": "Everything until the lane map exists." }
+        }
+      ]
+    },
+    {
+      "id": "lookup",
+      "definition": "How classical table data (alias keep/alt, term data, rotation angles) is loaded into quantum registers.",
+      "values": [
+        {
+          "id": "none",
+          "status": "active",
+          "definition": "No classical table is read; lane data is computed arithmetically from the uniform bits.",
+          "citations": [],
+          "citation_note": "A definitional value (absence of a lookup); no reference needed.",
+          "signature": { "strength": "declared", "proves": "Nothing.", "cannot_show": "Whether some gate sequence acts as a table read; the alias lane maps rule this value out instead." }
+        },
+        {
+          "id": "unary-iteration",
+          "status": "active",
+          "definition": "QROM by unary iteration over the address: one indicator per address value, the value's bits written by CNOTs; L-1 ANDs for L entries.",
+          "citations": [
+            { "ref": "babbush2018", "location": "Sec. III.A and III.C, Figs. 7 and 10", "supports": "Unary iteration with T-count 4L-4; the QROM of Fig. 10 has T-count 4L-4, due entirely to the unary iteration, independent of the data width." }
+          ],
+          "signature": { "strength": "declared", "proves": "Nothing.", "cannot_show": "The table size L is not a fact, so the Toffoli count cannot be tied to L-1; a QROAM with k=1 is the same circuit." }
+        },
+        {
+          "id": "qroam-clean",
+          "status": "active",
+          "definition": "QROAM with clean ancillae: unary iteration over ceil(d/k) blocks writing k words, then a swap network routes the addressed word; cost ceil(d/k) + M(k-1) Toffolis.",
+          "citations": [
+            { "ref": "berry2019", "location": "Sec. 3.2 and Appendix B (Theorem 2)", "supports": "The QROAM of [44] and its clean-ancilla cost ceil(d/k) + M(k-1)." }
+          ],
+          "signature": { "strength": "declared", "proves": "Nothing.", "cannot_show": "Controlled swaps are ordinary CCX/CX ops; nothing in the facts separates a swap network from other Toffoli uses." }
+        },
+        {
+          "id": "qroam-dirty",
+          "status": "active",
+          "definition": "QROAM assisted by dirty ancillae (qubits in use elsewhere, returned to their state): about 2 ceil(d/k) + 4M(k-1) Toffolis.",
+          "citations": [
+            { "ref": "berry2019", "location": "Sec. 3.2 and Appendix A (Theorem 1)", "supports": "Table lookups assisted by dirty ancillae; compute cost 2 ceil(d/k) + 4M(k-1)." },
+            { "ref": "low2018", "location": "Sec. 2, Fig. 1d", "supports": "SelectSwap variant whose swap-network qubits may be dirty." }
+          ],
+          "signature": { "strength": "declared", "proves": "Nothing.", "cannot_show": "Whether a qubit was dirty when borrowed needs per-qubit state history the facts do not carry." }
+        },
+        {
+          "id": "select-swap",
+          "status": "active",
+          "definition": "The original SelectSwap network: a multiplexer over blocks followed by a (logarithmic-depth) swap network, as published before the QROAM refinements.",
+          "citations": [
+            { "ref": "low2018", "location": "Sec. 2, Fig. 1c and Table 2", "supports": "Data-lookup oracle by a SelectSwap network combining Select and a Swap network." }
+          ],
+          "signature": { "strength": "declared", "proves": "Nothing.", "cannot_show": "Same as qroam-clean." }
+        },
+        {
+          "id": "monomial-lookup",
+          "status": "active",
+          "definition": "Power-product (monomial) lookup: compute every product of address-bit subsets (all monomials of each address half), write the table's coefficients with multi-target Toffolis, erase ancillas by X-basis measurement and fold the phase corrections into a later phase fixup. 2^n - n - 1 ANDs for n address bits.",
+          "citations": [
+            { "ref": "gidney2025", "location": "Sec. 3.1 (lookup cost 2^n - n - 1, attributed there to [Bab+18]) and Appendix A.4", "supports": "A.4: split the address into halves, compute the power product of each, multi-target Toffolis per pair, X-basis measurement of ancillas, corrections merged into a phaseup. The paper says 'power product', not 'monomial'." }
+          ],
+          "signature": {
+            "strength": "necessary",
+            "necessary": { "cmp": { "field": "executed_hmr", "op": ">", "value": 0 } },
+            "proves": "When it fails: no X-basis measurement ran, so the lookup's ancillas were not measured as the construction requires.",
+            "cannot_show": "That the measured qubits belong to a monomial lookup; any measurement-based uncomputation satisfies it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "select",
+      "definition": "How SELECT applies the chosen term's system operator.",
+      "values": [
+        {
+          "id": "unary-pauli",
+          "status": "active",
+          "definition": "Unary iteration over term indices; each indicator controls that term's Pauli string on the system register.",
+          "citations": [
+            { "ref": "babbush2018", "location": "Sec. III.A, Figs. 7-8", "supports": "Indexed operations by unary iteration: the controls of consecutive indices share work; an accumulator applies Z strings." }
+          ],
+          "signature": {
+            "strength": "necessary",
+            "necessary": { "cmp": { "sum": ["segment_op_counts.1.CCX", "segment_op_counts.1.CCZ"], "op": ">", "value": 0 } },
+            "proves": "When it fails: the ops labelled SELECT contain no Toffoli, so they cannot iterate over more than one index.",
+            "cannot_show": "Separation from selected-majorana: both iterate with ANDs. Unknown (no contradiction) when the circuit has no segment 1 label."
+          }
+        },
+        {
+          "id": "selected-majorana",
+          "status": "active",
+          "definition": "Each term is a product of up to four Majoranas whose indices are loaded as data; SELECT applies each selected Majorana by one unary pass over the 2n Majorana indices (Z string plus X/Y).",
+          "citations": [
+            { "ref": "babbush2018", "location": "Sec. III.B, Fig. 9", "supports": "Selective application of Majorana fermion operators, T-count 4L-4 per selected Majorana." }
+          ],
+          "signature": {
+            "strength": "necessary",
+            "necessary": { "cmp": { "sum": ["segment_op_counts.1.CCX", "segment_op_counts.1.CCZ"], "op": ">", "value": 0 } },
+            "proves": "When it fails: the ops labelled SELECT contain no Toffoli, so no unary pass over Majorana indices happens there.",
+            "cannot_show": "Separation from unary-pauli. A heuristic (not evaluated): system-targeting ops in SELECT scale with the number of Majoranas (O(n) per slot), not with the number of terms."
+          }
+        },
+        {
+          "id": "clifford-mask",
+          "status": "active",
+          "definition": "SELECT is Toffoli-free: the term's Pauli masks (or their span coordinates) were loaded as data before SELECT, with the control folded into the data, and CX/CZ/S gates from data qubits apply the term.",
+          "citations": [
+            { "ref": "qa-candidates", "location": "unpublished notes", "supports": "Pure-Clifford SELECT: the QPE control is folded into the lookup so the masks are zero when it is off (LiH). Unpublished." }
+          ],
+          "signature": {
+            "strength": "necessary+sufficient",
+            "necessary": {
+              "all": [
+                { "cmp": { "sum": ["segment_op_counts.1.CCX", "segment_op_counts.1.CCZ", "segment_op_counts.1.GIVENS"], "op": "==", "value": 0 } },
+                { "cmp": { "sum": ["segment_system_ops.1.*"], "op": ">", "value": 0 } }
+              ]
+            },
+            "sufficient": {
+              "all": [
+                { "cmp": { "field": "segments_validated", "op": "==", "value": true } },
+                { "cmp": { "sum": ["segment_op_counts.1.CCX", "segment_op_counts.1.CCZ", "segment_op_counts.1.GIVENS"], "op": "==", "value": 0 } },
+                { "cmp": { "sum": ["segment_system_ops.1.*"], "op": ">", "value": 0 } }
+              ]
+            },
+            "proves": "Necessary: the ops labelled SELECT are Toffoli-free and act on the system. Sufficient: the harness validated the Segment structure (segments_validated), and every system-targeting op is in a Toffoli-free SELECT, so the term is applied by Cliffords controlled by data prepared earlier, which is this value's definition.",
+            "cannot_show": "Segment hints are the submitter's labels: segments_validated checks their structure (one prepare, select, unprepare; system ops only in select), not that each Toffoli sits where it logically belongs."
+          }
+        },
+        {
+          "id": "givens-network",
+          "status": "active",
+          "definition": "DF or THC SELECT: rotate the system into the basis of each number-type factor (a DF leaf eigenvector or a THC factor vector) with a network of Givens rotations whose angles are loaded as data, apply the Z operator, rotate back.",
+          "citations": [
+            { "ref": "vonburg2021", "location": "Supplementary Sec. VII.C.1, Lemma 8", "supports": "Block-encoded, basis-transformed Majorana operator via a sequence of Majorana (Givens-type) rotations with data-looked-up angles." },
+            { "ref": "lee2021", "location": "Appendix C, step 4(b)-(f)", "supports": "QROM outputs rotation angles; controlled rotations rotate the basis at cost N(i-2); Z applied; rotations reversed." },
+            { "ref": "lee2021", "location": "Sec. III.C, steps 2-5, Fig. 5", "supports": "THC select: a QROM outputs the rotations for mu (then nu), rotate with cost N(i-2), apply Z, invert the rotations." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "all": [ { "any": [ { "cmp": { "field": "encoding", "op": "==", "value": "df" } }, { "cmp": { "field": "encoding", "op": "==", "value": "thc" } } ] }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } } ] },
+            "sufficient": { "all": [ { "any": [ { "cmp": { "field": "encoding", "op": "==", "value": "df" } }, { "cmp": { "field": "encoding", "op": "==", "value": "thc" } } ] }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } } ] },
+            "proves": "A DF or THC circuit that passed validation and used Givens ops applied its rotated operators through the harness's Givens primitive, the only basis-rotation mechanism in the op set. (1.1.0 widened the encoding clause from df to df or thc; no df or sparse verdict changes.)",
+            "cannot_show": "The network's shape (how many rotations, which order)."
+          }
+        },
+        {
+          "id": "givens-nested",
+          "status": "active",
+          "definition": "Nested DF: each leaf's one-body operator is block-encoded with Givens networks, the inner register is reflected, and the same block encoding is applied again, block-encoding the Chebyshev polynomial 2 O_l^2 - 1 (spec/DESIGN.md section 16).",
+          "citations": [
+            { "ref": "vonburg2021", "location": "Supplementary Sec. VII.C, Eq. (54), and Sec. VII.C.3-4, Eqs. (77)-(80)", "supports": "TwoH = 1/4 sum_r ||L(r)||_SC^2 T2(OneL(r)/||L(r)||_SC) with T2(x) = 2x^2 - 1; qubitization applies the one-electron block encoding twice around a reflection." },
+            { "ref": "lee2021", "location": "Appendix C, p. 48 and pp. 51-54", "supports": "The 1/8 becomes 1/4 by 'the oblivious amplitude amplification, Chebyshev polynomial technique'; the reflection on the second register only, between two applications of the rotations." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "all": [ { "cmp": { "field": "encoding", "op": "==", "value": "df" } }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } }, { "cmp": { "field": "op_counts.REFLECT", "op": "==", "value": 1 } }, { "cmp": { "field": "nested_validated", "op": "==", "value": true } } ] },
+            "sufficient": { "all": [ { "cmp": { "field": "encoding", "op": "==", "value": "df" } }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } }, { "cmp": { "field": "op_counts.REFLECT", "op": "==", "value": 1 } }, { "cmp": { "field": "nested_validated", "op": "==", "value": true } } ] },
+            "proves": "The harness checked the structure (two inner copies identical op for op, exactly one Reflect on exactly the inner uniform register between them and nothing else there, the register untouched elsewhere) and validated the sampled lanes, paired and diagonal, through the Reflect with Givens rotations.",
+            "cannot_show": "That the two copies act identically: identical ops can read state a copy left behind (the folded one-body layout does). The operator is certified by the paired and diagonal lanes, not by this signature."
+          }
+        },
+        {
+          "id": "givens-sa-nested",
+          "status": "active",
+          "definition": "Spectral amplification: each generator's LCU (rotated single Majoranas for the one-body generators, rotated Majorana pairs and the identity for the squares) is applied with Givens networks, the inner register is reflected, and the adjoint is applied (the same ops, reading a pass flag), block-encoding 2 O^dagger O / lambda^2 - 1 (spec/SPEC-SA.md section 5).",
+          "citations": [
+            { "ref": "low2025", "location": "Phys. Rev. X 15, 041016, Eq. (10), Fig. 1 and Fig. 2", "supports": "BE[H_SA / Lambda - I] = PREP^dagger SEL^dagger REF_BE SEL PREP; the Hermitian conjugate is applied with Maj^dagger." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "all": [ { "cmp": { "field": "encoding", "op": "==", "value": "sos-sa" } }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } }, { "cmp": { "field": "op_counts.REFLECT", "op": "==", "value": 1 } }, { "cmp": { "field": "nested_validated", "op": "==", "value": true } } ] },
+            "sufficient": { "all": [ { "cmp": { "field": "encoding", "op": "==", "value": "sos-sa" } }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } }, { "cmp": { "field": "op_counts.REFLECT", "op": "==", "value": 1 } }, { "cmp": { "field": "nested_validated", "op": "==", "value": true } } ] },
+            "proves": "The harness checked the nested structure (two inner copies identical op for op, exactly one Reflect on exactly the inner uniform register between them, the register untouched elsewhere) and validated the sampled lanes, paired and diagonal, against M(b)^dagger M(a) with Givens rotations.",
+            "cannot_show": "That the second copy is the adjoint of the first on unsampled lanes; the operator is certified by the paired and diagonal lanes, not by this signature."
+          }
+        }
+      ]
+    },
+    {
+      "id": "uncompute",
+      "definition": "How temporary values (ANDs, lookup outputs, comparator carries) are erased.",
+      "values": [
+        {
+          "id": "unitary",
+          "status": "active",
+          "definition": "Every temporary is erased by running gates in reverse; no measurement.",
+          "citations": [
+            { "ref": "gidney2018", "location": "Fig. 3 caption", "supports": "The alternative uncomputation 'is to simply do the reverse of the computation circuit'." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "all": [ { "cmp": { "field": "op_counts.HMR", "op": "==", "value": 0 } }, { "cmp": { "field": "op_counts.R", "op": "==", "value": 0 } } ] },
+            "sufficient": { "all": [ { "cmp": { "field": "op_counts.HMR", "op": "==", "value": 0 } }, { "cmp": { "field": "op_counts.R", "op": "==", "value": 0 } } ] },
+            "proves": "The op stream contains no measurement or reset, so every ancilla returned to |0> by gates.",
+            "cannot_show": "Nothing further."
+          }
+        },
+        {
+          "id": "measurement-based",
+          "status": "active",
+          "definition": "At least one temporary (an AND target or a lookup output) is erased by X-basis measurement and a classically conditioned phase fixup instead of reversed gates.",
+          "citations": [
+            { "ref": "gidney2018", "location": "Fig. 3", "supports": "Temporary logical-AND uncomputed by a measure-and-fixup approach with T-count zero." },
+            { "ref": "babbush2018", "location": "Fig. 4", "supports": "Uncomputing an AND consumes no T states." },
+            { "ref": "berry2019", "location": "Appendix C (Theorem 3)", "supports": "Measurement-based uncomputation of table lookups: X measurements on the outputs and a classically conditioned phase fixup." }
+          ],
+          "signature": {
+            "strength": "necessary+sufficient",
+            "necessary": { "all": [ { "cmp": { "field": "executed_hmr", "op": ">", "value": 0 } }, { "cmp": { "field": "condition_bits", "op": ">", "value": 0 } } ] },
+            "sufficient": { "cmp": { "field": "measurement_uncompute", "op": "==", "value": true } },
+            "proves": "Necessary: some Hmr executed and some op was classically conditioned (the fixup needs the outcome). Sufficient: the harness found an Hmr followed, in its segment, by a conditioned CZ/Z on the measured qubit's former controls.",
+            "cannot_show": "What fraction of temporaries is erased this way."
+          }
+        }
+      ]
+    },
+    {
+      "id": "reuse",
+      "definition": "How temporary qubits are organized across the walk's suboperations (prepare, select, unprepare).",
+      "values": [
+        {
+          "id": "serial",
+          "status": "active",
+          "definition": "Each suboperation allocates its own scratch and frees it before the next suboperation needs scratch.",
+          "citations": [],
+          "citation_note": "Definitional.",
+          "signature": { "strength": "declared", "proves": "Nothing.", "cannot_show": "Scratch sharing needs a per-qubit role history the facts do not carry." }
+        },
+        {
+          "id": "shared-workspace",
+          "status": "active",
+          "definition": "Qubits hold scratch for two suboperations within one allocation, e.g. the routed-away QROAM slots host comparator scratch, or the lookup output stays live into SELECT and is erased after it.",
+          "citations": [
+            { "ref": "berry2019", "location": "Sec. 3.2", "supports": "Ancillae of the forward QROAM 'can be erased after the QROAM and reused'." },
+            { "ref": "qa-candidates", "location": "unpublished notes", "supports": "Routed-away lookup slots measured at once and host the later scratch (LiH)." }
+          ],
+          "signature": { "strength": "declared", "proves": "Nothing.", "cannot_show": "Same as serial." }
+        }
+      ]
+    },
+    {
+      "id": "rotation",
+      "definition": "How arbitrary-angle rotations are implemented (DF basis changes).",
+      "values": [
+        {
+          "id": "none",
+          "status": "active",
+          "definition": "No arbitrary-angle rotation: every system action is a Pauli or Clifford.",
+          "citations": [],
+          "citation_note": "Definitional.",
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "op_counts.GIVENS", "op": "==", "value": 0 } },
+            "sufficient": { "cmp": { "field": "op_counts.GIVENS", "op": "==", "value": 0 } },
+            "proves": "No Givens op exists; the op set has no other arbitrary-angle gate, and a phase-gradient register is not a basis state so it cannot live on a lane.",
+            "cannot_show": "Nothing further."
+          }
+        },
+        {
+          "id": "phase-gradient-givens",
+          "status": "active",
+          "definition": "Givens rotations between adjacent spin orbitals with angles read from a register and applied by addition into a phase-gradient register, charged by formula (the DF encoding; no DF spec ships here).",
+          "citations": [
+            { "ref": "lee2021", "location": "Appendix C, step 4(d)", "supports": "Apply the controlled rotations to rotate the basis with cost N(i-2)." },
+            { "ref": "vonburg2021", "location": "Supplementary Sec. VII.C.1", "supports": "Rotations by identical angles implemented exactly by the phase gradient technique [34] (Gidney 2018)." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } },
+            "sufficient": { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } },
+            "proves": "The circuit uses the harness's Givens op, which is by definition a register-angle phase-gradient rotation charged by the formula of spec/DESIGN.md section 15.",
+            "cannot_show": "Nothing further; the angle bits are a parameter, not a family."
+          }
+        },
+        {
+          "id": "nonorthogonal-thc",
+          "status": "active",
+          "definition": "Phase-gradient Givens rotations (the same primitive and charge as phase-gradient-givens) that rotate spatial orbital 0 onto one THC factor vector at a time; the factors of one lane need not be orthogonal (the THC encoding; no THC spec ships here).",
+          "citations": [
+            { "ref": "lee2021", "location": "Sec. II.D, p. 12", "supports": "'It does not matter that the basis is not orthogonal, because the rotations are done individually for each mu separately.'" },
+            { "ref": "lee2021", "location": "Sec. III.C, step 3", "supports": "Perform the rotations with cost N(i-2) by adding the rotations into the phase gradient state." }
+          ],
+          "signature": {
+            "strength": "exact",
+            "necessary": { "all": [ { "cmp": { "field": "encoding", "op": "==", "value": "thc" } }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } } ] },
+            "sufficient": { "all": [ { "cmp": { "field": "encoding", "op": "==", "value": "thc" } }, { "cmp": { "field": "op_counts.GIVENS", "op": ">", "value": 0 } } ] },
+            "proves": "A THC circuit used the Givens op, and every sampled lane's product of two rotated operators with overlapping factor vectors matched its reference (the Gaussian tracker checks non-orthogonal pairs and the exact sign).",
+            "cannot_show": "The network's shape or how angles were loaded; the charge per Givens is the same as phase-gradient-givens."
+          }
+        }
+      ]
+    }
+  ],
+  "rules": [
+    { "id": "sparse-lane-maps", "if": { "encoding": "sparse" }, "then": { "lane_map": { "in": ["alias-v1", "sparse-sym-alias-v1"] } }, "reason": "A sparse spec's lanes are parsed only by the flat alias or the sparse symmetry alias." },
+    { "id": "df-lane-maps", "if": { "encoding": "df" }, "then": { "lane_map": { "in": ["df-pair-alias-v1", "df-nested-alias-v1"] } }, "reason": "DF terms are rotated operators; df-pair-alias-v1 (flat) and df-nested-alias-v1 (nested) map lanes to them." },
+    { "id": "df-pair-select", "if": { "lane_map": "df-pair-alias-v1" }, "then": { "select": { "in": ["givens-network"] } }, "reason": "A flat pair lane map admits no Reflect (the harness rejects it), so SELECT cannot be nested." },
+    { "id": "df-nested-select", "if": { "lane_map": "df-nested-alias-v1" }, "then": { "select": { "in": ["givens-nested"] } }, "reason": "A nested lane map requires the nested structure, so SELECT is the nested composition." },
+    { "id": "sparse-select", "if": { "encoding": "sparse" }, "then": { "select": { "in": ["unary-pauli", "selected-majorana", "clifford-mask"] } }, "reason": "Sparse terms are Majorana monomials, applied without basis rotations." },
+    { "id": "df-select", "if": { "encoding": "df" }, "then": { "select": { "in": ["givens-network", "givens-nested"] } }, "reason": "DF terms are number operators in a rotated basis." },
+    { "id": "sparse-rotation", "if": { "encoding": "sparse" }, "then": { "rotation": { "in": ["none"] } }, "reason": "Sparse terms need no arbitrary-angle rotation." },
+    { "id": "df-rotation", "if": { "encoding": "df" }, "then": { "rotation": { "in": ["phase-gradient-givens"] } }, "reason": "DF basis changes are Givens rotations; the Givens op is the only rotation primitive." },
+    { "id": "alias-needs-lookup", "if": { "lane_map": "alias-v1" }, "then": { "lookup": { "not_in": ["none"] } }, "reason": "Alias sampling reads keep and alt from a table (Babbush et al. 2018 Sec. III.D, step 2)." },
+    { "id": "sparse-sym-needs-lookup", "if": { "lane_map": "sparse-sym-alias-v1" }, "then": { "lookup": { "not_in": ["none"] } }, "reason": "Alias sampling reads keep and alt from a table." },
+    { "id": "df-pair-needs-lookup", "if": { "lane_map": "df-pair-alias-v1" }, "then": { "lookup": { "not_in": ["none"] } }, "reason": "Alias sampling reads keep and alt from a table, and the rotation angles are data." },
+    { "id": "df-nested-needs-lookup", "if": { "lane_map": "df-nested-alias-v1" }, "then": { "lookup": { "not_in": ["none"] } }, "reason": "Both alias levels read keep and alt from tables, and the rotation angles are data." },
+    { "id": "thc-lane-maps", "if": { "encoding": "thc" }, "then": { "lane_map": { "in": ["thc-pair-alias-v1"] } }, "reason": "THC terms are ordered products of rotated operators; only thc-pair-alias-v1 maps lanes to them in this release." },
+    { "id": "thc-select", "if": { "encoding": "thc" }, "then": { "select": { "in": ["givens-network"] } }, "reason": "THC terms are number operators in the factors' rotated bases." },
+    { "id": "thc-rotation", "if": { "encoding": "thc" }, "then": { "rotation": { "in": ["nonorthogonal-thc"] } }, "reason": "THC basis changes rotate onto non-orthogonal factor vectors with the Givens op." },
+    { "id": "thc-pair-needs-lookup", "if": { "lane_map": "thc-pair-alias-v1" }, "then": { "lookup": { "not_in": ["none"] } }, "reason": "Alias sampling reads keep and alt from a table, and the rotation angles are data." },
+    { "id": "sa-lane-maps", "if": { "encoding": "sos-sa" }, "then": { "lane_map": { "in": ["sa-nested-alias-v1"] } }, "reason": "An sos-sa spec's lanes are parsed only by sa-nested-alias-v1." },
+    { "id": "sa-nested-select", "if": { "lane_map": "sa-nested-alias-v1" }, "then": { "select": { "in": ["givens-sa-nested"] } }, "reason": "The spectrum-amplified lane map requires the nested structure around one Reflect." },
+    { "id": "sa-select", "if": { "encoding": "sos-sa" }, "then": { "select": { "in": ["givens-sa-nested"] } }, "reason": "The sum-of-squares generators are applied in rotated bases, twice around a reflection." },
+    { "id": "sa-rotation", "if": { "encoding": "sos-sa" }, "then": { "rotation": { "in": ["phase-gradient-givens"] } }, "reason": "The generators' basis changes are Givens rotations." },
+    { "id": "sa-nested-needs-lookup", "if": { "lane_map": "sa-nested-alias-v1" }, "then": { "lookup": { "not_in": ["none"] } }, "reason": "Both alias levels read keep and alt from tables, and the rotation angles are data." },
+    { "id": "monomial-measures", "if": { "lookup": "monomial-lookup" }, "then": { "uncompute": { "in": ["measurement-based"] } }, "reason": "The power-product lookup ends by measuring its ancillas in the X basis (Gidney 2025 App. A.4)." }
+  ]
+}

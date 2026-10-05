@@ -1,0 +1,322 @@
+name: Judge
+
+# The arbiter of submissions. For a pull request that adds a submission directory it
+#   1. checks the path policy and the manifest from git objects (nothing is checked out or run),
+#   2. builds the circuit from the pull request's editable code in a no-network sandbox,
+#   3. validates the circuit with the trusted evaluator on lanes seeded by the ledger key,
+#   4. comments the result, and for a circuit that earns a standing merges the pull request and
+#      appends the signed row to the ledger.
+#
+# Trust boundaries (spec/VALIDATION.md):
+#   - The workflow, the tooling and the evaluator always come from the base branch.
+#   - Only `build` touches pull-request code. It has a read-only token, no secrets, and runs that
+#     code inside bubblewrap. Its only product is the circuit artifact, which is treated as hostile.
+#   - Everything `record` relies on travels as job outputs of `intake` and `evaluate`, which run
+#     base-branch code only. Artifacts are never trusted.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions: {}
+
+concurrency:
+  group: judge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PR: ${{ github.event.pull_request.number }}
+  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+jobs:
+  intake:
+    name: Policy and manifest
+    # A label re-runs the judge only when it is a maintainer's approval or an explicit re-judge.
+    if: >-
+      github.event.pull_request.base.ref == 'main' &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'architecture-approved' ||
+       github.event.label.name == 'rejudge')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      is_submission: ${{ steps.intake.outputs.is_submission }}
+      ready: ${{ steps.intake.outputs.ready }}
+      challenge: ${{ steps.intake.outputs.challenge }}
+      policy: ${{ steps.intake.outputs.policy }}
+      manifest: ${{ steps.intake.outputs.manifest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch the pull request head as data
+        run: |
+          git fetch --no-tags --quiet origin "+refs/pull/${PR}/head:refs/remotes/pr/head"
+          test "$(git rev-parse refs/remotes/pr/head)" = "$HEAD_SHA"
+      - name: Path policy and manifest
+        id: intake
+        run: |
+          merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          python3 challenge.py intake --base "$merge_base" --head "$HEAD_SHA" --out judge
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, pathlib
+          policy = json.loads(pathlib.Path("judge/policy.json").read_text())
+          manifest = pathlib.Path("judge/manifest.json")
+          checked = json.loads(manifest.read_text()) if manifest.exists() else None
+          print(f"is_submission={'true' if policy['is_submission'] else 'false'}")
+          print(f"ready={'true' if policy['is_submission'] and policy['ok'] and checked else 'false'}")
+          print(f"challenge={policy.get('challenge') or ''}")
+          print(f"policy={json.dumps(policy, separators=(',', ':'))}")
+          print(f"manifest={json.dumps(checked, separators=(',', ':')) if checked else ''}")
+          PY
+
+  build:
+    name: Build the circuit (sandboxed)
+    needs: intake
+    if: needs.intake.outputs.ready == 'true' && needs.intake.outputs.challenge == 'femoco'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      MANIFEST: ${{ needs.intake.outputs.manifest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Take only the editable paths from the pull request
+        run: |
+          git fetch --no-tags --quiet origin "+refs/pull/${PR}/head:refs/remotes/pr/head"
+          test "$(git rev-parse refs/remotes/pr/head)" = "$HEAD_SHA"
+          python3 challenge.py overlay femoco --head "$HEAD_SHA"
+          mkdir -p judge && printf '%s' "$MANIFEST" > judge/manifest.json
+      - name: Restore cargo cache (read-only)
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            challenges/femoco/target
+          key: femoco-${{ runner.os }}-${{ hashFiles('challenges/femoco/Cargo.lock', 'challenges/femoco/rust-toolchain') }}
+      - name: Toolchain and sandbox
+        working-directory: challenges/femoco
+        run: ./setup.sh
+      - name: Recorded circuits still build byte for byte
+        working-directory: challenges/femoco
+        run: tools/ci/pins_sandboxed.sh
+      - name: Build the submitted circuit
+        run: python3 challenge.py build femoco --manifest judge/manifest.json
+      - name: Upload the circuit
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: circuit
+          path: |
+            challenges/femoco/ops.bin
+            challenges/femoco/lanemap.bin
+            challenges/femoco/family.out.json
+          if-no-files-found: error
+          retention-days: 30
+
+  evaluate:
+    name: Validate with the trusted evaluator
+    needs: [intake, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      row: ${{ steps.row.outputs.row }}
+      decision: ${{ steps.row.outputs.decision }}
+    env:
+      MANIFEST: ${{ needs.intake.outputs.manifest }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # Base-branch code only: no file of the pull request is present in this job.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Download the circuit
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: circuit
+          path: judge/circuit
+      - name: Trusted evaluator (release binary, or built from source)
+        id: evaluator
+        working-directory: challenges/femoco
+        run: |
+          digest="$(cd "$GITHUB_WORKSPACE" && python3 challenge.py verifier-digest femoco)"
+          lock=evaluator.lock.json
+          bin="$GITHUB_WORKSPACE/judge/eval_circuit"
+          source=built
+          if [[ -f "$lock" && "$(jq -r '.verifierSha256' "$lock")" == "$digest" ]]; then
+            tag="$(jq -r '.tag' "$lock")"; name="$(jq -r '.assets["linux-x86_64"].name' "$lock")"
+            want="$(jq -r '.assets["linux-x86_64"].sha256' "$lock")"
+            if gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$name" --output "$bin" \
+               && [[ "$(sha256sum "$bin" | cut -d' ' -f1)" == "$want" ]]; then
+              chmod +x "$bin"; source="release $tag"
+            else
+              rm -f "$bin"
+            fi
+          fi
+          if [[ "$source" == built ]]; then
+            echo "No release binary for verifier digest $digest; building the evaluator from source."
+            CARGO_TARGET_DIR="$PWD/target/trusted" cargo build --release --locked --no-default-features --bin eval_circuit
+            cp target/trusted/release/eval_circuit "$bin"
+          fi
+          echo "evaluator: $source (verifier digest $digest)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Lane seed
+        id: seed
+        env:
+          QAC_LEDGER_KEY: ${{ secrets.QAC_LEDGER_KEY }}
+        run: |
+          if [[ -z "$QAC_LEDGER_KEY" ]]; then
+            echo "The QAC_LEDGER_KEY secret is not set; the judge cannot seed lanes or sign rows." >&2
+            exit 1
+          fi
+          echo "seed=$(python3 challenge.py seed --root judge/circuit)" >> "$GITHUB_OUTPUT"
+      - name: Screen and full validation
+        env:
+          SEED: ${{ steps.seed.outputs.seed }}
+        run: |
+          root="$GITHUB_WORKSPACE/judge/circuit"
+          ln -s "$GITHUB_WORKSPACE/challenges/femoco/specs" "$root/specs"
+          ln -s "$GITHUB_WORKSPACE/challenges/femoco/taxonomy" "$root/taxonomy"
+          contract=challenges/femoco/benchmark.json
+          engines=""
+          for stage in screen full; do
+            engine="$(jq -r ".validation.$stage.engine" "$contract")"
+            samples="$(jq -r ".validation.$stage.samples" "$contract")"
+            echo "::group::$stage: $engine engine, $samples lanes"
+            rm -f "$root/score.json"
+            judge/eval_circuit --root "$root" --samples "$samples" --engine "$engine" --server-seed "$SEED"
+            test -s "$root/score.json"
+            echo "::endgroup::"
+            engines="${engines:+$engines+}$engine-$samples"
+          done
+          echo "ENGINES=$engines" >> "$GITHUB_ENV"
+      - name: Ledger row and standing
+        id: row
+        env:
+          SEED: ${{ steps.seed.outputs.seed }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          printf '%s' "$MANIFEST" > judge/manifest.json
+          python3 challenge.py row femoco --manifest judge/manifest.json --score judge/circuit/score.json \
+            --engine "$ENGINES" --seed "$SEED" --commit "$HEAD_SHA" --pr "$PR" --author "$AUTHOR" --out judge/row.json
+          python3 challenge.py decide femoco --row judge/row.json > judge/decision.json
+          cat judge/decision.json
+          {
+            echo "row=$(jq -c . judge/row.json)"
+            echo "decision=$(jq -c . judge/decision.json)"
+          } >> "$GITHUB_OUTPUT"
+      - name: Summary
+        run: |
+          jq -r '"| Toffolis per step | Peak qubits | Score |\n| ---: | ---: | ---: |\n| \(.toffoli) | \(.qubits) | \(.score) |"' judge/row.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload score.json
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: score
+          path: judge/circuit/score.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  record:
+    name: Report, merge and record
+    needs: [intake, build, evaluate]
+    if: always() && needs.intake.result == 'success' && needs.intake.outputs.is_submission == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    # One ledger writer at a time, across all pull requests.
+    concurrency:
+      group: qac-ledger
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      POLICY: ${{ needs.intake.outputs.policy }}
+      MANIFEST: ${{ needs.intake.outputs.manifest }}
+      ROW: ${{ needs.evaluate.outputs.row }}
+      DECISION: ${{ needs.evaluate.outputs.decision }}
+      BUILD_RESULT: ${{ needs.build.result }}
+      EVALUATE_RESULT: ${{ needs.evaluate.result }}
+      APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'architecture-approved') }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Compose the report
+        id: report
+        run: |
+          mkdir -p judge
+          printf '%s' "$POLICY" > judge/policy.json
+          [[ -z "$MANIFEST" ]] || printf '%s' "$MANIFEST" > judge/manifest.json
+          [[ -z "$ROW" ]] || printf '%s' "$ROW" > judge/row.json
+          [[ -z "$DECISION" ]] || printf '%s' "$DECISION" > judge/decision.json
+          python3 challenge.py report --dir judge --build "$BUILD_RESULT" --evaluate "$EVALUATE_RESULT" \
+            --approved "$APPROVED" --run-url "$RUN_URL" --out judge/report.json > /dev/null
+          jq -r '.body' judge/report.json > judge/comment.md
+          echo "merge=$(jq -r '.merge' judge/report.json)" >> "$GITHUB_OUTPUT"
+          echo "label=$(jq -r '.label' judge/report.json)" >> "$GITHUB_OUTPUT"
+      - name: Comment and label
+        env:
+          LABEL: ${{ steps.report.outputs.label }}
+        run: |
+          for name in submission-invalid submission-not-recorded needs-architecture-review submission-validated submission-recorded architecture-approved rejudge; do
+            gh label create "$name" --force >/dev/null 2>&1 || true
+          done
+          previous="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- qac-judge -->")))][-1].id // empty')"
+          if [[ -n "$previous" ]]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$previous" -F body=@judge/comment.md >/dev/null
+          else
+            gh pr comment "$PR" --body-file judge/comment.md
+          fi
+          gh pr edit "$PR" --remove-label submission-invalid,submission-not-recorded,needs-architecture-review,submission-validated,rejudge >/dev/null 2>&1 || true
+          gh pr edit "$PR" --add-label "$LABEL"
+      - name: Merge and record
+        if: steps.report.outputs.merge == 'true'
+        env:
+          QAC_LEDGER_KEY: ${{ secrets.QAC_LEDGER_KEY }}
+        run: |
+          say() { gh pr comment "$PR" --body "$1"; }
+          # The circuit was validated against BASE_SHA. Merge only if the code that builds and
+          # judges circuits is unchanged on main since then; otherwise the bytes may differ.
+          if ! python3 challenge.py unchanged femoco --base "$BASE_SHA" --head HEAD; then
+            say "The judge or the circuit code on \`main\` changed after this run started. Update the branch on \`main\`; the judge will run again."
+            exit 1
+          fi
+          # Another submission may have been recorded since: decide again on the current ledger.
+          python3 challenge.py decide femoco --row judge/row.json > judge/decision-final.json
+          if [[ "$(jq -r '.accepted' judge/decision-final.json)" != "true" ]]; then
+            say "Valid, but no longer recorded: $(jq -r '.reason' judge/decision-final.json)."
+            gh pr edit "$PR" --remove-label submission-validated --add-label submission-not-recorded
+            exit 0
+          fi
+          id="$(jq -r '"\(.challenge)/\(.track)/\(.id)"' judge/manifest.json)"
+          gh pr merge "$PR" --squash --match-head-commit "$HEAD_SHA" --subject "Submission $id (#$PR)"
+          git pull --ff-only --quiet origin main
+          merged="$(git rev-parse HEAD)"
+          jq --arg commit "$merged" --arg now "$(date +%s)" '.commit = $commit | .unix_time = $now' judge/row.json > judge/row-final.json
+          python3 challenge.py record femoco --row judge/row-final.json
+          python3 challenge.py check --signed
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add challenges/femoco/results.tsv data/site
+          git commit --quiet -m "Record $id (#$PR)"
+          git push --quiet origin HEAD:main
+          gh pr edit "$PR" --remove-label submission-validated --add-label submission-recorded
+          say "Recorded in \`challenges/femoco/results.tsv\` at $(git rev-parse --short HEAD), built from $merged."

@@ -1,0 +1,13 @@
+target/
+target-*/
+__pycache__/
+*.pyc
+.cache/
+.runs/
+.DS_Store
+# Circuit build and evaluation outputs: never committed.
+ops.bin
+lanemap.bin
+family.out.json
+score.json
+score-*.json

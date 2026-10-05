@@ -1,0 +1,15 @@
+{
+ "schema": "qac-site-sources-v1",
+ "registry": "challenges.json",
+ "activation": "data/site/activation.json",
+ "challenges": {
+  "femoco": {
+   "benchmark": "challenges/femoco/benchmark.json",
+   "architectures": "challenges/femoco/architectures.json",
+   "targets": "challenges/femoco/targets.json",
+   "ledger": "challenges/femoco/results.tsv",
+   "leaderboard": "data/site/femoco/leaderboard.json",
+   "content": "data/site/femoco/challenge.json"
+  }
+ }
+}

@@ -1,0 +1,29 @@
+{
+ "schema": "qac-targets-v1",
+ "challenge": "femoco",
+ "conventions": "Published points use Low et al.'s cost model: 4 Toffolis more per executed Givens rotation than this harness charges, and a printed register-rule qubit count instead of a measured peak. `toffoliHarnessEquivalent` removes the Givens difference so the Toffoli count can be read against ledger rows; qubit counts are indicative only.",
+ "targets": [
+  {
+   "id": "low2025-reiher",
+   "track": "reiher",
+   "label": "Low et al. 2025, spectrum amplification",
+   "citation": "G. H. Low, R. King, D. W. Berry, Q. Han, A. E. DePrince III, A. F. White, R. Babbush, R. D. Somma, N. C. Rubin, Phys. Rev. X 15, 041016 (2025), Table V",
+   "toffoliPublished": 10203,
+   "qubitsPublished": 1132,
+   "givensChargeOffset": 848,
+   "toffoliHarnessEquivalent": 9355,
+   "lambdaEffPublished": 21.3674
+  },
+  {
+   "id": "low2025-li",
+   "track": "li",
+   "label": "Low et al. 2025, spectrum amplification",
+   "citation": "G. H. Low, R. King, D. W. Berry, Q. Han, A. E. DePrince III, A. F. White, R. Babbush, R. D. Somma, N. C. Rubin, Phys. Rev. X 15, 041016 (2025), Table V",
+   "toffoliPublished": 14629,
+   "qubitsPublished": 1454,
+   "givensChargeOffset": 1200,
+   "toffoliHarnessEquivalent": 13429,
+   "lambdaEffPublished": 43.6538
+  }
+ ]
+}

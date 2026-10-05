@@ -1,0 +1,33 @@
+title: "[Help] "
+body:
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Where are you stuck?
+      options:
+        - Setup and build
+        - Writing circuit code
+        - Local run
+        - Submission and judge
+        - Reading the ledger or site feed
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust toolchain, commit of this repository.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and expected result
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed result
+    validations:
+      required: true

@@ -1,0 +1,164 @@
+{
+ "id": "li-sa-v1",
+ "instance": "li",
+ "encoding": "sos-sa",
+ "spatial_orbitals": 76,
+ "spin_orbitals": 152,
+ "electrons": 113,
+ "terms": 3736654,
+ "terms_note": "ordered products M_y^dagger M_x, x != y, of each generator's LCU (docs/SPEC-SA.md section 3): 4 per one-body eigenvector (2 spins x 2 orders) and (2B+1) 2B per (r, c) square",
+ "R": 15,
+ "B": 57,
+ "C": 19,
+ "generators": 437,
+ "rotation_bits": 15,
+ "lambda": {
+  "exact": "3645348901122036324068622370439313/20282409603651670423947251286016",
+  "float": 179.7295771240969
+ },
+ "lambda_note": "Lambda = sum_r |e_r| + (1/4) sum_rc (|wB_rc| + sum_b |w_rcb|)^2 = (1/2) sum_alpha lambda_alpha^2, the block-encoding normalization of the spectrum-amplified walk (Low et al. 2025 Eq. (33))",
+ "lambda_H1": {
+  "exact": "15118560262396395603/1152921504606846976",
+  "float": 13.113260705074552
+ },
+ "lambda_SF": {
+  "exact": "3379380376262244154276465905336465/20282409603651670423947251286016",
+  "float": 166.61631641902233
+ },
+ "lambda_flat": {
+  "exact": "6507748724116804795788161637503889/20282409603651670423947251286016",
+  "float": 320.85678434110423
+ },
+ "lambda_flat_note": "sum of the ordered-product coefficients c_t (the rounding error is summed over these terms)",
+ "identity": {
+  "exact": "-22008920249724814652142016873517679/20282409603651670423947251286016",
+  "float": -1085.123546945936
+ },
+ "identity_note": "sos_const + sum_rc (wB_rc^2 / 2 + sum_b w_rcb^2 / 4): H_spec = identity + sum_t c_t M_t",
+ "E_SOS": {
+  "exact": "-1295567774823898759251/1152921504606846976",
+  "float": -1123.7259168530254
+ },
+ "E_SOS_note": "sos_const - sum_r |e_r|: H_spec - E_SOS = sum_alpha O^dagger O is positive semidefinite on all of Fock space",
+ "sos_const": -1110.612656147951,
+ "parameters": {
+  "R": 15,
+  "B": 57,
+  "C": 19,
+  "rotation_bits": 15,
+  "electrons": 113,
+  "authors_keep_bits": 9
+ },
+ "parameters_source": {
+  "factors": "Zenodo 17066718 spinfree.zip member spinfree/FeMoCo76o113e/scan_gap_seed2000000/FeMoCo76o113e_15_57_19_ln100_ep1000_lrf10_tg4666_te10_ndiff35.pickle (data/femoco/SOURCES_LOW2025.json)",
+  "RBC": "final_rbc_systems.csv row FeMoco76: R, B, C = 15, 57, 19",
+  "rotation_bits": "get_walk_counts_different_bits_adjustments_for_paper_revision.py (Zenodo 17066718, md5 41c45e6ce7c1c1df910d352d040daa1f), run unchanged: prints \"do.sys_name='FeMoco54' target_error=0.83 Coeff bits: 9.00 Rot bits: 16.00\" and \"do.sys_name='FeMoco76' target_error=0.83 Coeff bits: 9.00 Rot bits: 15.00\", and with those bits \"FeMoco54 10203 1132  3.42e+08\" and \"FeMoco76 14629 1454  1.00e+09\" (the journal's Cost[BE], qubits and totals)",
+  "authors_keep_bits": "the same script: 'Coeff bits: 9.00' (the alias keep precision they cost). Not a spec parameter: a lane map chooses its own keep bits and must meet this harness's 0.1 mHa rounding rule",
+  "electrons": "Reiher et al. 2017: 54 electrons; Li et al. 2019: 113 electrons (data/femoco/SOURCES.json); the BLISS shift in the factors is for this electron count"
+ },
+ "payload": {
+  "file": "sa.bin",
+  "format": "FEMOSAS1",
+  "version": 1,
+  "sha256": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82",
+  "bytes": 412192
+ },
+ "generator": {
+  "script": "tools/specs/sa_spec.py",
+  "sha256": "638070a3d2ae7e995f10b38c4fee8a616a6f2cbc17420b3c8905f41a217cb735",
+  "imports": {
+   "script": "tools/specs/df_spec.py",
+   "sha256": "448472246188c6a59b7f2c7a8b7dec12d5811ac6bcfd3bb60a39869ca4485f08"
+  }
+ },
+ "published": {
+  "source": "Low et al., Phys. Rev. X 15, 041016 (2025), doi:10.1103/pb2g-j9cw (arXiv:2502.15882)",
+  "location": "Low et al. 2025, Phys. Rev. X 15, 041016, doi:10.1103/pb2g-j9cw, Table V (top), DFTHC + BLISS + SA block (rows Lambda/Ha, E_gap/Ha, lambda_eff/Ha, eps_corr/mHa, Cost[BE], Qubits) and Table I; the record's final_rbc_systems.csv (md5 962340e5cf8f2f177108b5c8e4f26cdd)",
+  "Lambda": 179.7296,
+  "E_gap": 5.382,
+  "lambda_eff": 43.6538,
+  "eps_corr_mHa": 0.1362,
+  "cost_be": 14629,
+  "qubits": 1454,
+  "total_toffoli": 1000000000.0,
+  "steps": 68572,
+  "steps_formula": "ceil(pi lambda_eff / (2 x 0.001)) (Eq. (11), sigma_PEA = 1.0 mHa)",
+  "E_gap_note": "their E_gap is the CSV's HF-adjusted SOS gap (pickle sos_gap - old DMRG energy + the DFTHC Hamiltonian's HF energy), not CCSD(T) as the text says (references/REFERENCES.md)",
+  "csv": {
+   "lambda_walk": 179.72964,
+   "error_h2": 0.082517356,
+   "ghl_sos_gap": 4.6660557,
+   "sos_gap_hf_adjusted": 5.382034968,
+   "sos_gap_ccsdt_adjusted": 5.125968311,
+   "lambda_eff_hf_sqrt2": 43.6538213,
+   "R": 15,
+   "B": 57,
+   "C": 19,
+   "N": 76
+  },
+  "pickle_values": {
+   "lambda_DFTHC": 179.72964477539062,
+   "lambda_H1": 13.113321304321289,
+   "lambda_H2": 166.61631774902344,
+   "H0": 22131.826171875,
+   "sos_gap": 4.666055679321289,
+   "error_h2": 0.0825173556804657
+  }
+ },
+ "reproduced": {
+  "what": "the authors' own quantities recomputed in float64 from the float32 factors and the pinned integrals (their functions, before rotation rounding); Lambda of this spec (exact, quantized networks do not enter Lambda) equals lambda_DFTHC here up to the float64 eigendecomposition",
+  "lambda_H1": 13.11326070507455,
+  "lambda_H2": 166.61631641902233,
+  "lambda_DFTHC": 179.72957712409686,
+  "H0": 1110.612656147951,
+  "lambda_DFTHC_minus_pickle": -6.765129376162804e-05,
+  "lambda_DFTHC_printed": 179.7296,
+  "fit_frobenius": 0.08251734201586851,
+  "fit_frobenius_minus_pickle": -1.3664597189877448e-08,
+  "operator_identity": {
+   "alpha": 8.052825596183538,
+   "one_body_residual": 1.2434497875801753e-14,
+   "constant_residual": -1.6251097689767846e-12
+  },
+  "note": "the pickle's values were computed by the authors in float32 (jax). H0 agrees to float32 precision (Reiher; Li's pickle H0 includes the FCIDUMP core energy -21021.2140122 that eri_li.h5 and every Li spec here omit), lambda_DFTHC to 5e-7 relative: a float32 jax re-run of their functions on these inputs gives 58.343956 and 179.729599, so the residual is float32 evaluation, not a different operator"
+ },
+ "errors": [
+  {
+   "name": "sector",
+   "kind": "rigorous",
+   "value": null,
+   "how": "H_spec equals the DFTHC operator only on the 113-electron sector: H_spec(unquantized) - H - (1/2) sum_pqrs D_pqrs Et_pq Et_rs = (N - eta)(alpha + (Hs/2).E), a BLISS term (checked in spin-free E-form to 1.2e-14 per one-body entry and 1.6e-12 Ha in the constant)"
+  },
+  {
+   "name": "dfthc_fit_frobenius",
+   "kind": "estimate",
+   "value": 0.08251734201586851,
+   "how": "the authors' metric error_h2: Frobenius norm over all (p,q,r,s) of D = sum_rc L_rc (x) L_rc - eri - (BLISS two-body shift); reproduces the pickle's error_h2"
+  },
+  {
+   "name": "dfthc_fit_bound",
+   "kind": "rigorous",
+   "value": 284.639868607066,
+   "how": "on the sector, ||H_spec - H|| <= ||(1/2) sum D Et Et|| + angle_quantization + eigendecomposition, and ||Et_pq|| <= 2, so this term is at most 2 sum|D|; loose; float64-evaluated"
+  },
+  {
+   "name": "angle_quantization",
+   "kind": "rigorous",
+   "value": 0.36803535250624836,
+   "how": "sum_r |e_r| eps_r + sum_rc S_rc sum_b |w_rcb| eps_rb, eps = 2 sqrt(1 - (u.u_hat)^2) = ||Z(u) - Z(u_hat)|| and ||O^2 - O_hat^2|| <= ||O - O_hat|| (||O|| + ||O_hat||); float64-evaluated"
+  },
+  {
+   "name": "one_body_eigendecomposition",
+   "kind": "rigorous",
+   "value": 2.370177123979127e-14,
+   "how": "sum_i |eig_i(h1' - V diag(e) V^T)| bounds the one-body operator's change from storing float64 eigenpairs"
+  },
+  {
+   "name": "ccsd_t",
+   "kind": "estimate",
+   "value_mEh": 0.1362,
+   "how": "eps_corr, the CCSD(T) correlation-energy error of the DFTHC Hamiltonian, as published (Low et al. 2025, Phys. Rev. X 15, 041016, Table V 'eps_corr /mHa' row; final_rbc_systems.csv 'dmrg dfthc delta ecorr' column); not recomputed here. Their factors carry float32 angles; this spec rounds rotations to 15 bits, which their bit choice also assumes"
+  }
+ ],
+ "errors_note": "statements about H_spec against the pinned Hamiltonian on the electron sector; the lane map's rounding error is checked separately"
+}

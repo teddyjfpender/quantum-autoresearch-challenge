@@ -1,0 +1,46 @@
+title: "[Idea] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share one falsifiable hypothesis. Read the challenge's TASK.md and spec/SCORING.md first. Do not post credentials or private paths.
+  - type: dropdown
+    id: level
+    attributes:
+      label: Level
+      description: A new architecture changes how the circuit is organised. A refinement tunes an existing one.
+      options:
+        - New architecture
+        - Recombination of existing architectures
+        - Refinement within an architecture
+        - Lower bound or impossibility argument
+    validations:
+      required: true
+  - type: input
+    id: scope
+    attributes:
+      label: Challenge, track and architecture
+      placeholder: femoco / li / onehot-split
+    validations:
+      required: true
+  - type: textarea
+    id: bottleneck
+    attributes:
+      label: Observed bottleneck
+      description: Which stage sets the Toffoli count or the qubit peak, with numbers from a recorded circuit.
+    validations:
+      required: true
+  - type: textarea
+    id: mechanism
+    attributes:
+      label: Mechanism and prediction
+      description: What changes, and the Toffolis and qubits you expect it to move.
+    validations:
+      required: true
+  - type: textarea
+    id: falsification
+    attributes:
+      label: Cheapest falsifying check
+      description: The smallest build or count that would show the idea does not pay.
+    validations:
+      required: true

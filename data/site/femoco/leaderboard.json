@@ -1,0 +1,79 @@
+{
+ "schema": "qac-leaderboard-v1",
+ "challenge": "femoco",
+ "metric": {
+  "name": "score",
+  "formula": "lambda_eff x toffoli x qubits",
+  "direction": "lower-is-better",
+  "components": [
+   {
+    "id": "toffoli",
+    "name": "Toffolis per walk step",
+    "unit": "Toffoli gates",
+    "note": "Executed CCX and CCZ plus the charge of each Givens rotation, averaged over the sampled lanes."
+   },
+   {
+    "id": "qubits",
+    "name": "Peak logical qubits",
+    "unit": "qubits",
+    "note": "High-water mark of live qubits, system register included."
+   },
+   {
+    "id": "lambda_eff",
+    "name": "Effective 1-norm",
+    "unit": "Hartree",
+    "note": "The larger of the bound the evaluator certifies for the circuit and the published value. It depends on the spec and the circuit's coefficient precision."
+   }
+  ]
+ },
+ "ledger": "challenges/femoco/results.tsv",
+ "ledgerRows": 0,
+ "tracks": [
+  {
+   "track": "reiher",
+   "title": "Reiher active space (54 orbitals)",
+   "spec": "reiher-sa-est-v1",
+   "circuits": 0,
+   "best": null,
+   "architectures": [],
+   "front": [],
+   "history": [],
+   "targets": [
+    {
+     "id": "low2025-reiher",
+     "track": "reiher",
+     "label": "Low et al. 2025, spectrum amplification",
+     "citation": "G. H. Low, R. King, D. W. Berry, Q. Han, A. E. DePrince III, A. F. White, R. Babbush, R. D. Somma, N. C. Rubin, Phys. Rev. X 15, 041016 (2025), Table V",
+     "toffoliPublished": 10203,
+     "qubitsPublished": 1132,
+     "givensChargeOffset": 848,
+     "toffoliHarnessEquivalent": 9355,
+     "lambdaEffPublished": 21.3674
+    }
+   ]
+  },
+  {
+   "track": "li",
+   "title": "Li active space (76 orbitals)",
+   "spec": "li-sa-est-v1",
+   "circuits": 0,
+   "best": null,
+   "architectures": [],
+   "front": [],
+   "history": [],
+   "targets": [
+    {
+     "id": "low2025-li",
+     "track": "li",
+     "label": "Low et al. 2025, spectrum amplification",
+     "citation": "G. H. Low, R. King, D. W. Berry, Q. Han, A. E. DePrince III, A. F. White, R. Babbush, R. D. Somma, N. C. Rubin, Phys. Rev. X 15, 041016 (2025), Table V",
+     "toffoliPublished": 14629,
+     "qubitsPublished": 1454,
+     "givensChargeOffset": 1200,
+     "toffoliHarnessEquivalent": 13429,
+     "lambdaEffPublished": 43.6538
+    }
+   ]
+  }
+ ]
+}

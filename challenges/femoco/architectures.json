@@ -1,0 +1,60 @@
+{
+ "schema": "qac-architectures-v1",
+ "challenge": "femoco",
+ "axis": "How the rotation angles of the spectrum-amplified SELECT reach the phase-gradient rotations.",
+ "architectures": [
+  {
+   "id": "qroam-word",
+   "name": "QROAM angle words",
+   "mechanism": "The construction of Low et al. 2025. PREPARE alias-samples a nested (outer item, inner index) register. SELECT applies a selected basis change as a chain of Givens rotations: one clean-ancilla QROAM lookup addressed by the binary index loads the whole angle word of the selected network (every rotation's angle, several hundred bits) into a register that is held while the phase-gradient rotations run, and is then uncomputed by measurement.",
+   "distinguishing": "The selected network stays in binary and all of its angles are fetched at once by a table lookup into a wide data register. There is no unary or one-hot copy of the index; the qubit peak is set by the angle word.",
+   "references": [
+    "Low, King, Berry, Han, DePrince, White, Babbush, Somma, Rubin, Phys. Rev. X 15, 041016 (2025)"
+   ]
+  },
+  {
+   "id": "streamed",
+   "name": "Streamed angle words",
+   "parent": "qroam-word",
+   "mechanism": "The angle word is cut into chunks along the rotation chain and the lookup output register holds one chunk at a time: a chunk is read, its rotations are applied, and it is unloaded before the next is read. The lookup's block sizes and the number of live comparator carries are chosen jointly with the chunking, trading Toffolis (more, smaller lookups) for a lower qubit peak.",
+   "distinguishing": "Angles are still fetched by lookups over a binary index, but only a fraction of a network's angle word is ever live: the data register is time-multiplexed along the rotation chain.",
+   "references": [
+    "Low et al. 2025 (the lookup being chunked)",
+    "Berry, Gidney, Motta, McClean, Babbush, Quantum 3, 208 (2019) (QROAM space-time trade-off)"
+   ]
+  },
+  {
+   "id": "onehot",
+   "name": "One-hot angle delivery",
+   "mechanism": "The selected network index is expanded once per SELECT copy into a one-hot register with one qubit per stored network. That register replaces the wide angle word: each rotation's angle is written into a small angle register by CNOTs from the one-hot qubits, with no lookup, and the one-hot register is erased by measurement with a phase fix-up. PREPARE and the rotations are otherwise those of Low et al.",
+   "distinguishing": "A unary copy of the selected network exists for the length of SELECT, so delivering an angle costs Clifford gates only. The Toffoli cost of delivery moves into writing and erasing the one-hot register, and the qubit peak is set by the number of stored networks, not by the angle word.",
+   "references": [
+    "Caesura et al. 2025, App. D (one-hot data loading for rotations)",
+    "Low et al. 2025"
+   ]
+  },
+  {
+   "id": "onehot-split",
+   "name": "Split one-hot with paired corrections",
+   "parent": "onehot",
+   "mechanism": "The one-hot register is split into G groups that share one set of slot qubits: a leaf is a slot plus a group bit, so the register needs about 1/G of the unsplit width. A rotation's angle word is the slot's base word corrected by a group-dependent difference. Because group bits are mutually exclusive, one Toffoli corrects a register bit for two groups at once (pair products; a shared triple for odd counts), so delivery costs (G - 1)/2 Toffolis per corrected bit.",
+   "distinguishing": "The unary register is factored into slots times groups, and angle delivery is a Clifford base load plus Toffoli corrections whose count is set by the exclusivity of the group bits. Qubits fall with G while Toffolis per delivered bit rise with it.",
+   "references": [
+    "Caesura et al. 2025, App. D",
+    "Low et al. 2025"
+   ]
+  },
+  {
+   "id": "rank-scheduled",
+   "name": "Rank-scheduled delivery",
+   "parent": "onehot-split",
+   "mechanism": "On a split one-hot register, the angle words of all rotations are treated as vectors over GF(2) modulo the functions the one-hot register gives for free. A direction of that space costs one Toffoli to compute and can be held in a qubit and reused by CNOTs by every later rotation that needs it, then measured out at no Toffoli cost. A schedule chooses which directions to hold under a qubit budget; the furthest-future-use rule (Belady's rule on subspaces) is used, with a separate budget at the stage between the two halves of SELECT.",
+   "distinguishing": "Computed products persist across rotations: delivery is a caching problem over a held subspace with an explicit qubit budget, instead of being recomputed for every rotation and bit.",
+   "references": [
+    "Belady, IBM Systems Journal 5, 78 (1966) (furthest-future replacement)",
+    "Caesura et al. 2025, App. D",
+    "Low et al. 2025"
+   ]
+  }
+ ]
+}

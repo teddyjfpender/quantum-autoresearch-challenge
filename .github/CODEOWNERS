@@ -1,0 +1,4 @@
+# Trusted paths need a maintainer's review. Submissions are validated by the judge workflow.
+*                                   @teddyjfpender
+/challenges/*/submissions/          
+/challenges/*/src/walk/             

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "specs": [
+    {
+      "id": "reiher-sa-est-v1",
+      "instance": "reiher",
+      "encoding": "sos-sa",
+      "lambda": 58.343974746687564,
+      "terms": 802116,
+      "spec_json_sha256": "5d408912239cfd9c9e61182f7de147360b4faa2782d9f16a0470124d9338c16b",
+      "payload": "specs/reiher-sa-est-v1/sa.bin",
+      "payload_sha256": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
+    },
+    {
+      "id": "li-sa-est-v1",
+      "instance": "li",
+      "encoding": "sos-sa",
+      "lambda": 179.7295771240969,
+      "terms": 3736654,
+      "spec_json_sha256": "09b8dc609b01532b29bf3e9ad020e969774dca8482e0fd2f7e5026f746bfe39c",
+      "payload": "specs/li-sa-est-v1/sa.bin",
+      "payload_sha256": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
+    },
+    {
+      "id": "reiher-sa-v1",
+      "instance": "reiher",
+      "encoding": "sos-sa",
+      "lambda": 58.343974746687564,
+      "terms": 802116,
+      "spec_json_sha256": "99360a7829a6381b97861e0e51d07cd08e8e6b95164c26c8ffec9ddc934e9289",
+      "payload": "specs/reiher-sa-v1/sa.bin",
+      "payload_sha256": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
+    },
+    {
+      "id": "li-sa-v1",
+      "instance": "li",
+      "encoding": "sos-sa",
+      "lambda": 179.7295771240969,
+      "terms": 3736654,
+      "spec_json_sha256": "f8284d66a3eed69986435e87ec4955ba99867b522bc2d8bb88bdfd1cb7b651b6",
+      "payload": "specs/li-sa-v1/sa.bin",
+      "payload_sha256": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
+    }
+  ]
+}

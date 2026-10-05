@@ -1,0 +1,33 @@
+name: Contract
+
+# Repository invariants: tooling tests, registry and contracts, ledger integrity, site feed
+# freshness, documentation links. Runs on every pull request with a read-only token.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Tooling tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Contract check
+        run: python3 challenge.py check --signed
+      - name: Compile tooling
+        run: python3 -m py_compile challenge.py tools/qac/*.py challenges/*/tools/*.py

@@ -1,0 +1,17 @@
+Quantum Autoresearch Challenge
+Copyright 2026 the Quantum Autoresearch Challenge contributors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party material
+
+- challenges/femoco/benchmark.sh, challenges/femoco/setup.sh and the two-process
+  build/evaluate design are adapted from the ecdsa.fail point-addition challenge
+  (https://github.com/Layr-Labs/ecdsafail-challenge).
+- The op-stream format in challenges/femoco/src/circuit.rs keeps the op kinds 0-17 of that
+  challenge's harness, which reuses files from tanujkhattar/zkp_ecc under CC BY 4.0
+  (https://doi.org/10.5281/zenodo.19196956, https://creativecommons.org/licenses/by/4.0/).
+- The FeMoco Hamiltonian data and the published resource estimates the challenge compares
+  against are cited in challenges/femoco/spec/REFERENCES.md.
+
+If you are an author of reused material and want the attribution changed, open an issue.
