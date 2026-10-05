@@ -10,9 +10,10 @@ name: Judge
 # Trust boundaries (spec/VALIDATION.md):
 #   - The workflow, the tooling and the evaluator always come from the base branch.
 #   - Only `build` touches pull-request code. It has a read-only token, no secrets, and runs that
-#     code inside bubblewrap. Its only product is the circuit artifact, which is treated as hostile.
+#     code inside bubblewrap. Its only product is the circuit, handed on as a run-keyed cache
+#     entry and treated as hostile.
 #   - Everything `record` relies on travels as job outputs of `intake` and `evaluate`, which run
-#     base-branch code only. Artifacts are never trusted.
+#     base-branch code only. Nothing uploaded by a job is trusted.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, labeled]
@@ -122,16 +123,15 @@ jobs:
       - name: Build the submitted circuit
         working-directory: /opt/qac
         run: python3 challenge.py build femoco --manifest judge/manifest.json
-      - name: Upload the circuit
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      # Hand-off to the evaluator: a cache entry keyed by this run. Its content is hostile data.
+      - name: Hand the circuit to the evaluator
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          name: circuit
           path: |
             challenges/femoco/ops.bin
             challenges/femoco/lanemap.bin
             challenges/femoco/family.out.json
-          if-no-files-found: error
-          retention-days: 30
+          key: circuit-${{ github.run_id }}-${{ github.run_attempt }}
 
   evaluate:
     name: Validate with the trusted evaluator
@@ -152,11 +152,22 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
-      - name: Download the circuit
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Receive the circuit
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          name: circuit
-          path: judge/circuit
+          path: |
+            challenges/femoco/ops.bin
+            challenges/femoco/lanemap.bin
+            challenges/femoco/family.out.json
+          key: circuit-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Move the circuit out of the repository tree
+        run: |
+          mkdir -p judge/circuit
+          for f in ops.bin lanemap.bin family.out.json; do
+            test -f "challenges/femoco/$f" && ! test -L "challenges/femoco/$f"
+            mv "challenges/femoco/$f" "judge/circuit/$f"
+          done
       - name: Trusted evaluator (release binary, or built from source)
         id: evaluator
         working-directory: challenges/femoco
@@ -232,6 +243,7 @@ jobs:
           jq -r '"| Toffolis per step | Peak qubits | Score |\n| ---: | ---: | ---: |\n| \(.toffoli) | \(.qubits) | \(.score) |"' judge/row.json >> "$GITHUB_STEP_SUMMARY"
       - name: Upload score.json
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: score
@@ -249,6 +261,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      actions: write
     # One ledger writer at a time, across all pull requests.
     concurrency:
       group: qac-ledger
@@ -297,6 +310,10 @@ jobs:
           fi
           gh pr edit "$PR" --remove-label submission-invalid,submission-not-recorded,needs-architecture-review,submission-validated,rejudge >/dev/null 2>&1 || true
           gh pr edit "$PR" --add-label "$LABEL"
+      - name: Drop the circuit hand-off
+        if: always()
+        continue-on-error: true
+        run: gh cache delete "circuit-${{ github.run_id }}-${{ github.run_attempt }}" || true
       - name: Merge and record
         if: steps.report.outputs.merge == 'true'
         env:
