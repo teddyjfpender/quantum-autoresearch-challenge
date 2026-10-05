@@ -34,6 +34,8 @@ phase makes a run fail; it never makes it cheaper.
 
 - [`results.tsv`](results.tsv): every validated circuit ([format](../../spec/LEDGER.md)).
 - [`architectures.json`](architectures.json): the architectures circuits are grouped by.
+- [`circuits.json`](circuits.json): the build knobs of every circuit recorded before the challenge
+  opened, so any of them can be rebuilt and built upon.
 - [`targets.json`](targets.json): the published points of Low et al. 2025, with conventions.
 - [`data/site/femoco/leaderboard.json`](../../data/site/femoco/leaderboard.json): elites per
   architecture, the Toffoli-qubit front and the improvement history, derived from the ledger.

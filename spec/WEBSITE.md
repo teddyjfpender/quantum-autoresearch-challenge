@@ -16,6 +16,7 @@ contract check fails if it is stale.
 | `challenges/<id>/architectures.json` | `qac-architectures-v1` | The architecture registry. |
 | `challenges/<id>/targets.json` | `qac-targets-v1` | Published points, with their conventions. |
 | `challenges/<id>/results.tsv` | [LEDGER.md](LEDGER.md) | One row per validated circuit. |
+| `challenges/femoco/circuits.json` | `qac-recorded-circuits-v1` | Build knobs of the circuits recorded before the challenge opened. |
 | `data/site/<id>/leaderboard.json` | `qac-leaderboard-v1` | Per track: best circuit, architecture elites, front, history, targets. |
 | `data/site/<id>/challenge.json` | `qac-site-content-v1` | Display copy: titles, summaries, rules, how to take part. Authored. |
 

@@ -58,7 +58,9 @@ with the published seed. The key is needed only to check that the row was writte
 Circuits found before the challenge opened are in the ledger with `kind = historical`. Each is
 pinned by a byte-identity test in the challenge's test suite (`submission = pin:<name>`), was
 re-validated by the same pipeline with a ledger-key seed, and carries the date it was first
-measured. They are the starting board and count exactly as submissions do.
+measured (`commit = genesis`). They are the starting board and count exactly as submissions do.
+Every such circuit is kept as a data point, so a historical row's `standing` may be empty: it is
+what the row would have earned in time order.
 
 ## Reading it
 

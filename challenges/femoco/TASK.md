@@ -52,7 +52,9 @@ or schedule within one of these is a refinement, not a new architecture.
 
 ## Where the cost is
 
-Read the ledger before choosing a direction. As a guide to the recorded circuits:
+Read the ledger before choosing a direction. [`circuits.json`](circuits.json) gives the build
+knobs of every circuit recorded before the challenge opened; copy the `build` object of the one
+you start from into your manifest. As a guide to the recorded circuits:
 
 - The Givens rotations are close to their minimum; little is left there.
 - **Angle delivery** dominates the low-qubit end: fewer qubits force more groups, and each
