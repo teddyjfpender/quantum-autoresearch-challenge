@@ -1,0 +1,14 @@
+{
+  "schema": "qac-evaluator-lock-v1",
+  "challenge": "femoco",
+  "tag": "femoco-evaluator-077abe9f1a5c24db",
+  "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+  "sourceCommit": "1778a70bdb9689ddcd33cffb96db9874073c4c54",
+  "toolchain": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "assets": {
+    "linux-x86_64": {
+      "name": "eval_circuit-linux-x86_64",
+      "sha256": "214591dc683a90611cbaba3dbe8d7a757593a8d9c62cba4d644bd7939f166051"
+    }
+  }
+}
