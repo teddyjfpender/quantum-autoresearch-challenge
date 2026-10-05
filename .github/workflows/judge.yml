@@ -106,21 +106,21 @@ jobs:
           test "$(git rev-parse refs/remotes/pr/head)" = "$HEAD_SHA"
           python3 challenge.py overlay femoco --head "$HEAD_SHA"
           mkdir -p judge && printf '%s' "$MANIFEST" > judge/manifest.json
-      - name: Restore cargo cache (read-only)
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            challenges/femoco/target
-          key: femoco-${{ runner.os }}-${{ hashFiles('challenges/femoco/Cargo.lock', 'challenges/femoco/rust-toolchain') }}
+      # The sandbox runs as an unprivileged uid that cannot traverse the runner's home directory.
+      # Bind the workspace to a neutral path and build there; the home directory stays closed.
+      - name: Expose the workspace at a path the sandbox can traverse
+        run: |
+          sudo mkdir -p /opt/qac
+          sudo mount --bind "$GITHUB_WORKSPACE" /opt/qac
+          ls -ld /opt/qac /opt/qac/challenges/femoco
       - name: Toolchain and sandbox
-        working-directory: challenges/femoco
+        working-directory: /opt/qac/challenges/femoco
         run: ./setup.sh
       - name: Recorded circuits still build byte for byte
-        working-directory: challenges/femoco
+        working-directory: /opt/qac/challenges/femoco
         run: tools/ci/pins_sandboxed.sh
       - name: Build the submitted circuit
+        working-directory: /opt/qac
         run: python3 challenge.py build femoco --manifest judge/manifest.json
       - name: Upload the circuit
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
