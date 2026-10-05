@@ -54,8 +54,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Fetch the pull request head as data
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git fetch --no-tags --quiet origin "+refs/pull/${PR}/head:refs/remotes/pr/head"
+          # The read-only token is given to this fetch alone; no checkout keeps credentials.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            fetch --no-tags --quiet origin "+refs/pull/${PR}/head:refs/remotes/pr/head"
           test "$(git rev-parse refs/remotes/pr/head)" = "$HEAD_SHA"
       - name: Path policy and manifest
         id: intake
@@ -91,8 +96,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Take only the editable paths from the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git fetch --no-tags --quiet origin "+refs/pull/${PR}/head:refs/remotes/pr/head"
+          # Runs before any pull-request code exists in the job; the token is not kept.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            fetch --no-tags --quiet origin "+refs/pull/${PR}/head:refs/remotes/pr/head"
           test "$(git rev-parse refs/remotes/pr/head)" = "$HEAD_SHA"
           python3 challenge.py overlay femoco --head "$HEAD_SHA"
           mkdir -p judge && printf '%s' "$MANIFEST" > judge/manifest.json
