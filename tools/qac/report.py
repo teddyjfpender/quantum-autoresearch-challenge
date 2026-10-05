@@ -54,6 +54,10 @@ def build(directory: pathlib.Path, stages: dict[str, str], approved: bool, run_u
         return stop("The circuit did not build, an existing pinned circuit changed, or the builder did not produce its three files. "
                     "New behaviour must sit behind a new build knob so recorded circuits stay byte-identical.")
     if stages.get("evaluate") != "success" or row is None or decision is None:
+        if stages.get("evaluate") in ("failure", None) and row is None:
+            return stop("The trusted evaluator did not pass the circuit, or the evaluation job could not run. "
+                        "The evaluate job's log has the failing lane and reason, or the infrastructure error; "
+                        "a maintainer can add the label `rejudge` to run it again.")
         return stop("The trusted evaluator rejected the circuit. See the evaluate job's log for the failing lane and reason.")
 
     toffoli, qubits = float(row["toffoli"]), int(row["qubits"])

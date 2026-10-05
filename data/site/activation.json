@@ -3,12 +3,45 @@
  "status": "staging",
  "summary": "The ledgers are open and the judge runs on every submission. Rows may be re-validated before a challenge goes live.",
  "gates": [
-  {"name": "Trusted evaluator with byte-identity pins of every recorded circuit", "status": "done", "evidence": "challenges/femoco/tests/sa_digests.rs"},
-  {"name": "Starting board re-validated by the judge pipeline with ledger-key seeds", "status": "done", "evidence": "challenges/femoco/results.tsv (kind = historical)"},
-  {"name": "Judge workflow: sandboxed build, trusted evaluation, signed ledger rows", "status": "done", "evidence": ".github/workflows/judge.yml, spec/VALIDATION.md"},
-  {"name": "Prebuilt evaluator release bound to the verifier digest", "status": "partial", "evidence": ".github/workflows/evaluator-release.yml; first release is cut when the repository opens"},
-  {"name": "Headline rows re-validated on the reference engine at 524,288 lanes", "status": "pending", "evidence": "spec/ROADMAP.md"},
-  {"name": "Independent audit of the sliced engine", "status": "pending", "evidence": "challenges/femoco/spec/FAST-EVALUATOR.md"},
-  {"name": "First external submission judged end to end", "status": "pending", "evidence": ""}
+  {
+   "name": "Trusted evaluator with byte-identity pins of every recorded circuit",
+   "status": "done",
+   "evidence": "challenges/femoco/tests/sa_digests.rs"
+  },
+  {
+   "name": "Starting board re-validated by the judge pipeline with ledger-key seeds",
+   "status": "done",
+   "evidence": "challenges/femoco/results.tsv (kind = historical)"
+  },
+  {
+   "name": "Judge workflow: sandboxed build, trusted evaluation, signed ledger rows",
+   "status": "done",
+   "evidence": ".github/workflows/judge.yml, spec/VALIDATION.md"
+  },
+  {
+   "name": "Prebuilt evaluator release bound to the verifier digest",
+   "status": "done",
+   "evidence": "challenges/femoco/evaluator.lock.json; release femoco-evaluator-077abe9f1a5c24db"
+  },
+  {
+   "name": "Recorded circuits reproduce their ledger rows on hosted runners",
+   "status": "done",
+   "evidence": ".github/workflows/revalidate.yml on the best circuit of each track"
+  },
+  {
+   "name": "Headline rows re-validated on the reference engine at 524,288 lanes",
+   "status": "pending",
+   "evidence": "spec/ROADMAP.md"
+  },
+  {
+   "name": "Independent audit of the sliced engine",
+   "status": "pending",
+   "evidence": "challenges/femoco/spec/FAST-EVALUATOR.md"
+  },
+  {
+   "name": "First submission judged end to end on hosted runners",
+   "status": "partial",
+   "evidence": "Intake, sandboxed build and report run on pull request 1; evaluation and recording verified by the re-validation workflow and locally"
+  }
  ]
 }
