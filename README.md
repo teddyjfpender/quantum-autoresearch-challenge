@@ -15,7 +15,7 @@ re-validated before the first challenge goes live ([activation](data/site/activa
 
 | Challenge | Tracks | Score | Task |
 | --- | --- | --- | --- |
-| [FeMoco walk step](challenges/femoco/README.md) | `reiher`, `li` | effective 1-norm x Toffolis per step x peak qubits | [TASK.md](challenges/femoco/TASK.md) |
+| [FeMoco walk step](challenges/femoco/README.md) | `reiher`, `li` | Toffolis per step x peak qubits | [TASK.md](challenges/femoco/TASK.md) |
 
 More challenges are planned ([roadmap](spec/ROADMAP.md)).
 

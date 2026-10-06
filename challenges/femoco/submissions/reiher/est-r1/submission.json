@@ -1,0 +1,27 @@
+{
+ "schema": "qac-submission-v1",
+ "challenge": "femoco",
+ "track": "reiher",
+ "architecture": "qroam-word",
+ "title": "QROAM angle words: sa-pareto chunks 1, keep 9+9, blocks 4/2",
+ "build": {
+  "FEMOCO_WALK_ARCH": "sa-pareto",
+  "FEMOCO_SA_MU_O": "9",
+  "FEMOCO_SA_MU_I": "9",
+  "FEMOCO_SA_INNER_A": "4",
+  "FEMOCO_SA_OUTER_A": "2",
+  "FEMOCO_SA_CHUNKS": "1",
+  "FEMOCO_SA_CARRIES": "3",
+  "FEMOCO_SA_DROP_ALT": "0"
+ },
+ "claimed": {
+  "toffoli": 9459.0,
+  "qubits": 1050
+ },
+ "authors": [
+  "teddyjfpender"
+ ],
+ "model": "Claude Opus 5.5",
+ "harness": "Claude Code",
+ "pin": "est_r1"
+}

@@ -10,17 +10,16 @@ from qac import ledger  # noqa: E402
 KEY = bytes(range(32))
 TRACKS = {"reiher": {"name": "reiher", "spec": "reiher-sa-est-v1"}, "li": {"name": "li", "spec": "li-sa-est-v1"}}
 ARCHS = {"a": {}, "b": {}}
-LAMBDA = 2.0
 
 
 def row(toffoli, qubits, arch="a", track="reiher", ops="1", when=100):
     return {
         "unix_time": str(when), "track": track, "spec": TRACKS[track]["spec"], "architecture": arch,
-        "toffoli": f"{toffoli:.3f}", "qubits": str(qubits), "score": f"{LAMBDA * toffoli * qubits:.6e}",
-        "lambda_eff": repr(LAMBDA), "samples": "524288", "engine": "reference-4096+sliced-524288", "seed": "ab" * 32,
+        "toffoli": f"{toffoli:.3f}", "qubits": str(qubits), "score": ledger.score_of(f"{toffoli:.3f}", qubits),
+        "samples": "524288", "engine": "reference-4096+sliced-524288", "seed": "ab" * 32,
         "ops_sha256": ops.rjust(64, "0"), "lanemap_sha256": "cd" * 32, "family_sha256": "ef" * 32,
         "family_name": "f", "verifier_sha256": "12" * 32, "commit": "abc1234", "pr": "", "author": "someone",
-        "model": "m", "harness": "h", "submission": "pin:x", "kind": "historical", "standing": "",
+        "model": "m", "harness": "h", "submission": "reiher/x-circuit", "kind": "historical", "standing": "",
         "status": "OK", "note": "n", "mac": ledger.UNSIGNED,
     }
 
@@ -58,7 +57,7 @@ class LedgerTest(unittest.TestCase):
         good = [row(100, 10)]
         ledger.sign(KEY, good)
         bad = [
-            {**good[0], "score": "1.0e3"},
+            {**good[0], "score": "1000.001"},
             {**good[0], "architecture": "zzz"},
             {**good[0], "track": "li"},
             {**good[0], "ops_sha256": "xyz"},

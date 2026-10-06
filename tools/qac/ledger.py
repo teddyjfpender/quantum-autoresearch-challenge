@@ -8,6 +8,7 @@ without the key. See spec/LEDGER.md.
 """
 from __future__ import annotations
 
+import decimal
 import hashlib
 import hmac
 import pathlib
@@ -15,7 +16,7 @@ import pathlib
 from .common import HEX64, ContractError
 
 COLUMNS = [
-    "unix_time", "track", "spec", "architecture", "toffoli", "qubits", "score", "lambda_eff",
+    "unix_time", "track", "spec", "architecture", "toffoli", "qubits", "score",
     "samples", "engine", "seed", "ops_sha256", "lanemap_sha256", "family_sha256", "family_name",
     "verifier_sha256", "commit", "pr", "author", "model", "harness", "submission", "kind",
     "standing", "status", "note", "mac",
@@ -93,6 +94,11 @@ def _f(row: dict, column: str) -> float:
     return float(row[column])
 
 
+def score_of(toffoli: str, qubits: int) -> str:
+    """The challenge score, Toffolis x qubits, computed exactly from the row's own cells."""
+    return f"{decimal.Decimal(toffoli) * qubits:.3f}"
+
+
 def check_rows(rows: list[dict], tracks: dict[str, dict], architectures: dict[str, dict], signed: bool) -> list[str]:
     """Static integrity of a ledger: formats, track and architecture names, ordering, uniqueness."""
     errors: list[str] = []
@@ -102,7 +108,7 @@ def check_rows(rows: list[dict], tracks: dict[str, dict], architectures: dict[st
         where = f"line {number}"
         try:
             when, toffoli, qubits, score = int(row["unix_time"]), _f(row, "toffoli"), int(row["qubits"]), _f(row, "score")
-            lam, samples = _f(row, "lambda_eff"), int(row["samples"])
+            samples = int(row["samples"])
         except ValueError:
             errors.append(f"{where}: unreadable number")
             continue
@@ -114,10 +120,10 @@ def check_rows(rows: list[dict], tracks: dict[str, dict], architectures: dict[st
             errors.append(f"{where}: unknown track or wrong spec")
         if row["architecture"] not in architectures:
             errors.append(f"{where}: architecture '{row['architecture']}' is not in the registry")
-        if toffoli <= 0 or qubits <= 0 or samples <= 0 or lam <= 0:
+        if toffoli <= 0 or qubits <= 0 or samples <= 0:
             errors.append(f"{where}: counts must be positive")
-        elif abs(score - lam * toffoli * qubits) > 1e-5 * score:
-            errors.append(f"{where}: score is not lambda_eff x toffoli x qubits")
+        elif row["score"] != score_of(row["toffoli"], qubits):
+            errors.append(f"{where}: score is not toffoli x qubits")
         for column in ("seed", "ops_sha256", "lanemap_sha256", "family_sha256", "verifier_sha256"):
             if not HEX64.match(row[column]):
                 errors.append(f"{where}: {column} must be 64 hex characters")
@@ -172,12 +178,12 @@ def row_from_score(score: dict, *, track: dict, architecture: str, engine: str, 
     if metrics["spec"] != track["spec"]:
         raise ContractError(f"score.json is for spec {metrics['spec']}, the track needs {track['spec']}")
     digests = metrics["digests"]
+    toffoli, qubits = f"{float(metrics['toffoli']):.3f}", int(metrics["qubits"])
     return {
         "unix_time": str(unix_time), "track": track["name"], "spec": track["spec"], "architecture": architecture,
-        "toffoli": f"{float(metrics['toffoli']):.3f}", "qubits": str(int(metrics["qubits"])),
-        "score": f"{float(score['score']):.6e}",
-        # The normalisation the evaluator used in the score: score / (toffoli x qubits).
-        "lambda_eff": f"{float(score['score']) / (float(metrics['toffoli']) * int(metrics['qubits'])):.6f}",
+        # The challenge score is the product of the two counts. The evaluator's own score.json
+        # also carries a figure weighted by the walk's effective 1-norm; the ledger does not use it.
+        "toffoli": toffoli, "qubits": str(qubits), "score": score_of(toffoli, qubits),
         "samples": str(int(metrics["samples"])), "engine": engine, "seed": seed,
         "ops_sha256": digests["ops"], "lanemap_sha256": digests["lanemap"], "family_sha256": digests["family"],
         "family_name": metrics["family"]["name"], "verifier_sha256": verifier, "commit": commit, "pr": pr,

@@ -1,16 +1,16 @@
 name: Re-validate a recorded circuit
 
-# Audit: rebuild one pinned circuit from main, validate it exactly as the judge does (release
+# Audit: rebuild one pinned circuit of the starting board from main, validate it exactly as the judge does (release
 # evaluator, ledger-key seed, both stages) and require the result to equal its ledger row. No
 # pull-request code is involved. Use it after an evaluator release, or with the reference engine
 # at full size to strengthen a headline row.
 on:
   workflow_dispatch:
     inputs:
-      pin:
-        description: Pin name, as in the ledger's `submission` column after `pin:`
+      submission:
+        description: Ledger `submission` of a starting-board circuit, as `<track>/<id>`
         required: true
-        default: est_low_r
+        default: reiher/est-low-r
       full_engine:
         description: Engine of the full stage
         type: choice
@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 180
     env:
       GH_TOKEN: ${{ github.token }}
-      PIN: ${{ inputs.pin }}
+      SUBMISSION: ${{ inputs.submission }}
       FULL_ENGINE: ${{ inputs.full_engine }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -35,7 +35,10 @@ jobs:
       - name: Rebuild the pinned circuit (byte identity is asserted by the pin test)
         working-directory: challenges/femoco
         run: |
+          [[ "$SUBMISSION" =~ ^[a-z0-9-]+/[a-z0-9-]+$ ]]
+          PIN="$(jq -er '.pin' "submissions/$SUBMISSION/submission.json")"
           [[ "$PIN" =~ ^[a-z0-9_]+$ ]]
+          echo "PIN=$PIN" >> "$GITHUB_ENV"
           FEMOCO_PIN_EXPORT_DIR="$RUNNER_TEMP/pins" cargo test --release --locked --test sa_digests -- --exact "$PIN"
           test -s "$RUNNER_TEMP/pins/$PIN/ops.bin"
       - name: Trusted evaluator (release binary, or built from source)
@@ -73,4 +76,4 @@ jobs:
             --engine "$(jq -r '.validation.screen.engine' "$contract")" --server-seed "$seed"
           "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$(jq -r '.validation.full.samples' "$contract")" \
             --engine "$FULL_ENGINE" --server-seed "$seed"
-          python3 challenge.py compare-row femoco --submission "pin:$PIN" --score "$root/score.json" --seed "$seed" | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 challenge.py compare-row femoco --submission "$SUBMISSION" --score "$root/score.json" --seed "$seed" | tee -a "$GITHUB_STEP_SUMMARY"

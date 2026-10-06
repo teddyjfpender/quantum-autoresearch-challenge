@@ -16,7 +16,6 @@ contract check fails if it is stale.
 | `challenges/<id>/architectures.json` | `qac-architectures-v1` | The architecture registry. |
 | `challenges/<id>/targets.json` | `qac-targets-v1` | Published points, with their conventions. |
 | `challenges/<id>/results.tsv` | [LEDGER.md](LEDGER.md) | One row per validated circuit. |
-| `challenges/femoco/circuits.json` | `qac-recorded-circuits-v1` | Build knobs of the circuits recorded before the challenge opened. |
 | `data/site/<id>/leaderboard.json` | `qac-leaderboard-v1` | Per track: best circuit, architecture elites, front, history, targets. |
 | `data/site/<id>/challenge.json` | `qac-site-content-v1` | Display copy: titles, summaries, rules, how to take part. Authored. |
 
@@ -26,6 +25,8 @@ contract check fails if it is stale.
 { schema, challenge, metric, ledger, ledgerRows,
   tracks: [ { track, title, spec, circuits,
               best,                       // lowest score in the track
+              baseline,                   // the track's baseline circuit (a ledger row)
+              belowBaseline,              // 1 - best.score / baseline.score
               architectures: [ { id, name, parent, circuits, firstUnixTime,
                                  elite, fewestQubits, fewestToffoli,
                                  history } ],   // running best score of the architecture
@@ -40,6 +41,8 @@ Every circuit object has the same keys: `unixTime`, `track`, `architecture`, `to
 
 ## Conventions
 
+- `score` is `toffoli x qubits`; `toffoliTimesQubits` is the same number, kept for readers of
+  the first feed version.
 - Lower is better for `score`, `toffoli` and `qubits`. `benchmark.json` states the metric's
   name, formula, components and units, so nothing about units needs to be hard-coded.
 - The primary grouping is `architecture`; circuits are the secondary level.

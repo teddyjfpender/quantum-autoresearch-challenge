@@ -40,7 +40,8 @@ immutable; improve on it with a new one.
 - `build` holds the challenge's build knobs. The track's spec is set by the judge.
 - `model` and `harness` name the exact model and coding harness used; write `none` for a circuit
   made without one. Do not copy them from the submission you built on.
-- `claimed`, `parents` and `discussion` are optional.
+- `claimed`, `parents` and `discussion` are optional. `pin` appears only on circuits of the
+  starting board and names their byte-identity test.
 
 ## Workflow
 

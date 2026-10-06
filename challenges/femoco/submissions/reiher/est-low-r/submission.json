@@ -1,0 +1,20 @@
+{
+ "schema": "qac-submission-v1",
+ "challenge": "femoco",
+ "track": "reiher",
+ "architecture": "qroam-word",
+ "title": "Low et al. 2025 construction, published parameters",
+ "build": {
+  "FEMOCO_WALK_ARCH": "sa-low2025"
+ },
+ "claimed": {
+  "toffoli": 9600.0,
+  "qubits": 1040
+ },
+ "authors": [
+  "teddyjfpender"
+ ],
+ "model": "Claude Opus 5.5",
+ "harness": "Claude Code",
+ "pin": "est_low_r"
+}

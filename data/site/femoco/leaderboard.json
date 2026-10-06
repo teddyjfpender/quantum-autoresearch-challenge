@@ -3,7 +3,7 @@
  "challenge": "femoco",
  "metric": {
   "name": "score",
-  "formula": "lambda_eff x toffoli x qubits",
+  "formula": "toffoli x qubits",
   "direction": "lower-is-better",
   "components": [
    {
@@ -17,17 +17,11 @@
     "name": "Peak logical qubits",
     "unit": "qubits",
     "note": "High-water mark of live qubits, system register included."
-   },
-   {
-    "id": "lambda_eff",
-    "name": "Effective 1-norm",
-    "unit": "Hartree",
-    "note": "The larger of the bound the evaluator certifies for the circuit and the published value. It depends on the spec and the circuit's coefficient precision."
    }
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 266,
+ "ledgerRows": 267,
  "tracks": [
   {
    "track": "reiher",
@@ -41,7 +35,7 @@
     "toffoli": 11500.479,
     "qubits": 313,
     "toffoliTimesQubits": 3599649.927,
-    "score": 76915160.0,
+    "score": 3599649.927,
     "samples": 524288,
     "engine": "reference-4096+sliced-524288",
     "opsSha256": "490a9c92e7a1c1ad1647f54b4a218ab797991a0a659a2100bc96328c20310c93",
@@ -51,11 +45,37 @@
     "author": "teddyjfpender",
     "model": "Claude Opus 5.5",
     "harness": "Claude Code",
-    "submission": "pin:kc_r3re_m8",
+    "submission": "reiher/kc-r3re-m8",
     "kind": "historical",
     "standing": [],
-    "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e keep 8+8 inner_a 2 outer_a 2"
+    "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e, keep 8+8, blocks 2/2"
    },
+   "baseline": {
+    "unixTime": 1790236214,
+    "track": "reiher",
+    "architecture": "qroam-word",
+    "toffoli": 9600.0,
+    "qubits": 1040,
+    "toffoliTimesQubits": 9984000.0,
+    "score": 9984000.0,
+    "samples": 524288,
+    "engine": "reference-4096+sliced-524288",
+    "opsSha256": "95e8fe8982dca129be65f4d11e4bdce0eb1fd4173f9294687ad0dba8646e2ea9",
+    "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+    "commit": "genesis",
+    "pr": null,
+    "author": "teddyjfpender",
+    "model": "Claude Opus 5.5",
+    "harness": "Claude Code",
+    "submission": "reiher/est-low-r",
+    "kind": "historical",
+    "standing": [
+     "new-architecture",
+     "front"
+    ],
+    "note": "Low et al. 2025 construction, published parameters"
+   },
+   "belowBaseline": 0.639458,
    "architectures": [
     {
      "id": "rank-scheduled",
@@ -70,7 +90,7 @@
       "toffoli": 11500.479,
       "qubits": 313,
       "toffoliTimesQubits": 3599649.927,
-      "score": 76915160.0,
+      "score": 3599649.927,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "490a9c92e7a1c1ad1647f54b4a218ab797991a0a659a2100bc96328c20310c93",
@@ -80,10 +100,10 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:kc_r3re_m8",
+      "submission": "reiher/kc-r3re-m8",
       "kind": "historical",
       "standing": [],
-      "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e keep 8+8 inner_a 2 outer_a 2"
+      "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e, keep 8+8, blocks 2/2"
      },
      "fewestQubits": {
       "unixTime": 1790971147,
@@ -92,7 +112,7 @@
       "toffoli": 16554.081,
       "qubits": 253,
       "toffoliTimesQubits": 4188182.493,
-      "score": 89490570.0,
+      "score": 4188182.493,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "75ced199821226de75ffefb0076539f65cf2f5c7d81fbfd4bf1137c5cc894d4a",
@@ -102,12 +122,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:rc_r5q_m8",
+      "submission": "reiher/rc-r5q-m8",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky5zabfHKVITXSNOBWUs_~q15_1.12 keep 8+8 inner_a 2 outer_a 1"
+      "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabfHKVITXSNOBWUs_~q15_1.12, keep 8+8, blocks 2/1"
      },
      "fewestToffoli": {
       "unixTime": 1790937749,
@@ -116,7 +136,7 @@
       "toffoli": 8825.423,
       "qubits": 520,
       "toffoliTimesQubits": 4589219.96,
-      "score": 98059700.0,
+      "score": 4589219.96,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "5f5475006815540b1a6f4f6e9f7b297fbb4d94a7b79e413df093f8831032ecc6",
@@ -126,13 +146,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:rdr_r3lq210_m8",
+      "submission": "reiher/rdr-r3lq210-m8",
       "kind": "historical",
       "standing": [
        "new-architecture",
        "front"
       ],
-      "note": "sa-low2025-toff imchxlgrdky3zabCHKVIDXtNBWsq210 keep 8+8 inner_a 3 outer_a 3"
+      "note": "Rank-scheduled delivery: sa-toff imchxlgrdky3zabCHKVIDXtNBWsq210, keep 8+8, blocks 3/3"
      },
      "history": [
       {
@@ -142,7 +162,7 @@
        "toffoli": 8825.423,
        "qubits": 520,
        "toffoliTimesQubits": 4589219.96,
-       "score": 98059700.0,
+       "score": 4589219.96,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "5f5475006815540b1a6f4f6e9f7b297fbb4d94a7b79e413df093f8831032ecc6",
@@ -152,13 +172,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdr_r3lq210_m8",
+       "submission": "reiher/rdr-r3lq210-m8",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-low2025-toff imchxlgrdky3zabCHKVIDXtNBWsq210 keep 8+8 inner_a 3 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxlgrdky3zabCHKVIDXtNBWsq210, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790937749,
@@ -167,7 +187,7 @@
        "toffoli": 11346.355,
        "qubits": 404,
        "toffoliTimesQubits": 4583927.42,
-       "score": 97946610.0,
+       "score": 4583927.42,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "7c43f4d597207c29e3e94834232e1e367597fff517dc4a4ac61a20f1d7632ef8",
@@ -177,13 +197,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdr_r3q105_m8",
+       "submission": "reiher/rdr-r3q105-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq105 keep 8+8 inner_a 3 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq105, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790937749,
@@ -192,7 +212,7 @@
        "toffoli": 10752.582,
        "qubits": 418,
        "toffoliTimesQubits": 4494579.276,
-       "score": 96037470.0,
+       "score": 4494579.276,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "6a7e87e469e3c1a8da4e56cf7e665da83fa7f023ea87f622a34b00ee4df374ce",
@@ -202,13 +222,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdr_r3q120_m8",
+       "submission": "reiher/rdr-r3q120-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq120 keep 8+8 inner_a 3 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq120, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790937749,
@@ -217,7 +237,7 @@
        "toffoli": 10188.459,
        "qubits": 433,
        "toffoliTimesQubits": 4411602.747,
-       "score": 94264480.0,
+       "score": 4411602.747,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "c35f046eefed3e483f049e1508f79999f84fdfc5f6df9f494ff67a55200f7cf6",
@@ -227,13 +247,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdr_r3q135_m8",
+       "submission": "reiher/rdr-r3q135-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq135 keep 8+8 inner_a 3 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq135, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790937749,
@@ -242,7 +262,7 @@
        "toffoli": 11572.492,
        "qubits": 315,
        "toffoliTimesQubits": 3645334.98,
-       "score": 77891330.0,
+       "score": 3645334.98,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "ec86d4f8fbfece4358379bd599ca2a410ac136b333ee2fd094ef7e7d1dcb891d",
@@ -252,13 +272,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdr_r3q15_m8",
+       "submission": "reiher/rdr-r3q15-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq15 keep 8+8 inner_a 2 outer_a 2"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq15, keep 8+8, blocks 2/2"
       },
       {
        "unixTime": 1790962072,
@@ -267,7 +287,7 @@
        "toffoli": 11532.606,
        "qubits": 313,
        "toffoliTimesQubits": 3609705.678,
-       "score": 77130020.0,
+       "score": 3609705.678,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "77c12ee45984ea212c6877230f43369aab6f615d8e7e70acaf730af56bf51a13",
@@ -277,13 +297,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kr_r3m_m8",
+       "submission": "reiher/kr-r3m-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13 keep 8+8 inner_a 2 outer_a 2"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13, keep 8+8, blocks 2/2"
       },
       {
        "unixTime": 1790968167,
@@ -292,7 +312,7 @@
        "toffoli": 11502.425,
        "qubits": 313,
        "toffoliTimesQubits": 3600259.025,
-       "score": 76928170.0,
+       "score": 3600259.025,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "d28046df9177ce526fbbd2484c9052f55a58afd0c561af2083b6dc282e121161",
@@ -302,13 +322,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kc_r3e_m8",
+       "submission": "reiher/kc-r3e-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13.e keep 8+8 inner_a 2 outer_a 2"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13.e, keep 8+8, blocks 2/2"
       },
       {
        "unixTime": 1790968167,
@@ -317,7 +337,7 @@
        "toffoli": 11500.479,
        "qubits": 313,
        "toffoliTimesQubits": 3599649.927,
-       "score": 76915160.0,
+       "score": 3599649.927,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "490a9c92e7a1c1ad1647f54b4a218ab797991a0a659a2100bc96328c20310c93",
@@ -327,10 +347,10 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kc_r3re_m8",
+       "submission": "reiher/kc-r3re-m8",
        "kind": "historical",
        "standing": [],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e keep 8+8 inner_a 2 outer_a 2"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e, keep 8+8, blocks 2/2"
       }
      ]
     },
@@ -347,7 +367,7 @@
       "toffoli": 11586.424,
       "qubits": 313,
       "toffoliTimesQubits": 3626550.712,
-      "score": 77489960.0,
+      "score": 3626550.712,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "c61759501b0dbe0ec2685386238946d21b2bd1e97e2597a768860a7c30b23868",
@@ -357,13 +377,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:pf_r3p_m8",
+      "submission": "reiher/pf-r3p-m8",
       "kind": "historical",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+ keep 8+8 inner_a 2 outer_a 2"
+      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIDXtNBWs+, keep 8+8, blocks 2/2"
      },
      "fewestQubits": {
       "unixTime": 1790969371,
@@ -372,7 +392,7 @@
       "toffoli": 16642.146,
       "qubits": 253,
       "toffoliTimesQubits": 4210462.938,
-      "score": 89966640.0,
+      "score": 4210462.938,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "cbba4fbdf160e05a4776e6cbb76d7755ac4b1b8679d3786c2708aaf1592a85b1",
@@ -382,12 +402,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:gkr_r5_m8",
+      "submission": "reiher/gkr-r5-m8",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky5zabfHKVITXSNOBWs_~ keep 8+8 inner_a 2 outer_a 1"
+      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabfHKVITXSNOBWs_~, keep 8+8, blocks 2/1"
      },
      "fewestToffoli": {
       "unixTime": 1790934487,
@@ -396,7 +416,7 @@
       "toffoli": 11586.424,
       "qubits": 313,
       "toffoliTimesQubits": 3626550.712,
-      "score": 77489960.0,
+      "score": 3626550.712,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "c61759501b0dbe0ec2685386238946d21b2bd1e97e2597a768860a7c30b23868",
@@ -406,13 +426,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:pf_r3p_m8",
+      "submission": "reiher/pf-r3p-m8",
       "kind": "historical",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+ keep 8+8 inner_a 2 outer_a 2"
+      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIDXtNBWs+, keep 8+8, blocks 2/2"
      },
      "history": [
       {
@@ -422,7 +442,7 @@
        "toffoli": 11684.27,
        "qubits": 316,
        "toffoliTimesQubits": 3692229.32,
-       "score": 78893340.0,
+       "score": 3692229.32,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "841b1ac929f9fcd282b40758d19ab42d2596f07041804680c16f0a7b91f16b5d",
@@ -432,13 +452,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:lr_r3s_m8",
+       "submission": "reiher/lr-r3s-m8",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIXDs keep 8+8 inner_a 3 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIXDs, keep 8+8, blocks 3/2"
       },
       {
        "unixTime": 1790929788,
@@ -447,7 +467,7 @@
        "toffoli": 11666.428,
        "qubits": 314,
        "toffoliTimesQubits": 3663258.392,
-       "score": 78274310.0,
+       "score": 3663258.392,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "8b3a4a57e8b63da3e60caf2a76165c05f31e3530a28e70ddb1ab992275f7dc4c",
@@ -457,13 +477,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rp_r3p_m8",
+       "submission": "reiher/rp-r3p-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIXDSRNBWU keep 8+8 inner_a 3 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIXDSRNBWU, keep 8+8, blocks 3/2"
       },
       {
        "unixTime": 1790930713,
@@ -472,7 +492,7 @@
        "toffoli": 11610.483,
        "qubits": 313,
        "toffoliTimesQubits": 3634081.179,
-       "score": 77650860.0,
+       "score": 3634081.179,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "18837b0044795b1b0e3299a2da327ab23db1a4db2669ba82b80a8f94f7b8a0b0",
@@ -482,13 +502,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:ltn_r3tnbws_m8",
+       "submission": "reiher/ltn-r3tnbws-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs keep 8+8 inner_a 2 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIDXtNBWs, keep 8+8, blocks 2/2"
       },
       {
        "unixTime": 1790934487,
@@ -497,7 +517,7 @@
        "toffoli": 11586.424,
        "qubits": 313,
        "toffoliTimesQubits": 3626550.712,
-       "score": 77489960.0,
+       "score": 3626550.712,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "c61759501b0dbe0ec2685386238946d21b2bd1e97e2597a768860a7c30b23868",
@@ -507,13 +527,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:pf_r3p_m8",
+       "submission": "reiher/pf-r3p-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+ keep 8+8 inner_a 2 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIDXtNBWs+, keep 8+8, blocks 2/2"
       }
      ]
     },
@@ -530,7 +550,7 @@
       "toffoli": 8755.465,
       "qubits": 517,
       "toffoliTimesQubits": 4526575.405,
-      "score": 96721150.0,
+      "score": 4526575.405,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "82244d6c2e20b8461b3a2e478617b21613149c364ad623c88c19eca18492f40f",
@@ -540,13 +560,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:fa_r1tr_m8",
+      "submission": "reiher/fa-r1tr-m8",
       "kind": "historical",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdkyECHKVIXtRNOBW+ keep 8+8 inner_a 3 outer_a 3"
+      "note": "One-hot angle delivery: sa-toff imchxgrdkyECHKVIXtRNOBW+, keep 8+8, blocks 3/3"
      },
      "fewestQubits": {
       "unixTime": 1790951943,
@@ -555,7 +575,7 @@
       "toffoli": 8755.465,
       "qubits": 517,
       "toffoliTimesQubits": 4526575.405,
-      "score": 96721150.0,
+      "score": 4526575.405,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "82244d6c2e20b8461b3a2e478617b21613149c364ad623c88c19eca18492f40f",
@@ -565,13 +585,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:fa_r1tr_m8",
+      "submission": "reiher/fa-r1tr-m8",
       "kind": "historical",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdkyECHKVIXtRNOBW+ keep 8+8 inner_a 3 outer_a 3"
+      "note": "One-hot angle delivery: sa-toff imchxgrdkyECHKVIXtRNOBW+, keep 8+8, blocks 3/3"
      },
      "fewestToffoli": {
       "unixTime": 1790935627,
@@ -580,7 +600,7 @@
       "toffoli": 8722.565,
       "qubits": 528,
       "toffoliTimesQubits": 4605514.32,
-      "score": 98407860.0,
+      "score": 4605514.32,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "c83041d7324ac0d5423d5a0e627636171659f0ee963e674596ce7ad88aa2b895",
@@ -590,12 +610,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:pf_r1c_m8",
+      "submission": "reiher/pf-r1c-m8",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-low2025-toff imchxlgrdkyECHKVIXt+ keep 8+8 inner_a 3 outer_a 3"
+      "note": "One-hot angle delivery: sa-toff imchxlgrdkyECHKVIXt+, keep 8+8, blocks 3/3"
      },
      "history": [
       {
@@ -605,7 +625,7 @@
        "toffoli": 9298.005,
        "qubits": 573,
        "toffoliTimesQubits": 5327756.865,
-       "score": 113840300.0,
+       "score": 5327756.865,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "47b89d6d008e8f876e994633b8951c6fc3ed046131b023e5b9bf92fa8ccb7934",
@@ -615,13 +635,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:est_r_lgr",
+       "submission": "reiher/est-r-lgr",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-low2025-toff imchxlgr keep 9+9 inner_a 4 outer_a 2"
+       "note": "One-hot angle delivery: sa-toff imchxlgr, keep 9+9, blocks 4/2"
       },
       {
        "unixTime": 1790927419,
@@ -630,7 +650,7 @@
        "toffoli": 9305.984,
        "qubits": 564,
        "toffoliTimesQubits": 5248574.976,
-       "score": 112148400.0,
+       "score": 5248574.976,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "99db881847efc0c7481fdc8ab1ce0c256f3bdd0716320d4360dc04cffbef937c",
@@ -640,13 +660,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:lr_r1s_m9",
+       "submission": "reiher/lr-r1s-m9",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrs keep 9+9 inner_a 4 outer_a 2"
+       "note": "One-hot angle delivery: sa-toff imchxgrs, keep 9+9, blocks 4/2"
       },
       {
        "unixTime": 1790930713,
@@ -655,7 +675,7 @@
        "toffoli": 8832.412,
        "qubits": 528,
        "toffoliTimesQubits": 4663513.536,
-       "score": 99647160.0,
+       "score": 4663513.536,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "4353216dbe8ca26ada673c9e006d0cda09827ebcecadb092ca7893e51642f05b",
@@ -665,13 +685,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:ltn_r1lt_m8",
+       "submission": "reiher/ltn-r1lt-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxlgrdkyEHKVIXt keep 8+8 inner_a 3 outer_a 3"
+       "note": "One-hot angle delivery: sa-toff imchxlgrdkyEHKVIXt, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790930713,
@@ -680,7 +700,7 @@
        "toffoli": 8865.485,
        "qubits": 518,
        "toffoliTimesQubits": 4592321.23,
-       "score": 98125960.0,
+       "score": 4592321.23,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "f184ebaedcbe079659ae4f0aa396e912e1ca88551546af62444f79f278b6ccf5",
@@ -690,13 +710,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:ltn_r1t_m8",
+       "submission": "reiher/ltn-r1t-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdkyEHKVIXtRNOBW keep 8+8 inner_a 3 outer_a 3"
+       "note": "One-hot angle delivery: sa-toff imchxgrdkyEHKVIXtRNOBW, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790935627,
@@ -705,7 +725,7 @@
        "toffoli": 8729.394,
        "qubits": 521,
        "toffoliTimesQubits": 4548014.274,
-       "score": 97179240.0,
+       "score": 4548014.274,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "fcd66297448227da39b6093baa5245dc18b86912732da4cdb10f7904e20b4e4b",
@@ -715,13 +735,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:pf_r1cn_m8",
+       "submission": "reiher/pf-r1cn-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdkyECHKVIXt+ keep 8+8 inner_a 3 outer_a 3"
+       "note": "One-hot angle delivery: sa-toff imchxgrdkyECHKVIXt+, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790951943,
@@ -730,7 +750,7 @@
        "toffoli": 8755.465,
        "qubits": 517,
        "toffoliTimesQubits": 4526575.405,
-       "score": 96721150.0,
+       "score": 4526575.405,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "82244d6c2e20b8461b3a2e478617b21613149c364ad623c88c19eca18492f40f",
@@ -740,13 +760,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:fa_r1tr_m8",
+       "submission": "reiher/fa-r1tr-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdkyECHKVIXtRNOBW+ keep 8+8 inner_a 3 outer_a 3"
+       "note": "One-hot angle delivery: sa-toff imchxgrdkyECHKVIXtRNOBW+, keep 8+8, blocks 3/3"
       }
      ]
     },
@@ -763,7 +783,7 @@
       "toffoli": 12101.0,
       "qubits": 494,
       "toffoliTimesQubits": 5977894.0,
-      "score": 127732100.0,
+      "score": 5977894.0,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "ea3ee0126013f55f5007152ffa0cea81b5b97357615ddec78e2de752d627b3ee",
@@ -773,13 +793,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:est_rs3",
+      "submission": "reiher/est-rs3",
       "kind": "historical",
       "standing": [
        "new-architecture",
        "front"
       ],
-      "note": "sa-pareto keep 9+9 inner_a 4 outer_a 2 chunks 3"
+      "note": "Streamed angle words: sa-pareto chunks 3, keep 9+9, blocks 4/2"
      },
      "fewestQubits": {
       "unixTime": 1790241558,
@@ -788,7 +808,7 @@
       "toffoli": 12101.0,
       "qubits": 494,
       "toffoliTimesQubits": 5977894.0,
-      "score": 127732100.0,
+      "score": 5977894.0,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "ea3ee0126013f55f5007152ffa0cea81b5b97357615ddec78e2de752d627b3ee",
@@ -798,13 +818,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:est_rs3",
+      "submission": "reiher/est-rs3",
       "kind": "historical",
       "standing": [
        "new-architecture",
        "front"
       ],
-      "note": "sa-pareto keep 9+9 inner_a 4 outer_a 2 chunks 3"
+      "note": "Streamed angle words: sa-pareto chunks 3, keep 9+9, blocks 4/2"
      },
      "fewestToffoli": {
       "unixTime": 1790241558,
@@ -813,7 +833,7 @@
       "toffoli": 12101.0,
       "qubits": 494,
       "toffoliTimesQubits": 5977894.0,
-      "score": 127732100.0,
+      "score": 5977894.0,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "ea3ee0126013f55f5007152ffa0cea81b5b97357615ddec78e2de752d627b3ee",
@@ -823,13 +843,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:est_rs3",
+      "submission": "reiher/est-rs3",
       "kind": "historical",
       "standing": [
        "new-architecture",
        "front"
       ],
-      "note": "sa-pareto keep 9+9 inner_a 4 outer_a 2 chunks 3"
+      "note": "Streamed angle words: sa-pareto chunks 3, keep 9+9, blocks 4/2"
      },
      "history": [
       {
@@ -839,7 +859,7 @@
        "toffoli": 12101.0,
        "qubits": 494,
        "toffoliTimesQubits": 5977894.0,
-       "score": 127732100.0,
+       "score": 5977894.0,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "ea3ee0126013f55f5007152ffa0cea81b5b97357615ddec78e2de752d627b3ee",
@@ -849,13 +869,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:est_rs3",
+       "submission": "reiher/est-rs3",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-pareto keep 9+9 inner_a 4 outer_a 2 chunks 3"
+       "note": "Streamed angle words: sa-pareto chunks 3, keep 9+9, blocks 4/2"
       }
      ]
     },
@@ -872,7 +892,7 @@
       "toffoli": 9364.0,
       "qubits": 1028,
       "toffoliTimesQubits": 9626192.0,
-      "score": 205686700.0,
+      "score": 9626192.0,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "58c5a23ae6877f9bf0b12a7d7199a6e2bc27556ef8e688ad5625e708a406f85d",
@@ -882,13 +902,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:est_toff_r",
+      "submission": "reiher/est-toff-r",
       "kind": "historical",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "sa-low2025-toff all keep 9+9 inner_a 4 outer_a 2"
+      "note": "QROAM angle words: sa-toff all, keep 9+9, blocks 4/2"
      },
      "fewestQubits": {
       "unixTime": 1790240562,
@@ -897,7 +917,7 @@
       "toffoli": 9525.0,
       "qubits": 1016,
       "toffoliTimesQubits": 9677400.0,
-      "score": 206780900.0,
+      "score": 9677400.0,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "bd05174b511c91e2eacc9d193ac4577452f7e169c42f694171defb9b07a4afc1",
@@ -907,12 +927,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:est_r2",
+      "submission": "reiher/est-r2",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-pareto keep 9+9 inner_a 4 outer_a 2"
+      "note": "QROAM angle words: sa-pareto chunks 1, keep 9+9, blocks 4/2"
      },
      "fewestToffoli": {
       "unixTime": 1790238282,
@@ -921,7 +941,7 @@
       "toffoli": 9312.0,
       "qubits": 1044,
       "toffoliTimesQubits": 9721728.0,
-      "score": 207728100.0,
+      "score": 9721728.0,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "e909e5bf97670a709ed6be1e01f1d07f96cfe56cedb1638a615e3228751b4e99",
@@ -931,12 +951,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:est_toffl5_r",
+      "submission": "reiher/est-toffl5-r",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-low2025-toff imchxL keep 9+9 inner_a 5 outer_a 2"
+      "note": "QROAM angle words: sa-toff imchxL, keep 9+9, blocks 5/2"
      },
      "history": [
       {
@@ -946,7 +966,7 @@
        "toffoli": 9600.0,
        "qubits": 1040,
        "toffoliTimesQubits": 9984000.0,
-       "score": 213332100.0,
+       "score": 9984000.0,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "95e8fe8982dca129be65f4d11e4bdce0eb1fd4173f9294687ad0dba8646e2ea9",
@@ -956,13 +976,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:est_low_r",
+       "submission": "reiher/est-low-r",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-low2025-spinswap keep 9+9 inner_a 4 outer_a 2"
+       "note": "Low et al. 2025 construction, published parameters"
       },
       {
        "unixTime": 1790236875,
@@ -971,7 +991,7 @@
        "toffoli": 9364.0,
        "qubits": 1028,
        "toffoliTimesQubits": 9626192.0,
-       "score": 205686700.0,
+       "score": 9626192.0,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "58c5a23ae6877f9bf0b12a7d7199a6e2bc27556ef8e688ad5625e708a406f85d",
@@ -981,13 +1001,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:est_toff_r",
+       "submission": "reiher/est-toff-r",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff all keep 9+9 inner_a 4 outer_a 2"
+       "note": "QROAM angle words: sa-toff all, keep 9+9, blocks 4/2"
       }
      ]
     }
@@ -1000,7 +1020,7 @@
      "toffoli": 16554.081,
      "qubits": 253,
      "toffoliTimesQubits": 4188182.493,
-     "score": 89490570.0,
+     "score": 4188182.493,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "75ced199821226de75ffefb0076539f65cf2f5c7d81fbfd4bf1137c5cc894d4a",
@@ -1010,12 +1030,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rc_r5q_m8",
+     "submission": "reiher/rc-r5q-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabfHKVITXSNOBWUs_~q15_1.12 keep 8+8 inner_a 2 outer_a 1"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabfHKVITXSNOBWUs_~q15_1.12, keep 8+8, blocks 2/1"
     },
     {
      "unixTime": 1790967085,
@@ -1024,7 +1044,7 @@
      "toffoli": 16092.362,
      "qubits": 259,
      "toffoliTimesQubits": 4167921.758,
-     "score": 89057650.0,
+     "score": 4167921.758,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "0c6309bf72b7dfb1eef1ade0a6dfb47f787988ceb00b068139442fe0da455935",
@@ -1034,12 +1054,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:ctl_r5r_m8",
+     "submission": "reiher/ctl-r5r-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabfHKVITXSNOBWsR_ keep 8+8 inner_a 1 outer_a 1"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabfHKVITXSNOBWsR_, keep 8+8, blocks 1/1"
     },
     {
      "unixTime": 1790967085,
@@ -1048,7 +1068,7 @@
      "toffoli": 16076.383,
      "qubits": 260,
      "toffoliTimesQubits": 4179859.58,
-     "score": 89312730.0,
+     "score": 4179859.58,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "bf018cc66d547e06d089f13fedfb071e9dcd62f8f83175882ca9ce8b855062ea",
@@ -1058,10 +1078,10 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:ctl_r5s_m8",
+     "submission": "reiher/ctl-r5s-m8",
      "kind": "historical",
      "standing": [],
-     "note": "sa-low2025-toff imchxgrdky5zabfHKVITXSNOBWs_ keep 8+8 inner_a 2 outer_a 1"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabfHKVITXSNOBWs_, keep 8+8, blocks 2/1"
     },
     {
      "unixTime": 1790967085,
@@ -1070,7 +1090,7 @@
      "toffoli": 16040.825,
      "qubits": 261,
      "toffoliTimesQubits": 4186655.325,
-     "score": 89457940.0,
+     "score": 4186655.325,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "13811467b0986355471b85075c78383f72ffbe1de39af91a847fe3ed11052d21",
@@ -1080,12 +1100,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:ctl_r5n_m8",
+     "submission": "reiher/ctl-r5n-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabfHVITXSNOBWs_ keep 8+8 inner_a 2 outer_a 1"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabfHVITXSNOBWs_, keep 8+8, blocks 2/1"
     },
     {
      "unixTime": 1790971147,
@@ -1094,7 +1114,7 @@
      "toffoli": 15140.783,
      "qubits": 268,
      "toffoliTimesQubits": 4057729.844,
-     "score": 86703140.0,
+     "score": 4057729.844,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "bcd0c7a83b2917800d660b59a164fa9b43f161b7e884d82627e16e4367211de8",
@@ -1104,12 +1124,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rc_r4q_m8",
+     "submission": "reiher/rc-r4q-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zZabfHVITXSNOBWUs_~q15_1.12 keep 8+8 inner_a 2 outer_a 1"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zZabfHVITXSNOBWUs_~q15_1.12, keep 8+8, blocks 2/1"
     },
     {
      "unixTime": 1790967085,
@@ -1118,7 +1138,7 @@
      "toffoli": 14702.629,
      "qubits": 275,
      "toffoliTimesQubits": 4043222.975,
-     "score": 86393160.0,
+     "score": 4043222.975,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "c152be62a572e9a38bf8fc8e2d047c3da658bc2cb03b9581c87355b46f78043e",
@@ -1128,12 +1148,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:ctl_r4_m8",
+     "submission": "reiher/ctl-r4-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zZabfHKVITXSRNOBWs_ keep 8+8 inner_a 2 outer_a 1"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zZabfHKVITXSRNOBWs_, keep 8+8, blocks 2/1"
     },
     {
      "unixTime": 1790951943,
@@ -1142,7 +1162,7 @@
      "toffoli": 14305.549,
      "qubits": 285,
      "toffoliTimesQubits": 4077081.465,
-     "score": 87116630.0,
+     "score": 4077081.465,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "019f58088d4a082f8079ec009c1178fc27868cd448aa3cae341039bed7eb6157",
@@ -1152,12 +1172,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:fa_r4s_m8",
+     "submission": "reiher/fa-r4s-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zZabCHKVITXSRNOBWs keep 8+8 inner_a 2 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zZabCHKVITXSRNOBWs, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790969371,
@@ -1166,7 +1186,7 @@
      "toffoli": 13223.405,
      "qubits": 298,
      "toffoliTimesQubits": 3940574.69,
-     "score": 84199840.0,
+     "score": 3940574.69,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "54e4c70e638bd1526fe3ace62e92481d39e662526cd1717912f32dfa52975848",
@@ -1176,12 +1196,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:gkr_r3c_m8",
+     "submission": "reiher/gkr-r3c-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVITXSNOBWs_~ keep 8+8 inner_a 2 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVITXSNOBWs_~, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790929788,
@@ -1190,7 +1210,7 @@
      "toffoli": 12659.411,
      "qubits": 311,
      "toffoliTimesQubits": 3937076.821,
-     "score": 84125090.0,
+     "score": 3937076.821,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "75b14ffb910a4887021b15588909fd312e50f02984d3453eab9040ee59074d12",
@@ -1200,12 +1220,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rp_r3y_m8",
+     "submission": "reiher/rp-r3y-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVITXSRNOBW keep 8+8 inner_a 2 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVITXSRNOBW, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790968167,
@@ -1214,7 +1234,7 @@
      "toffoli": 11500.479,
      "qubits": 313,
      "toffoliTimesQubits": 3599649.927,
-     "score": 76915160.0,
+     "score": 3599649.927,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "490a9c92e7a1c1ad1647f54b4a218ab797991a0a659a2100bc96328c20310c93",
@@ -1224,10 +1244,10 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kc_r3re_m8",
+     "submission": "reiher/kc-r3re-m8",
      "kind": "historical",
      "standing": [],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790968167,
@@ -1236,7 +1256,7 @@
      "toffoli": 11482.514,
      "qubits": 314,
      "toffoliTimesQubits": 3605509.396,
-     "score": 77040360.0,
+     "score": 3605509.396,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "4275b3afcfdaf406e7702d09da285750fa50818e273d89203b0cb562bbeae86d",
@@ -1246,12 +1266,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kc_r3rq18e_m8",
+     "submission": "reiher/kc-r3rq18e-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+Rq18_1.15.e keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+Rq18_1.15.e, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790968167,
@@ -1260,7 +1280,7 @@
      "toffoli": 11466.471,
      "qubits": 315,
      "toffoliTimesQubits": 3611938.365,
-     "score": 77177730.0,
+     "score": 3611938.365,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "b7861a4b0f899ce3b4afe97d8f96982f62edb8f3e7c592111d4d76b132b44e75",
@@ -1270,12 +1290,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kc_r3q18e_m8",
+     "submission": "reiher/kc-r3q18e-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q18_1.15.e keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q18_1.15.e, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790968167,
@@ -1284,7 +1304,7 @@
      "toffoli": 11396.688,
      "qubits": 320,
      "toffoliTimesQubits": 3646940.16,
-     "score": 77925630.0,
+     "score": 3646940.16,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "bc9be9411cbd9403a88895ac99fed69d905b9909c75bfd0a4ab727a718ffca3d",
@@ -1294,12 +1314,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kc_r3q23e_m8",
+     "submission": "reiher/kc-r3q23e-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q23_1.20.e keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q23_1.20.e, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790968167,
@@ -1308,7 +1328,7 @@
      "toffoli": 11256.508,
      "qubits": 330,
      "toffoliTimesQubits": 3714647.64,
-     "score": 79372360.0,
+     "score": 3714647.64,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "a7bcb005023b54e809ccbddcfc4f6b37d3ee0a42c2b20801e9aaefdf2aafe023",
@@ -1318,12 +1338,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kc_r3q33e_m8",
+     "submission": "reiher/kc-r3q33e-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q33_1.30.e keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q33_1.30.e, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790939349,
@@ -1332,7 +1352,7 @@
      "toffoli": 11136.554,
      "qubits": 345,
      "toffoliTimesQubits": 3842111.13,
-     "score": 82095920.0,
+     "score": 3842111.13,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "9d68b9d845009d2c649c54aafe71345ddd781c31f0aa97edb5c2def630ac2781",
@@ -1342,12 +1362,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q45b_m8",
+     "submission": "reiher/rdr-r3q45b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq45_1 keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq45_1, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790939349,
@@ -1356,7 +1376,7 @@
      "toffoli": 10926.414,
      "qubits": 360,
      "toffoliTimesQubits": 3933509.04,
-     "score": 84048860.0,
+     "score": 3933509.04,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "7fbead6da36a0457ff9b2a30992c71119011fe06eba7c026c11b4694afcd73ef",
@@ -1366,12 +1386,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q60b_m8",
+     "submission": "reiher/rdr-r3q60b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq60_1 keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq60_1, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790939349,
@@ -1380,7 +1400,7 @@
      "toffoli": 10716.396,
      "qubits": 375,
      "toffoliTimesQubits": 4018648.5,
-     "score": 85868070.0,
+     "score": 4018648.5,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "1b6d6345f82a15b553e914090bd4f7fa499fb5507b7170c83fda8365497b5bd3",
@@ -1390,12 +1410,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q75b_m8",
+     "submission": "reiher/rdr-r3q75b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq75_1 keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq75_1, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790939349,
@@ -1404,7 +1424,7 @@
      "toffoli": 10506.564,
      "qubits": 390,
      "toffoliTimesQubits": 4097559.96,
-     "score": 87554200.0,
+     "score": 4097559.96,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "fb4425885ddba611b0dd092feedb66a93d7e86813aef931766b80821de89b07d",
@@ -1414,12 +1434,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q90b_m8",
+     "submission": "reiher/rdr-r3q90b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq90_1 keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq90_1, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790939349,
@@ -1428,7 +1448,7 @@
      "toffoli": 10278.524,
      "qubits": 405,
      "toffoliTimesQubits": 4162802.22,
-     "score": 88948260.0,
+     "score": 4162802.22,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "fa88d64e43d106f5a5a424450137971507b8519f9062132f1a1d707a92d9bce6",
@@ -1438,12 +1458,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q105b_m8",
+     "submission": "reiher/rdr-r3q105b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq105_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq105_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
@@ -1452,7 +1472,7 @@
      "toffoli": 10068.478,
      "qubits": 420,
      "toffoliTimesQubits": 4228760.76,
-     "score": 90357620.0,
+     "score": 4228760.76,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "b89b5640bb3db50bd562c4b6d4c1ad451b0d4d2c408692774f62605fb38f1145",
@@ -1462,12 +1482,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q120b_m8",
+     "submission": "reiher/rdr-r3q120b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq120_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq120_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
@@ -1476,7 +1496,7 @@
      "toffoli": 9858.478,
      "qubits": 435,
      "toffoliTimesQubits": 4288437.93,
-     "score": 91632770.0,
+     "score": 4288437.93,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "df05936e0a3a1d187beeeffc8362dea88cea47a845cd1704186cedde483407d0",
@@ -1486,12 +1506,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q135b_m8",
+     "submission": "reiher/rdr-r3q135b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq135_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq135_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790937749,
@@ -1500,7 +1520,7 @@
      "toffoli": 9852.459,
      "qubits": 448,
      "toffoliTimesQubits": 4413901.632,
-     "score": 94313600.0,
+     "score": 4413901.632,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "47ed974dfb9cfafbbbc86bc5e143ef2f884f6b52aadd93a7d8f04f292d2b00fa",
@@ -1510,12 +1530,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q150_m8",
+     "submission": "reiher/rdr-r3q150-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq150 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq150, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
@@ -1524,7 +1544,7 @@
      "toffoli": 9648.45,
      "qubits": 450,
      "toffoliTimesQubits": 4341802.5,
-     "score": 92773030.0,
+     "score": 4341802.5,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "1cf9ad654db0b3c386e448a5298810d5229c4a368d7d973ae48b56c423b39367",
@@ -1534,12 +1554,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q150b_m8",
+     "submission": "reiher/rdr-r3q150b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq150_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq150_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790951943,
@@ -1548,7 +1568,7 @@
      "toffoli": 9600.616,
      "qubits": 453,
      "toffoliTimesQubits": 4349079.048,
-     "score": 92928510.0,
+     "score": 4349079.048,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "b4b93bef810117f8e1fd3d62d0bd27597c9b6ddc6d0acadd283d8c4666abe91c",
@@ -1558,12 +1578,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:fa_r3pq153_m8",
+     "submission": "reiher/fa-r3pq153-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q153_1 keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q153_1, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790937749,
@@ -1572,7 +1592,7 @@
      "toffoli": 9468.513,
      "qubits": 463,
      "toffoliTimesQubits": 4383921.519,
-     "score": 93673010.0,
+     "score": 4383921.519,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "daf9a9486a148dfd6f1a7e18cfca51d614eccb7aca6580589b9fb655b72893f7",
@@ -1582,12 +1602,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q165_m8",
+     "submission": "reiher/rdr-r3q165-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq165 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq165, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
@@ -1596,7 +1616,7 @@
      "toffoli": 9438.426,
      "qubits": 465,
      "toffoliTimesQubits": 4388868.09,
-     "score": 93778700.0,
+     "score": 4388868.09,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "ab9d6a4e3fea247c7ab54988f13d8e1126bf27f47991029dc79e5ace0a1b2e0d",
@@ -1606,12 +1626,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q165b_m8",
+     "submission": "reiher/rdr-r3q165b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq165_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq165_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790937749,
@@ -1620,7 +1640,7 @@
      "toffoli": 9260.509,
      "qubits": 478,
      "toffoliTimesQubits": 4426523.302,
-     "score": 94583290.0,
+     "score": 4426523.302,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "fd8258209aa198e0d866218db29eeb123ae4c8ffb8550a42560cf9dd4b3cc413",
@@ -1630,12 +1650,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q180_m8",
+     "submission": "reiher/rdr-r3q180-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq180 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq180, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
@@ -1644,7 +1664,7 @@
      "toffoli": 9228.609,
      "qubits": 480,
      "toffoliTimesQubits": 4429732.32,
-     "score": 94651860.0,
+     "score": 4429732.32,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "b27345a16a426777236f1c01aa27519c233c5236d34d4ef0f53ff0c17a431d65",
@@ -1654,12 +1674,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q180b_m8",
+     "submission": "reiher/rdr-r3q180b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq180_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq180_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790937749,
@@ -1668,7 +1688,7 @@
      "toffoli": 9046.521,
      "qubits": 493,
      "toffoliTimesQubits": 4459934.853,
-     "score": 95297220.0,
+     "score": 4459934.853,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "31e51046a6daf795d24c0594a9b3736d2c9e4b46736165b7f05b0949daab7272",
@@ -1678,12 +1698,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q195_m8",
+     "submission": "reiher/rdr-r3q195-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq195 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq195, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
@@ -1692,7 +1712,7 @@
      "toffoli": 9018.556,
      "qubits": 495,
      "toffoliTimesQubits": 4464185.22,
-     "score": 95388040.0,
+     "score": 4464185.22,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "4fc922f27d59e4f8661e7eed895af95ff294518f14a2f5c1b8466743ee5ed1a7",
@@ -1702,12 +1722,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q195b_m8",
+     "submission": "reiher/rdr-r3q195b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq195_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq195_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
@@ -1716,7 +1736,7 @@
      "toffoli": 8832.673,
      "qubits": 510,
      "toffoliTimesQubits": 4504663.23,
-     "score": 96252940.0,
+     "score": 4504663.23,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "f223e4a969ea80a62bc6372505d7786372b681722408a6f850e5b0fdb305a31f",
@@ -1726,12 +1746,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q210b_m8",
+     "submission": "reiher/rdr-r3q210b-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq210_1 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq210_1, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790937749,
@@ -1740,7 +1760,7 @@
      "toffoli": 8832.522,
      "qubits": 513,
      "toffoliTimesQubits": 4531083.786,
-     "score": 96817470.0,
+     "score": 4531083.786,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "09e0cd16153783a0606ff68bcea8e56127d12031b00216a72b0373e2b014bb4a",
@@ -1750,12 +1770,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdr_r3q210_m8",
+     "submission": "reiher/rdr-r3q210-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWsq210 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq210, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790951943,
@@ -1764,7 +1784,7 @@
      "toffoli": 8755.465,
      "qubits": 517,
      "toffoliTimesQubits": 4526575.405,
-     "score": 96721150.0,
+     "score": 4526575.405,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "82244d6c2e20b8461b3a2e478617b21613149c364ad623c88c19eca18492f40f",
@@ -1774,13 +1794,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:fa_r1tr_m8",
+     "submission": "reiher/fa-r1tr-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdkyECHKVIXtRNOBW+ keep 8+8 inner_a 3 outer_a 3"
+     "note": "One-hot angle delivery: sa-toff imchxgrdkyECHKVIXtRNOBW+, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790935627,
@@ -1789,7 +1809,7 @@
      "toffoli": 8729.394,
      "qubits": 521,
      "toffoliTimesQubits": 4548014.274,
-     "score": 97179240.0,
+     "score": 4548014.274,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "fcd66297448227da39b6093baa5245dc18b86912732da4cdb10f7904e20b4e4b",
@@ -1799,13 +1819,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:pf_r1cn_m8",
+     "submission": "reiher/pf-r1cn-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdkyECHKVIXt+ keep 8+8 inner_a 3 outer_a 3"
+     "note": "One-hot angle delivery: sa-toff imchxgrdkyECHKVIXt+, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790935627,
@@ -1814,7 +1834,7 @@
      "toffoli": 8722.565,
      "qubits": 528,
      "toffoliTimesQubits": 4605514.32,
-     "score": 98407860.0,
+     "score": 4605514.32,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "c83041d7324ac0d5423d5a0e627636171659f0ee963e674596ce7ad88aa2b895",
@@ -1824,12 +1844,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:pf_r1c_m8",
+     "submission": "reiher/pf-r1c-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxlgrdkyECHKVIXt+ keep 8+8 inner_a 3 outer_a 3"
+     "note": "One-hot angle delivery: sa-toff imchxlgrdkyECHKVIXt+, keep 8+8, blocks 3/3"
     }
    ],
    "history": [
@@ -1840,7 +1860,7 @@
      "toffoli": 9600.0,
      "qubits": 1040,
      "toffoliTimesQubits": 9984000.0,
-     "score": 213332100.0,
+     "score": 9984000.0,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "95e8fe8982dca129be65f4d11e4bdce0eb1fd4173f9294687ad0dba8646e2ea9",
@@ -1850,13 +1870,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:est_low_r",
+     "submission": "reiher/est-low-r",
      "kind": "historical",
      "standing": [
       "new-architecture",
       "front"
      ],
-     "note": "sa-low2025-spinswap keep 9+9 inner_a 4 outer_a 2"
+     "note": "Low et al. 2025 construction, published parameters"
     },
     {
      "unixTime": 1790236875,
@@ -1865,7 +1885,7 @@
      "toffoli": 9364.0,
      "qubits": 1028,
      "toffoliTimesQubits": 9626192.0,
-     "score": 205686700.0,
+     "score": 9626192.0,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "58c5a23ae6877f9bf0b12a7d7199a6e2bc27556ef8e688ad5625e708a406f85d",
@@ -1875,13 +1895,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:est_toff_r",
+     "submission": "reiher/est-toff-r",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff all keep 9+9 inner_a 4 outer_a 2"
+     "note": "QROAM angle words: sa-toff all, keep 9+9, blocks 4/2"
     },
     {
      "unixTime": 1790241558,
@@ -1890,7 +1910,7 @@
      "toffoli": 12101.0,
      "qubits": 494,
      "toffoliTimesQubits": 5977894.0,
-     "score": 127732100.0,
+     "score": 5977894.0,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "ea3ee0126013f55f5007152ffa0cea81b5b97357615ddec78e2de752d627b3ee",
@@ -1900,13 +1920,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:est_rs3",
+     "submission": "reiher/est-rs3",
      "kind": "historical",
      "standing": [
       "new-architecture",
       "front"
      ],
-     "note": "sa-pareto keep 9+9 inner_a 4 outer_a 2 chunks 3"
+     "note": "Streamed angle words: sa-pareto chunks 3, keep 9+9, blocks 4/2"
     },
     {
      "unixTime": 1790411860,
@@ -1915,7 +1935,7 @@
      "toffoli": 9298.005,
      "qubits": 573,
      "toffoliTimesQubits": 5327756.865,
-     "score": 113840300.0,
+     "score": 5327756.865,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "47b89d6d008e8f876e994633b8951c6fc3ed046131b023e5b9bf92fa8ccb7934",
@@ -1925,13 +1945,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:est_r_lgr",
+     "submission": "reiher/est-r-lgr",
      "kind": "historical",
      "standing": [
       "new-architecture",
       "front"
      ],
-     "note": "sa-low2025-toff imchxlgr keep 9+9 inner_a 4 outer_a 2"
+     "note": "One-hot angle delivery: sa-toff imchxlgr, keep 9+9, blocks 4/2"
     },
     {
      "unixTime": 1790927419,
@@ -1940,7 +1960,7 @@
      "toffoli": 9305.984,
      "qubits": 564,
      "toffoliTimesQubits": 5248574.976,
-     "score": 112148400.0,
+     "score": 5248574.976,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "99db881847efc0c7481fdc8ab1ce0c256f3bdd0716320d4360dc04cffbef937c",
@@ -1950,13 +1970,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:lr_r1s_m9",
+     "submission": "reiher/lr-r1s-m9",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrs keep 9+9 inner_a 4 outer_a 2"
+     "note": "One-hot angle delivery: sa-toff imchxgrs, keep 9+9, blocks 4/2"
     },
     {
      "unixTime": 1790927419,
@@ -1965,7 +1985,7 @@
      "toffoli": 11684.27,
      "qubits": 316,
      "toffoliTimesQubits": 3692229.32,
-     "score": 78893340.0,
+     "score": 3692229.32,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "841b1ac929f9fcd282b40758d19ab42d2596f07041804680c16f0a7b91f16b5d",
@@ -1975,13 +1995,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:lr_r3s_m8",
+     "submission": "reiher/lr-r3s-m8",
      "kind": "historical",
      "standing": [
       "new-architecture",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIXDs keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIXDs, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790929788,
@@ -1990,7 +2010,7 @@
      "toffoli": 11666.428,
      "qubits": 314,
      "toffoliTimesQubits": 3663258.392,
-     "score": 78274310.0,
+     "score": 3663258.392,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "8b3a4a57e8b63da3e60caf2a76165c05f31e3530a28e70ddb1ab992275f7dc4c",
@@ -2000,13 +2020,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rp_r3p_m8",
+     "submission": "reiher/rp-r3p-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIXDSRNBWU keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIXDSRNBWU, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790930713,
@@ -2015,7 +2035,7 @@
      "toffoli": 11610.483,
      "qubits": 313,
      "toffoliTimesQubits": 3634081.179,
-     "score": 77650860.0,
+     "score": 3634081.179,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "18837b0044795b1b0e3299a2da327ab23db1a4db2669ba82b80a8f94f7b8a0b0",
@@ -2025,13 +2045,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:ltn_r3tnbws_m8",
+     "submission": "reiher/ltn-r3tnbws-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs keep 8+8 inner_a 2 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIDXtNBWs, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790934487,
@@ -2040,7 +2060,7 @@
      "toffoli": 11586.424,
      "qubits": 313,
      "toffoliTimesQubits": 3626550.712,
-     "score": 77489960.0,
+     "score": 3626550.712,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "c61759501b0dbe0ec2685386238946d21b2bd1e97e2597a768860a7c30b23868",
@@ -2050,13 +2070,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:pf_r3p_m8",
+     "submission": "reiher/pf-r3p-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+ keep 8+8 inner_a 2 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVIDXtNBWs+, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790962072,
@@ -2065,7 +2085,7 @@
      "toffoli": 11532.606,
      "qubits": 313,
      "toffoliTimesQubits": 3609705.678,
-     "score": 77130020.0,
+     "score": 3609705.678,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "77c12ee45984ea212c6877230f43369aab6f615d8e7e70acaf730af56bf51a13",
@@ -2075,13 +2095,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kr_r3m_m8",
+     "submission": "reiher/kr-r3m-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13 keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790968167,
@@ -2090,7 +2110,7 @@
      "toffoli": 11502.425,
      "qubits": 313,
      "toffoliTimesQubits": 3600259.025,
-     "score": 76928170.0,
+     "score": 3600259.025,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "d28046df9177ce526fbbd2484c9052f55a58afd0c561af2083b6dc282e121161",
@@ -2100,13 +2120,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kc_r3e_m8",
+     "submission": "reiher/kc-r3e-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13.e keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q16_1.13.e, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1790968167,
@@ -2115,7 +2135,7 @@
      "toffoli": 11500.479,
      "qubits": 313,
      "toffoliTimesQubits": 3599649.927,
-     "score": 76915160.0,
+     "score": 3599649.927,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "490a9c92e7a1c1ad1647f54b4a218ab797991a0a659a2100bc96328c20310c93",
@@ -2125,10 +2145,10 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kc_r3re_m8",
+     "submission": "reiher/kc-r3re-m8",
      "kind": "historical",
      "standing": [],
-     "note": "sa-low2025-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e keep 8+8 inner_a 2 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e, keep 8+8, blocks 2/2"
     }
    ],
    "targets": [
@@ -2141,7 +2161,8 @@
      "qubitsPublished": 1132,
      "givensChargeOffset": 848,
      "toffoliHarnessEquivalent": 9355,
-     "lambdaEffPublished": 21.3674
+     "lambdaEffPublished": 21.3674,
+     "scorePublished": 11549796
     }
    ]
   },
@@ -2149,31 +2170,57 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 122,
+   "circuits": 123,
    "best": {
     "unixTime": 1790965281,
     "track": "li",
     "architecture": "onehot-split",
-    "toffoli": 17855.562,
-    "qubits": 474,
-    "toffoliTimesQubits": 8463536.388,
-    "score": 387742300.0,
+    "toffoli": 17777.483,
+    "qubits": 471,
+    "toffoliTimesQubits": 8373194.493,
+    "score": 8373194.493,
     "samples": 524288,
     "engine": "reference-4096+sliced-524288",
-    "opsSha256": "ef431759463cb8e2461096cdf2d85a6a7a692a92a7c881d699cb2a8fab781701",
+    "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
     "commit": "genesis",
     "pr": null,
     "author": "teddyjfpender",
     "model": "Claude Opus 5.5",
     "harness": "Claude Code",
-    "submission": "pin:kl_l4hfge_m9",
+    "submission": "li/kl-l4hfge-m8",
     "kind": "historical",
     "standing": [
-     "architecture-elite"
+     "architecture-elite",
+     "front"
     ],
-    "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4 keep 9+9 inner_a 3 outer_a 3"
+    "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
    },
+   "baseline": {
+    "unixTime": 1791233859,
+    "track": "li",
+    "architecture": "qroam-word",
+    "toffoli": 13906.0,
+    "qubits": 1347,
+    "toffoliTimesQubits": 18731382.0,
+    "score": 18731382.0,
+    "samples": 524288,
+    "engine": "reference-4096+sliced-524288",
+    "opsSha256": "096fe98c26ed89061bfebd64eb5f8340a6b01b6a8953ee5cb1ff26ab2e7d19df",
+    "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+    "commit": "genesis",
+    "pr": null,
+    "author": "teddyjfpender",
+    "model": "Claude Opus 5.5",
+    "harness": "Claude Code",
+    "submission": "li/low2025-reference",
+    "kind": "historical",
+    "standing": [
+     "new-architecture"
+    ],
+    "note": "Low et al. 2025 construction on the Li active space"
+   },
+   "belowBaseline": 0.552986,
    "architectures": [
     {
      "id": "onehot-split",
@@ -2185,25 +2232,26 @@
       "unixTime": 1790965281,
       "track": "li",
       "architecture": "onehot-split",
-      "toffoli": 17855.562,
-      "qubits": 474,
-      "toffoliTimesQubits": 8463536.388,
-      "score": 387742300.0,
+      "toffoli": 17777.483,
+      "qubits": 471,
+      "toffoliTimesQubits": 8373194.493,
+      "score": 8373194.493,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "ef431759463cb8e2461096cdf2d85a6a7a692a92a7c881d699cb2a8fab781701",
+      "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
       "commit": "genesis",
       "pr": null,
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:kl_l4hfge_m9",
+      "submission": "li/kl-l4hfge-m8",
       "kind": "historical",
       "standing": [
-       "architecture-elite"
+       "architecture-elite",
+       "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4 keep 9+9 inner_a 3 outer_a 3"
+      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
      },
      "fewestQubits": {
       "unixTime": 1790971147,
@@ -2212,7 +2260,7 @@
       "toffoli": 25181.068,
       "qubits": 374,
       "toffoliTimesQubits": 9417719.432,
-      "score": 450804300.0,
+      "score": 9417719.432,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "7c272fcb5df70c9a5899d1c892ec685968ce630ecfdb87707c1b0d7db099327f",
@@ -2222,12 +2270,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:rc_l7_m8",
+      "submission": "li/rc-l7-m8",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky7zabCHKVIXJOBWsotU+_~.e keep 8+8 inner_a 3 outer_a 2"
+      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky7zabCHKVIXJOBWsotU+_~.e, keep 8+8, blocks 3/2"
      },
      "fewestToffoli": {
       "unixTime": 1790965281,
@@ -2236,7 +2284,7 @@
       "toffoli": 16039.493,
       "qubits": 555,
       "toffoliTimesQubits": 8901918.615,
-      "score": 407826000.0,
+      "score": 8901918.615,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "f17c015335726dfaaa3b13eb6a8aa3c11d729965b425c94b19e6277f55ae293a",
@@ -2246,12 +2294,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:kl_l3pgh_m9",
+      "submission": "li/kl-l3pgh-m9",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky3zabCAXJSRNOBWMnFsU.pgh4 keep 9+9 inner_a 8 outer_a 3"
+      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCAXJSRNOBWMnFsU.pgh4, keep 9+9, blocks 8/3"
      },
      "history": [
       {
@@ -2261,7 +2309,7 @@
        "toffoli": 18204.995,
        "qubits": 745,
        "toffoliTimesQubits": 13562721.275,
-       "score": 621352600.0,
+       "score": 13562721.275,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "01888055ecc61f100bf3f8c1d7b5f252c13d0ba7f3b7808f7b06c26de4c84d71",
@@ -2271,13 +2319,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:est_l_vd_a4",
+       "submission": "li/est-l-vd-a4",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrvd keep 9+9 inner_a 4 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrvd, keep 9+9, blocks 4/2"
       },
       {
        "unixTime": 1790927419,
@@ -2286,7 +2334,7 @@
        "toffoli": 18375.476,
        "qubits": 496,
        "toffoliTimesQubits": 9114236.096,
-       "score": 436277300.0,
+       "score": 9114236.096,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "63e4c09de14c7f3a4ced7bc36f17947f28fdb0e2af1e78a6c7184c8e41eac9a8",
@@ -2296,299 +2344,284 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:lr_l4zs_m8",
+       "submission": "li/lr-l4zs-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCHVIXZJs keep 8+8 inner_a 3 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCHVIXZJs, keep 8+8, blocks 3/2"
       },
       {
        "unixTime": 1790927419,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 18501.425,
-       "qubits": 499,
-       "toffoliTimesQubits": 9232211.075,
-       "score": 422957800.0,
+       "toffoli": 20367.355,
+       "qubits": 436,
+       "toffoliTimesQubits": 8880166.78,
+       "score": 8880166.78,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "a35c986c2872c2b279aca8da958cf16e9e5b6eb6f6e14c05a7e2b5a7fa7c3e92",
+       "opsSha256": "6ffde2edbacdaf61a571aab1b4d86fc50cfcef9bf77939faee6fb06a664d3ed7",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:lr_l4zs_m9",
+       "submission": "li/lr-l5s-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCHVIXZJs keep 9+9 inner_a 3 outer_a 2"
-      },
-      {
-       "unixTime": 1790927419,
-       "track": "li",
-       "architecture": "onehot-split",
-       "toffoli": 20493.382,
-       "qubits": 439,
-       "toffoliTimesQubits": 8996594.698,
-       "score": 412163400.0,
-       "samples": 524288,
-       "engine": "reference-4096+sliced-524288",
-       "opsSha256": "df81c495984cc086c1b499fb4e6cad46782636425105ae7c1ebe27c482028423",
-       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-       "commit": "genesis",
-       "pr": null,
-       "author": "teddyjfpender",
-       "model": "Claude Opus 5.5",
-       "harness": "Claude Code",
-       "submission": "pin:lr_l5s_m9",
-       "kind": "historical",
-       "standing": [
-        "architecture-elite"
-       ],
-       "note": "sa-low2025-toff imchxgrdky5zabCHVIXJs keep 9+9 inner_a 3 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHVIXJs, keep 8+8, blocks 3/2"
       },
       {
        "unixTime": 1790928176,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 18145.648,
-       "qubits": 485,
-       "toffoliTimesQubits": 8800639.28,
-       "score": 403186100.0,
+       "toffoli": 18055.543,
+       "qubits": 482,
+       "toffoliTimesQubits": 8702771.726,
+       "score": 8702771.726,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "e4deb6e3b8ff2f668fe4a3502c2621d1b725a90c7132ffc72d578e593883ea85",
+       "opsSha256": "222cb5f159a36562a547c3e7c13aa9a6b8bc25c8b4008bab531f3dc629cb9e49",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:lw_l4af_m9",
+       "submission": "li/lw-l4af-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAXZJSRNOBWMenF keep 9+9 inner_a 8 outer_a 3"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJSRNOBWMenF, keep 8+8, blocks 8/3"
       },
       {
        "unixTime": 1790930713,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 18133.451,
-       "qubits": 485,
-       "toffoliTimesQubits": 8794723.735,
-       "score": 402915000.0,
+       "toffoli": 18043.535,
+       "qubits": 482,
+       "toffoliTimesQubits": 8696983.87,
+       "score": 8696983.87,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "c3ac126abeb159ad83965d0da1f9063e65bd330e1eb1f622cc8174e74c7f8a92",
+       "opsSha256": "65e6341325ae21f9bef0f0f508304fcb95ff6519da9973083091681d3061dc5a",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:ltn_lw1sy_m9",
+       "submission": "li/ltn-lw1sy-m8",
        "kind": "historical",
        "standing": [],
-       "note": "sa-low2025-toff imchxgrdky4zabCAXZJSRNOBWMenFsY keep 9+9 inner_a 8 outer_a 3"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJSRNOBWMenFsY, keep 8+8, blocks 8/3"
       },
       {
        "unixTime": 1790934487,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 17855.525,
-       "qubits": 492,
-       "toffoliTimesQubits": 8784918.3,
-       "score": 402465800.0,
+       "toffoli": 17767.469,
+       "qubits": 489,
+       "toffoliTimesQubits": 8688292.341,
+       "score": 8688292.341,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "064126088929e5c9064d782317c7ad83fb6f9509e362e7c849f57537c5f27fad",
+       "opsSha256": "70854ced688813b8da85abeb3541efa01de279220fed88caf4b6e69f431c3f55",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:pf_l4t_m9",
+       "submission": "li/pf-l4t-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAXZJBMnFsYUt keep 9+9 inner_a 8 outer_a 3"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJBMnFsYUt, keep 8+8, blocks 8/3"
       },
       {
        "unixTime": 1790934487,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 18059.586,
-       "qubits": 484,
-       "toffoliTimesQubits": 8740839.624,
-       "score": 400446400.0,
+       "toffoli": 17969.513,
+       "qubits": 481,
+       "toffoliTimesQubits": 8643335.753,
+       "score": 8643335.753,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "2b849df2c3837fd103208343901604eaba0c39d6aa0911af2f3e2902b58ac008",
+       "opsSha256": "2a9d5c0c2f39e97248f982d47af94b4eb310c056ec8c58e017e029f1f7b7bf6b",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:pf_l4tp_m9",
+       "submission": "li/pf-l4tp-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAXZJtRNOBWMenFsY keep 9+9 inner_a 8 outer_a 3"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJtRNOBWMenFsY, keep 8+8, blocks 8/3"
       },
       {
        "unixTime": 1790961018,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 17963.447,
-       "qubits": 483,
-       "toffoliTimesQubits": 8676344.901,
-       "score": 397491700.0,
+       "toffoli": 17889.487,
+       "qubits": 480,
+       "toffoliTimesQubits": 8586953.76,
+       "score": 8586953.76,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "1c38687f8f9ab3020c0bde3d7ba2d59e354836988c950f4292e4aace101bd593",
+       "opsSha256": "b01d9328df60c02df8e3d304f005c7cad7ebbc3a68db86624c3f06bcc7d71886",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kn_l4f_m9",
+       "submission": "li/kn-l4f-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+- keep 9+9 inner_a 3 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+-, keep 8+8, blocks 3/2"
       },
       {
        "unixTime": 1790961018,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 19937.568,
-       "qubits": 433,
-       "toffoliTimesQubits": 8632966.944,
-       "score": 395504400.0,
+       "toffoli": 19863.508,
+       "qubits": 430,
+       "toffoliTimesQubits": 8541308.44,
+       "score": 8541308.44,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "10e030735b6aa555112fb92903beb09eed9fcf8ac966969902761bfd9d646c45",
+       "opsSha256": "fb48129fd0a19f2d60721543311542d7a9d8138f80fb2c34628640f5401a9c41",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kn_l5f_m9",
+       "submission": "li/kn-l5f-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky5zabCHVIXJtRNOBWPs+- keep 9+9 inner_a 3 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHVIXJtRNOBWPs+-, keep 8+8, blocks 3/2"
       },
       {
        "unixTime": 1790962485,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 17839.525,
-       "qubits": 480,
-       "toffoliTimesQubits": 8562972.0,
-       "score": 392297700.0,
+       "toffoli": 17749.626,
+       "qubits": 477,
+       "toffoliTimesQubits": 8466571.602,
+       "score": 8466571.602,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "9a6569de697e85e01640d3abf4202534b35faa3af2fb63cc158861f3f7b69247",
+       "opsSha256": "f3ff2b2a6b263a120e7b67ebe42c060625326376a33b5ce239a3d7de0c1c5276",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kl_l4pgh_m9",
+       "submission": "li/kl-l4pgh-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4 keep 9+9 inner_a 8 outer_a 3"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4, keep 8+8, blocks 8/3"
       },
       {
        "unixTime": 1790962565,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 19965.462,
-       "qubits": 427,
-       "toffoliTimesQubits": 8525252.274,
-       "score": 390569700.0,
+       "toffoli": 19891.527,
+       "qubits": 424,
+       "toffoliTimesQubits": 8434007.448,
+       "score": 8434007.448,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "078fcee777429c35cf5507752558311dd3845a5a0684304454de5fd8f31e3031",
+       "opsSha256": "b5db89cfbb29c47e109924ffc9bb95f1d962a3e14adbd84c31531a0585722cd1",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kn_l5fh_m9",
+       "submission": "li/kn-l5fh-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_ keep 9+9 inner_a 3 outer_a 2"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_, keep 8+8, blocks 3/2"
       },
       {
        "unixTime": 1790965281,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 17915.576,
-       "qubits": 474,
-       "toffoliTimesQubits": 8491983.024,
-       "score": 389045500.0,
+       "toffoli": 17837.482,
+       "qubits": 471,
+       "toffoliTimesQubits": 8401454.022,
+       "score": 8401454.022,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "71d6dde41494b0dcb027b9c8999aefbf03a701b0e26c2b84138fddb2747ab1f2",
+       "opsSha256": "0da027579c4c992b853c82158df3b654eccbdb40309dfcd9e6b52cbff77b5947",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kl_l4hfg_m9",
+       "submission": "li/kl-l4hfg-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.gh4 keep 9+9 inner_a 3 outer_a 3"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.gh4, keep 8+8, blocks 3/3"
       },
       {
        "unixTime": 1790965281,
        "track": "li",
        "architecture": "onehot-split",
-       "toffoli": 17855.562,
-       "qubits": 474,
-       "toffoliTimesQubits": 8463536.388,
-       "score": 387742300.0,
+       "toffoli": 17777.483,
+       "qubits": 471,
+       "toffoliTimesQubits": 8373194.493,
+       "score": 8373194.493,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "ef431759463cb8e2461096cdf2d85a6a7a692a92a7c881d699cb2a8fab781701",
+       "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kl_l4hfge_m9",
+       "submission": "li/kl-l4hfge-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4 keep 9+9 inner_a 3 outer_a 3"
+       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
       }
      ]
     },
@@ -2605,7 +2638,7 @@
       "toffoli": 17849.46,
       "qubits": 491,
       "toffoliTimesQubits": 8764084.86,
-      "score": 401511400.0,
+      "score": 8764084.86,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "3e3bea6ff03c35412e96678d001a24943b0188187f4879597baf743c2d0b93f2",
@@ -2615,12 +2648,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:kn_l4fhq24_m9",
+      "submission": "li/kn-l4fhq24-m9",
       "kind": "historical",
       "standing": [
        "architecture-elite"
       ],
-      "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+-_q24_1 keep 9+9 inner_a 3 outer_a 3"
+      "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+-_q24_1, keep 9+9, blocks 3/3"
      },
      "fewestQubits": {
       "unixTime": 1790965281,
@@ -2629,7 +2662,7 @@
       "toffoli": 24761.473,
       "qubits": 400,
       "toffoliTimesQubits": 9904589.2,
-      "score": 453761600.0,
+      "score": 9904589.2,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "376fff221a75ce7f3cd10ab7671d14f290476abea6084a4937a5a85b3b235a7c",
@@ -2639,12 +2672,12 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:kl_l7e_m9",
+      "submission": "li/kl-l7e-m9",
       "kind": "historical",
       "standing": [
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrdky7zabCHVIXJsoq22_1.e keep 9+9 inner_a 3 outer_a 2"
+      "note": "Rank-scheduled delivery: sa-toff imchxgrdky7zabCHVIXJsoq22_1.e, keep 9+9, blocks 3/2"
      },
      "fewestToffoli": {
       "unixTime": 1790965281,
@@ -2653,7 +2686,7 @@
       "toffoli": 12821.674,
       "qubits": 1166,
       "toffoliTimesQubits": 14950071.884,
-      "score": 684911700.0,
+      "score": 14950071.884,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "6bcb6a20a59e1c1d9f8cfc8b1e144066c829e825d0057818106fa855f0bc58a1",
@@ -2663,10 +2696,10 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:kl_l3q618p_m9",
+      "submission": "li/kl-l3q618p-m9",
       "kind": "historical",
       "standing": [],
-      "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUtq618_1.p keep 9+9 inner_a 9 outer_a 3"
+      "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUtq618_1.p, keep 9+9, blocks 9/3"
      },
      "history": [
       {
@@ -2676,7 +2709,7 @@
        "toffoli": 15869.628,
        "qubits": 855,
        "toffoliTimesQubits": 13568531.94,
-       "score": 621618800.0,
+       "score": 13568531.94,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "ba0cf2e15194dd0a44440379b2388439968be7e08ba6fda18b9575ef62b4f683",
@@ -2686,13 +2719,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdr_l3q320_m9",
+       "submission": "li/rdr-l3q320-m9",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCHVIXJtRNOBWsq320 keep 9+9 inner_a 3 outer_a 2"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHVIXJtRNOBWsq320, keep 9+9, blocks 3/2"
       },
       {
        "unixTime": 1790943804,
@@ -2701,7 +2734,7 @@
        "toffoli": 15509.325,
        "qubits": 650,
        "toffoliTimesQubits": 10081061.25,
-       "score": 461846400.0,
+       "score": 10081061.25,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "667cd5d38c4a758abca6479f12cf070caa7f6fd949f2521d0ae8d290d4918849",
@@ -2711,13 +2744,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdl_l3q100_m9",
+       "submission": "li/rdl-l3q100-m9",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq100_1 keep 9+9 inner_a 8 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq100_1, keep 9+9, blocks 8/3"
       },
       {
        "unixTime": 1790943804,
@@ -2726,7 +2759,7 @@
        "toffoli": 15809.594,
        "qubits": 600,
        "toffoliTimesQubits": 9485756.4,
-       "score": 434573500.0,
+       "score": 9485756.4,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "aafa9df08327acc845fca1c1d7ced23bf7313448ef775c62e1e6d74e3d5b1ad1",
@@ -2736,13 +2769,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdl_l3q50_m9",
+       "submission": "li/rdl-l3q50-m9",
        "kind": "historical",
        "standing": [
         "architecture-elite",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq50_1 keep 9+9 inner_a 8 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq50_1, keep 9+9, blocks 8/3"
       },
       {
        "unixTime": 1790943804,
@@ -2751,7 +2784,7 @@
        "toffoli": 17867.426,
        "qubits": 499,
        "toffoliTimesQubits": 8915845.574,
-       "score": 408464000.0,
+       "score": 8915845.574,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "140b62dba07393fce172d9f86f112171e39a3c9a243b6e569b5cab89e69ff45a",
@@ -2761,36 +2794,61 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:rdl_l4q21_m9",
+       "submission": "li/rdl-l4q21-m9",
        "kind": "historical",
        "standing": [
         "architecture-elite"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAXZJBMnFsYUq21_1 keep 9+9 inner_a 8 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAXZJBMnFsYUq21_1, keep 9+9, blocks 8/3"
       },
       {
-       "unixTime": 1790951943,
+       "unixTime": 1790943804,
        "track": "li",
        "architecture": "rank-scheduled",
-       "toffoli": 17777.433,
+       "toffoli": 17753.633,
        "qubits": 499,
-       "toffoliTimesQubits": 8870939.067,
-       "score": 406406700.0,
+       "toffoliTimesQubits": 8859062.867,
+       "score": 8859062.867,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "2d33e9da97622bff52c9408e902944e1e45fe89718830801d1284423bc195eb1",
+       "opsSha256": "e043787f45304c95f0f136d398c2941515fe0a64d5678c93f7c38c0a09bc90bd",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:fa_l4tq23_m9",
+       "submission": "li/rdl-l4q24-m8",
        "kind": "historical",
        "standing": [
         "architecture-elite"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAXZJBMnFsYUtq23_1 keep 9+9 inner_a 8 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAXZJBMnFsYUq24_1, keep 8+8, blocks 8/3"
+      },
+      {
+       "unixTime": 1790951943,
+       "track": "li",
+       "architecture": "rank-scheduled",
+       "toffoli": 17663.471,
+       "qubits": 499,
+       "toffoliTimesQubits": 8814072.029,
+       "score": 8814072.029,
+       "samples": 524288,
+       "engine": "reference-4096+sliced-524288",
+       "opsSha256": "ad0926ddfa88289d62b3dc09afad6d6f31762001e4640c63f74dd2cf5eb9ea19",
+       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+       "commit": "genesis",
+       "pr": null,
+       "author": "teddyjfpender",
+       "model": "Claude Opus 5.5",
+       "harness": "Claude Code",
+       "submission": "li/fa-l4tq26-m8",
+       "kind": "historical",
+       "standing": [
+        "architecture-elite",
+        "front"
+       ],
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAXZJBMnFsYUtq26_1, keep 8+8, blocks 8/3"
       },
       {
        "unixTime": 1790963522,
@@ -2799,7 +2857,7 @@
        "toffoli": 17849.46,
        "qubits": 491,
        "toffoliTimesQubits": 8764084.86,
-       "score": 401511400.0,
+       "score": 8764084.86,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "3e3bea6ff03c35412e96678d001a24943b0188187f4879597baf743c2d0b93f2",
@@ -2809,12 +2867,12 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:kn_l4fhq24_m9",
+       "submission": "li/kn-l4fhq24-m9",
        "kind": "historical",
        "standing": [
         "architecture-elite"
        ],
-       "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+-_q24_1 keep 9+9 inner_a 3 outer_a 3"
+       "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+-_q24_1, keep 9+9, blocks 3/3"
       }
      ]
     },
@@ -2828,25 +2886,26 @@
       "unixTime": 1790935627,
       "track": "li",
       "architecture": "onehot",
-      "toffoli": 13189.02,
-      "qubits": 1210,
-      "toffoliTimesQubits": 15958714.2,
-      "score": 731120900.0,
+      "toffoli": 13116.502,
+      "qubits": 1206,
+      "toffoliTimesQubits": 15818501.412,
+      "score": 15818501.412,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "600c53f07106049bd8f3ab982b2b0ec8d2a72e66616fce61bd08e20e13a8b20f",
+      "opsSha256": "a029404fe2f8d6e3485bc06e844223521d8fd37d2d812b06238c8909a4741d1a",
       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
       "commit": "genesis",
       "pr": null,
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:pf_l1c_m9",
+      "submission": "li/pf-l1c-m8",
       "kind": "historical",
       "standing": [
-       "architecture-elite"
+       "architecture-elite",
+       "front"
       ],
-      "note": "sa-low2025-toff imchxgrEC keep 9+9 inner_a 5 outer_a 2"
+      "note": "One-hot angle delivery: sa-toff imchxgrEC, keep 8+8, blocks 5/2"
      },
      "fewestQubits": {
       "unixTime": 1790935627,
@@ -2855,7 +2914,7 @@
       "toffoli": 13116.502,
       "qubits": 1206,
       "toffoliTimesQubits": 15818501.412,
-      "score": 757194900.0,
+      "score": 15818501.412,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "a029404fe2f8d6e3485bc06e844223521d8fd37d2d812b06238c8909a4741d1a",
@@ -2865,12 +2924,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:pf_l1c_m8",
+      "submission": "li/pf-l1c-m8",
       "kind": "historical",
       "standing": [
+       "architecture-elite",
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrEC keep 8+8 inner_a 5 outer_a 2"
+      "note": "One-hot angle delivery: sa-toff imchxgrEC, keep 8+8, blocks 5/2"
      },
      "fewestToffoli": {
       "unixTime": 1790935627,
@@ -2879,7 +2939,7 @@
       "toffoli": 13116.502,
       "qubits": 1206,
       "toffoliTimesQubits": 15818501.412,
-      "score": 757194900.0,
+      "score": 15818501.412,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
       "opsSha256": "a029404fe2f8d6e3485bc06e844223521d8fd37d2d812b06238c8909a4741d1a",
@@ -2889,12 +2949,13 @@
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "pin:pf_l1c_m8",
+      "submission": "li/pf-l1c-m8",
       "kind": "historical",
       "standing": [
+       "architecture-elite",
        "front"
       ],
-      "note": "sa-low2025-toff imchxgrEC keep 8+8 inner_a 5 outer_a 2"
+      "note": "One-hot angle delivery: sa-toff imchxgrEC, keep 8+8, blocks 5/2"
      },
      "history": [
       {
@@ -2904,7 +2965,7 @@
        "toffoli": 13340.998,
        "qubits": 1219,
        "toffoliTimesQubits": 16262676.562,
-       "score": 745046400.0,
+       "score": 16262676.562,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "da11811ca8b5caf1aa223d12e3e5c8b1d642211c1c51ab03a8e67b6e601568ee",
@@ -2914,13 +2975,13 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:est_l_gr_a5",
+       "submission": "li/est-l-gr-a5",
        "kind": "historical",
        "standing": [
         "new-architecture",
         "front"
        ],
-       "note": "sa-low2025-toff imchxgr keep 9+9 inner_a 5 outer_a 2"
+       "note": "One-hot angle delivery: sa-toff imchxgr, keep 9+9, blocks 5/2"
       },
       {
        "unixTime": 1790927419,
@@ -2929,7 +2990,7 @@
        "toffoli": 13341.0,
        "qubits": 1218,
        "toffoliTimesQubits": 16249338.0,
-       "score": 744435300.0,
+       "score": 16249338.0,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
        "opsSha256": "6d386519836dfee7bf5ad226a92d8e9b72b23289ffd0d3ab841ea7b8c01b4ebc",
@@ -2939,36 +3000,142 @@
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:lr_l1s_m9",
+       "submission": "li/lr-l1s-m9",
        "kind": "historical",
        "standing": [
         "front"
        ],
-       "note": "sa-low2025-toff imchxgrs keep 9+9 inner_a 5 outer_a 2"
+       "note": "One-hot angle delivery: sa-toff imchxgrs, keep 9+9, blocks 5/2"
       },
       {
        "unixTime": 1790935627,
        "track": "li",
        "architecture": "onehot",
-       "toffoli": 13189.02,
-       "qubits": 1210,
-       "toffoliTimesQubits": 15958714.2,
-       "score": 731120900.0,
+       "toffoli": 13116.502,
+       "qubits": 1206,
+       "toffoliTimesQubits": 15818501.412,
+       "score": 15818501.412,
        "samples": 524288,
        "engine": "reference-4096+sliced-524288",
-       "opsSha256": "600c53f07106049bd8f3ab982b2b0ec8d2a72e66616fce61bd08e20e13a8b20f",
+       "opsSha256": "a029404fe2f8d6e3485bc06e844223521d8fd37d2d812b06238c8909a4741d1a",
        "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
        "commit": "genesis",
        "pr": null,
        "author": "teddyjfpender",
        "model": "Claude Opus 5.5",
        "harness": "Claude Code",
-       "submission": "pin:pf_l1c_m9",
+       "submission": "li/pf-l1c-m8",
        "kind": "historical",
        "standing": [
-        "architecture-elite"
+        "architecture-elite",
+        "front"
        ],
-       "note": "sa-low2025-toff imchxgrEC keep 9+9 inner_a 5 outer_a 2"
+       "note": "One-hot angle delivery: sa-toff imchxgrEC, keep 8+8, blocks 5/2"
+      }
+     ]
+    },
+    {
+     "id": "qroam-word",
+     "name": "QROAM angle words",
+     "parent": null,
+     "circuits": 1,
+     "firstUnixTime": 1791233859,
+     "elite": {
+      "unixTime": 1791233859,
+      "track": "li",
+      "architecture": "qroam-word",
+      "toffoli": 13906.0,
+      "qubits": 1347,
+      "toffoliTimesQubits": 18731382.0,
+      "score": 18731382.0,
+      "samples": 524288,
+      "engine": "reference-4096+sliced-524288",
+      "opsSha256": "096fe98c26ed89061bfebd64eb5f8340a6b01b6a8953ee5cb1ff26ab2e7d19df",
+      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+      "commit": "genesis",
+      "pr": null,
+      "author": "teddyjfpender",
+      "model": "Claude Opus 5.5",
+      "harness": "Claude Code",
+      "submission": "li/low2025-reference",
+      "kind": "historical",
+      "standing": [
+       "new-architecture"
+      ],
+      "note": "Low et al. 2025 construction on the Li active space"
+     },
+     "fewestQubits": {
+      "unixTime": 1791233859,
+      "track": "li",
+      "architecture": "qroam-word",
+      "toffoli": 13906.0,
+      "qubits": 1347,
+      "toffoliTimesQubits": 18731382.0,
+      "score": 18731382.0,
+      "samples": 524288,
+      "engine": "reference-4096+sliced-524288",
+      "opsSha256": "096fe98c26ed89061bfebd64eb5f8340a6b01b6a8953ee5cb1ff26ab2e7d19df",
+      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+      "commit": "genesis",
+      "pr": null,
+      "author": "teddyjfpender",
+      "model": "Claude Opus 5.5",
+      "harness": "Claude Code",
+      "submission": "li/low2025-reference",
+      "kind": "historical",
+      "standing": [
+       "new-architecture"
+      ],
+      "note": "Low et al. 2025 construction on the Li active space"
+     },
+     "fewestToffoli": {
+      "unixTime": 1791233859,
+      "track": "li",
+      "architecture": "qroam-word",
+      "toffoli": 13906.0,
+      "qubits": 1347,
+      "toffoliTimesQubits": 18731382.0,
+      "score": 18731382.0,
+      "samples": 524288,
+      "engine": "reference-4096+sliced-524288",
+      "opsSha256": "096fe98c26ed89061bfebd64eb5f8340a6b01b6a8953ee5cb1ff26ab2e7d19df",
+      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+      "commit": "genesis",
+      "pr": null,
+      "author": "teddyjfpender",
+      "model": "Claude Opus 5.5",
+      "harness": "Claude Code",
+      "submission": "li/low2025-reference",
+      "kind": "historical",
+      "standing": [
+       "new-architecture"
+      ],
+      "note": "Low et al. 2025 construction on the Li active space"
+     },
+     "history": [
+      {
+       "unixTime": 1791233859,
+       "track": "li",
+       "architecture": "qroam-word",
+       "toffoli": 13906.0,
+       "qubits": 1347,
+       "toffoliTimesQubits": 18731382.0,
+       "score": 18731382.0,
+       "samples": 524288,
+       "engine": "reference-4096+sliced-524288",
+       "opsSha256": "096fe98c26ed89061bfebd64eb5f8340a6b01b6a8953ee5cb1ff26ab2e7d19df",
+       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+       "commit": "genesis",
+       "pr": null,
+       "author": "teddyjfpender",
+       "model": "Claude Opus 5.5",
+       "harness": "Claude Code",
+       "submission": "li/low2025-reference",
+       "kind": "historical",
+       "standing": [
+        "new-architecture"
+       ],
+       "note": "Low et al. 2025 construction on the Li active space"
       }
      ]
     }
@@ -2981,7 +3148,7 @@
      "toffoli": 25181.068,
      "qubits": 374,
      "toffoliTimesQubits": 9417719.432,
-     "score": 450804300.0,
+     "score": 9417719.432,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "7c272fcb5df70c9a5899d1c892ec685968ce630ecfdb87707c1b0d7db099327f",
@@ -2991,12 +3158,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rc_l7_m8",
+     "submission": "li/rc-l7-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky7zabCHKVIXJOBWsotU+_~.e keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky7zabCHKVIXJOBWsotU+_~.e, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790928902,
@@ -3005,7 +3172,7 @@
      "toffoli": 24927.597,
      "qubits": 387,
      "toffoliTimesQubits": 9646980.039,
-     "score": 461778500.0,
+     "score": 9646980.039,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "3afef3af9e0556349cb9a813186fc36bd5c188e8c6da4efc4e4eed90315d354a",
@@ -3015,12 +3182,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:lr_l7so_m8",
+     "submission": "li/lr-l7so-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky7zabCHVIXJso keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky7zabCHVIXJso, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790971147,
@@ -3029,7 +3196,7 @@
      "toffoli": 22798.91,
      "qubits": 393,
      "toffoliTimesQubits": 8959971.63,
-     "score": 428893000.0,
+     "score": 8959971.63,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "6ff2fab3454c74b41aa8b79401943cad1e86179e9c209c0db353be088ffd5acb",
@@ -3039,12 +3206,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rc_l6_m8",
+     "submission": "li/rc-l6-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky6zabCHKVIXZJNOBWsotU+_~Y.eh4 keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky6zabCHKVIXZJNOBWsotU+_~Y.eh4, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790951943,
@@ -3053,7 +3220,7 @@
      "toffoli": 22245.298,
      "qubits": 413,
      "toffoliTimesQubits": 9187308.074,
-     "score": 439775100.0,
+     "score": 9187308.074,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "7b5abba501c226fdab2dac6af98fa2af211f5ee4b05432812a9727f812f020a2",
@@ -3063,12 +3230,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:fa_l6tpq14_m8",
+     "submission": "li/fa-l6tpq14-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky6zabCHVIXZJsot+q14_1 keep 8+8 inner_a 3 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky6zabCHVIXZJsot+q14_1, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790971147,
@@ -3077,7 +3244,7 @@
      "toffoli": 20696.501,
      "qubits": 417,
      "toffoliTimesQubits": 8630440.917,
-     "score": 413119200.0,
+     "score": 8630440.917,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "c2e2c1c3fb36a0b86ec0cc329b3673f60ec235c0d2f45e65df1beb9aca4952ca",
@@ -3087,12 +3254,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rc_l5_m8",
+     "submission": "li/rc-l5-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHKVIXJtNOBWPsU+_~.eh4 keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHKVIXJtNOBWPsU+_~.eh4, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790965281,
@@ -3101,7 +3268,7 @@
      "toffoli": 19791.448,
      "qubits": 424,
      "toffoliTimesQubits": 8391573.952,
-     "score": 401685100.0,
+     "score": 8391573.952,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "831604c2ba5dbeaab532c13a86c64b24fce9493f832f70caff613551e2797648",
@@ -3111,12 +3278,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l5fhe_m8",
+     "submission": "li/kl-l5fhe-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHKVIXJtRNOBWPsU+-_.eh4 keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPsU+-_.eh4, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790963522,
@@ -3125,7 +3292,7 @@
      "toffoli": 19717.55,
      "qubits": 447,
      "toffoliTimesQubits": 8813744.85,
-     "score": 403786500.0,
+     "score": 8813744.85,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "c2834b4fcc6cd760dda6c12d5dbf98d4e216303195746d96b5a4be7342dd64e9",
@@ -3135,12 +3302,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l5fhq30_m9",
+     "submission": "li/kn-l5fhq30-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q30_1 keep 9+9 inner_a 3 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q30_1, keep 9+9, blocks 3/2"
     },
     {
      "unixTime": 1790963522,
@@ -3149,7 +3316,7 @@
      "toffoli": 19571.567,
      "qubits": 450,
      "toffoliTimesQubits": 8807205.15,
-     "score": 421580500.0,
+     "score": 8807205.15,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "454c6d521465af04c882df1996e5e7103749cd5b1e897200d07b94bd50eea114",
@@ -3159,12 +3326,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l5fhq36_m8",
+     "submission": "li/kn-l5fhq36-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q36_1 keep 8+8 inner_a 3 outer_a 2"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q36_1, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790963522,
@@ -3173,7 +3340,7 @@
      "toffoli": 19467.456,
      "qubits": 467,
      "toffoliTimesQubits": 9091301.952,
-     "score": 416502300.0,
+     "score": 9091301.952,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "acd7fbe858b5531153e99543209d9a40dcd08a8fa4e1bbbf3bedf350eadb7513",
@@ -3183,12 +3350,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l5fhq50_m9",
+     "submission": "li/kn-l5fhq50-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q50_1 keep 9+9 inner_a 3 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q50_1, keep 9+9, blocks 3/3"
     },
     {
      "unixTime": 1790965281,
@@ -3197,7 +3364,7 @@
      "toffoli": 17777.483,
      "qubits": 471,
      "toffoliTimesQubits": 8373194.493,
-     "score": 400805400.0,
+     "score": 8373194.493,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
@@ -3207,12 +3374,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l4hfge_m8",
+     "submission": "li/kl-l4hfge-m8",
      "kind": "historical",
      "standing": [
+      "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4 keep 8+8 inner_a 3 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790962485,
@@ -3221,7 +3389,7 @@
      "toffoli": 17749.626,
      "qubits": 477,
      "toffoliTimesQubits": 8466571.602,
-     "score": 405275100.0,
+     "score": 8466571.602,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "f3ff2b2a6b263a120e7b67ebe42c060625326376a33b5ce239a3d7de0c1c5276",
@@ -3231,12 +3399,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l4pgh_m8",
+     "submission": "li/kl-l4pgh-m8",
      "kind": "historical",
      "standing": [
+      "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4 keep 8+8 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790934487,
@@ -3245,7 +3414,7 @@
      "toffoli": 17708.484,
      "qubits": 497,
      "toffoliTimesQubits": 8801116.548,
-     "score": 421289000.0,
+     "score": 8801116.548,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "aace448cc14821147af18c3c71ad52df92b734cafc5a23f735c500bafc990b3b",
@@ -3255,12 +3424,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:pf_l4tc_m8",
+     "submission": "li/pf-l4tc-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdy4zabCAXZJBMnFsYUt keep 8+8 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdy4zabCAXZJBMnFsYUt, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790963522,
@@ -3269,7 +3438,7 @@
      "toffoli": 17633.506,
      "qubits": 499,
      "toffoliTimesQubits": 8799119.494,
-     "score": 421193400.0,
+     "score": 8799119.494,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "def5ceebc39f0af19a224a0a3c84d0b2b638abbc5503b148e6c11a93bc63d03b",
@@ -3279,12 +3448,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l4phq32_m8",
+     "submission": "li/kn-l4phq32-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJBMnFsYUt_q32_1 keep 8+8 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAXZJBMnFsYUt_q32_1, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790963522,
@@ -3293,7 +3462,7 @@
      "toffoli": 17559.497,
      "qubits": 520,
      "toffoliTimesQubits": 9130938.44,
-     "score": 418318200.0,
+     "score": 9130938.44,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "8c8c407732fc48a7d45f94bf68166ec8de93e72a448a2624e0ef3f3377253cbb",
@@ -3303,12 +3472,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l4phq50_m9",
+     "submission": "li/kn-l4phq50-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJBMnFsYUt_q50_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAXZJBMnFsYUt_q50_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3317,7 +3486,7 @@
      "toffoli": 17499.407,
      "qubits": 540,
      "toffoliTimesQubits": 9449679.78,
-     "score": 432920700.0,
+     "score": 9449679.78,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "9f890b9661bb9f0b23aedff8b71797a2d919d20d90fd016cc4e0e4902e7a8bc0",
@@ -3327,12 +3496,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l4q62_m9",
+     "submission": "li/rdl-l4q62-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJBMnFsYUq62_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAXZJBMnFsYUq62_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790965281,
@@ -3341,7 +3510,7 @@
      "toffoli": 16039.493,
      "qubits": 555,
      "toffoliTimesQubits": 8901918.615,
-     "score": 407826000.0,
+     "score": 8901918.615,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "f17c015335726dfaaa3b13eb6a8aa3c11d729965b425c94b19e6277f55ae293a",
@@ -3351,12 +3520,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l3pgh_m9",
+     "submission": "li/kl-l3pgh-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJSRNOBWMnFsU.pgh4 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCAXJSRNOBWMnFsU.pgh4, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3365,7 +3534,7 @@
      "toffoli": 15809.594,
      "qubits": 600,
      "toffoliTimesQubits": 9485756.4,
-     "score": 434573500.0,
+     "score": 9485756.4,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "aafa9df08327acc845fca1c1d7ced23bf7313448ef775c62e1e6d74e3d5b1ad1",
@@ -3375,13 +3544,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l3q50_m9",
+     "submission": "li/rdl-l3q50-m9",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq50_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq50_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3390,7 +3559,7 @@
      "toffoli": 15509.325,
      "qubits": 650,
      "toffoliTimesQubits": 10081061.25,
-     "score": 461846400.0,
+     "score": 10081061.25,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "667cd5d38c4a758abca6479f12cf070caa7f6fd949f2521d0ae8d290d4918849",
@@ -3400,13 +3569,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l3q100_m9",
+     "submission": "li/rdl-l3q100-m9",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq100_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq100_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3415,7 +3584,7 @@
      "toffoli": 15209.552,
      "qubits": 700,
      "toffoliTimesQubits": 10646686.4,
-     "score": 487759500.0,
+     "score": 10646686.4,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "2b1fcc649fbdd957d33a6a77e9fe3e95d7f99e050067e744ff5c3901bc44cec2",
@@ -3425,12 +3594,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l3q150_m9",
+     "submission": "li/rdl-l3q150-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq150_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq150_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3439,7 +3608,7 @@
      "toffoli": 14521.362,
      "qubits": 797,
      "toffoliTimesQubits": 11573525.514,
-     "score": 553997800.0,
+     "score": 11573525.514,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "7e4e3dc19a63d771da9491b687412fb610a3ed15e4a332c4adb7cba302d7901e",
@@ -3449,12 +3618,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l3q250_m8",
+     "submission": "li/rdl-l3q250-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq250_1 keep 8+8 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq250_1, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3463,7 +3632,7 @@
      "toffoli": 14009.477,
      "qubits": 900,
      "toffoliTimesQubits": 12608529.3,
-     "score": 577637900.0,
+     "score": 12608529.3,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "ceb4b158c4cbe879d6e4a10a0b8d3c5e9c17eb8cc5a3cd3a22fcda4063e36e98",
@@ -3473,12 +3642,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l3q350_m9",
+     "submission": "li/rdl-l3q350-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq350_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq350_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3487,7 +3656,7 @@
      "toffoli": 13425.509,
      "qubits": 1000,
      "toffoliTimesQubits": 13425509.0,
-     "score": 615066500.0,
+     "score": 13425509.0,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "c0cb4fcac38756543fb03d3cd3ec3fea99c67d7e23e177066c0970701513e472",
@@ -3497,12 +3666,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l3q450_m9",
+     "submission": "li/rdl-l3q450-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq450_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq450_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790943804,
@@ -3511,7 +3680,7 @@
      "toffoli": 13225.646,
      "qubits": 1100,
      "toffoliTimesQubits": 14548210.6,
-     "score": 666501100.0,
+     "score": 14548210.6,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "b41959beb51e27d2690056e30dfec652985348ede587a31fd79c3fab4c3d7460",
@@ -3521,12 +3690,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:rdl_l3q550_m9",
+     "submission": "li/rdl-l3q550-m9",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUq550_1 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq550_1, keep 9+9, blocks 8/3"
     },
     {
      "unixTime": 1790951943,
@@ -3535,7 +3704,7 @@
      "toffoli": 12827.517,
      "qubits": 1163,
      "toffoliTimesQubits": 14918402.271,
-     "score": 714109300.0,
+     "score": 14918402.271,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "9fb8d2bb535664dc2abcc20f4f5b55042a0ad99960842b3023cfeaa8be88d90b",
@@ -3545,12 +3714,12 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:fa_l3q618i9_m8",
+     "submission": "li/fa-l3q618i9-m8",
      "kind": "historical",
      "standing": [
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUtq618_1 keep 8+8 inner_a 9 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUtq618_1, keep 8+8, blocks 9/3"
     },
     {
      "unixTime": 1790965281,
@@ -3559,7 +3728,7 @@
      "toffoli": 12821.674,
      "qubits": 1166,
      "toffoliTimesQubits": 14950071.884,
-     "score": 684911700.0,
+     "score": 14950071.884,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "6bcb6a20a59e1c1d9f8cfc8b1e144066c829e825d0057818106fa855f0bc58a1",
@@ -3569,10 +3738,10 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l3q618p_m9",
+     "submission": "li/kl-l3q618p-m9",
      "kind": "historical",
      "standing": [],
-     "note": "sa-low2025-toff imchxgrdky3zabCAXJBMnFsUtq618_1.p keep 9+9 inner_a 9 outer_a 3"
+     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUtq618_1.p, keep 9+9, blocks 9/3"
     }
    ],
    "history": [
@@ -3583,7 +3752,7 @@
      "toffoli": 18204.995,
      "qubits": 745,
      "toffoliTimesQubits": 13562721.275,
-     "score": 621352600.0,
+     "score": 13562721.275,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "01888055ecc61f100bf3f8c1d7b5f252c13d0ba7f3b7808f7b06c26de4c84d71",
@@ -3593,13 +3762,13 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:est_l_vd_a4",
+     "submission": "li/est-l-vd-a4",
      "kind": "historical",
      "standing": [
       "new-architecture",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrvd keep 9+9 inner_a 4 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrvd, keep 9+9, blocks 4/2"
     },
     {
      "unixTime": 1790927419,
@@ -3608,7 +3777,7 @@
      "toffoli": 18375.476,
      "qubits": 496,
      "toffoliTimesQubits": 9114236.096,
-     "score": 436277300.0,
+     "score": 9114236.096,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
      "opsSha256": "63e4c09de14c7f3a4ced7bc36f17947f28fdb0e2af1e78a6c7184c8e41eac9a8",
@@ -3618,299 +3787,284 @@
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:lr_l4zs_m8",
+     "submission": "li/lr-l4zs-m8",
      "kind": "historical",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCHVIXZJs keep 8+8 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCHVIXZJs, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790927419,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 18501.425,
-     "qubits": 499,
-     "toffoliTimesQubits": 9232211.075,
-     "score": 422957800.0,
+     "toffoli": 20367.355,
+     "qubits": 436,
+     "toffoliTimesQubits": 8880166.78,
+     "score": 8880166.78,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "a35c986c2872c2b279aca8da958cf16e9e5b6eb6f6e14c05a7e2b5a7fa7c3e92",
+     "opsSha256": "6ffde2edbacdaf61a571aab1b4d86fc50cfcef9bf77939faee6fb06a664d3ed7",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:lr_l4zs_m9",
+     "submission": "li/lr-l5s-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCHVIXZJs keep 9+9 inner_a 3 outer_a 2"
-    },
-    {
-     "unixTime": 1790927419,
-     "track": "li",
-     "architecture": "onehot-split",
-     "toffoli": 20493.382,
-     "qubits": 439,
-     "toffoliTimesQubits": 8996594.698,
-     "score": 412163400.0,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "df81c495984cc086c1b499fb4e6cad46782636425105ae7c1ebe27c482028423",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "pin:lr_l5s_m9",
-     "kind": "historical",
-     "standing": [
-      "architecture-elite"
-     ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHVIXJs keep 9+9 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHVIXJs, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790928176,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 18145.648,
-     "qubits": 485,
-     "toffoliTimesQubits": 8800639.28,
-     "score": 403186100.0,
+     "toffoli": 18055.543,
+     "qubits": 482,
+     "toffoliTimesQubits": 8702771.726,
+     "score": 8702771.726,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "e4deb6e3b8ff2f668fe4a3502c2621d1b725a90c7132ffc72d578e593883ea85",
+     "opsSha256": "222cb5f159a36562a547c3e7c13aa9a6b8bc25c8b4008bab531f3dc629cb9e49",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:lw_l4af_m9",
+     "submission": "li/lw-l4af-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJSRNOBWMenF keep 9+9 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJSRNOBWMenF, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790930713,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 18133.451,
-     "qubits": 485,
-     "toffoliTimesQubits": 8794723.735,
-     "score": 402915000.0,
+     "toffoli": 18043.535,
+     "qubits": 482,
+     "toffoliTimesQubits": 8696983.87,
+     "score": 8696983.87,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "c3ac126abeb159ad83965d0da1f9063e65bd330e1eb1f622cc8174e74c7f8a92",
+     "opsSha256": "65e6341325ae21f9bef0f0f508304fcb95ff6519da9973083091681d3061dc5a",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:ltn_lw1sy_m9",
+     "submission": "li/ltn-lw1sy-m8",
      "kind": "historical",
      "standing": [],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJSRNOBWMenFsY keep 9+9 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJSRNOBWMenFsY, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790934487,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17855.525,
-     "qubits": 492,
-     "toffoliTimesQubits": 8784918.3,
-     "score": 402465800.0,
+     "toffoli": 17767.469,
+     "qubits": 489,
+     "toffoliTimesQubits": 8688292.341,
+     "score": 8688292.341,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "064126088929e5c9064d782317c7ad83fb6f9509e362e7c849f57537c5f27fad",
+     "opsSha256": "70854ced688813b8da85abeb3541efa01de279220fed88caf4b6e69f431c3f55",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:pf_l4t_m9",
+     "submission": "li/pf-l4t-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJBMnFsYUt keep 9+9 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJBMnFsYUt, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790934487,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 18059.586,
-     "qubits": 484,
-     "toffoliTimesQubits": 8740839.624,
-     "score": 400446400.0,
+     "toffoli": 17969.513,
+     "qubits": 481,
+     "toffoliTimesQubits": 8643335.753,
+     "score": 8643335.753,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "2b849df2c3837fd103208343901604eaba0c39d6aa0911af2f3e2902b58ac008",
+     "opsSha256": "2a9d5c0c2f39e97248f982d47af94b4eb310c056ec8c58e017e029f1f7b7bf6b",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:pf_l4tp_m9",
+     "submission": "li/pf-l4tp-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJtRNOBWMenFsY keep 9+9 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJtRNOBWMenFsY, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790961018,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17963.447,
-     "qubits": 483,
-     "toffoliTimesQubits": 8676344.901,
-     "score": 397491700.0,
+     "toffoli": 17889.487,
+     "qubits": 480,
+     "toffoliTimesQubits": 8586953.76,
+     "score": 8586953.76,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "1c38687f8f9ab3020c0bde3d7ba2d59e354836988c950f4292e4aace101bd593",
+     "opsSha256": "b01d9328df60c02df8e3d304f005c7cad7ebbc3a68db86624c3f06bcc7d71886",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l4f_m9",
+     "submission": "li/kn-l4f-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+- keep 9+9 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+-, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790961018,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 19937.568,
-     "qubits": 433,
-     "toffoliTimesQubits": 8632966.944,
-     "score": 395504400.0,
+     "toffoli": 19863.508,
+     "qubits": 430,
+     "toffoliTimesQubits": 8541308.44,
+     "score": 8541308.44,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "10e030735b6aa555112fb92903beb09eed9fcf8ac966969902761bfd9d646c45",
+     "opsSha256": "fb48129fd0a19f2d60721543311542d7a9d8138f80fb2c34628640f5401a9c41",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l5f_m9",
+     "submission": "li/kn-l5f-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHVIXJtRNOBWPs+- keep 9+9 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHVIXJtRNOBWPs+-, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790962485,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17839.525,
-     "qubits": 480,
-     "toffoliTimesQubits": 8562972.0,
-     "score": 392297700.0,
+     "toffoli": 17749.626,
+     "qubits": 477,
+     "toffoliTimesQubits": 8466571.602,
+     "score": 8466571.602,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "9a6569de697e85e01640d3abf4202534b35faa3af2fb63cc158861f3f7b69247",
+     "opsSha256": "f3ff2b2a6b263a120e7b67ebe42c060625326376a33b5ce239a3d7de0c1c5276",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l4pgh_m9",
+     "submission": "li/kl-l4pgh-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4 keep 9+9 inner_a 8 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4, keep 8+8, blocks 8/3"
     },
     {
      "unixTime": 1790962565,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 19965.462,
-     "qubits": 427,
-     "toffoliTimesQubits": 8525252.274,
-     "score": 390569700.0,
+     "toffoli": 19891.527,
+     "qubits": 424,
+     "toffoliTimesQubits": 8434007.448,
+     "score": 8434007.448,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "078fcee777429c35cf5507752558311dd3845a5a0684304454de5fd8f31e3031",
+     "opsSha256": "b5db89cfbb29c47e109924ffc9bb95f1d962a3e14adbd84c31531a0585722cd1",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kn_l5fh_m9",
+     "submission": "li/kn-l5fh-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_ keep 9+9 inner_a 3 outer_a 2"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_, keep 8+8, blocks 3/2"
     },
     {
      "unixTime": 1790965281,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17915.576,
-     "qubits": 474,
-     "toffoliTimesQubits": 8491983.024,
-     "score": 389045500.0,
+     "toffoli": 17837.482,
+     "qubits": 471,
+     "toffoliTimesQubits": 8401454.022,
+     "score": 8401454.022,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "71d6dde41494b0dcb027b9c8999aefbf03a701b0e26c2b84138fddb2747ab1f2",
+     "opsSha256": "0da027579c4c992b853c82158df3b654eccbdb40309dfcd9e6b52cbff77b5947",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l4hfg_m9",
+     "submission": "li/kl-l4hfg-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.gh4 keep 9+9 inner_a 3 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.gh4, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790965281,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17855.562,
-     "qubits": 474,
-     "toffoliTimesQubits": 8463536.388,
-     "score": 387742300.0,
+     "toffoli": 17777.483,
+     "qubits": 471,
+     "toffoliTimesQubits": 8373194.493,
+     "score": 8373194.493,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "ef431759463cb8e2461096cdf2d85a6a7a692a92a7c881d699cb2a8fab781701",
+     "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
      "commit": "genesis",
      "pr": null,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "pin:kl_l4hfge_m9",
+     "submission": "li/kl-l4hfge-m8",
      "kind": "historical",
      "standing": [
-      "architecture-elite"
+      "architecture-elite",
+      "front"
      ],
-     "note": "sa-low2025-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4 keep 9+9 inner_a 3 outer_a 3"
+     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
     }
    ],
    "targets": [
@@ -3923,7 +4077,8 @@
      "qubitsPublished": 1454,
      "givensChargeOffset": 1200,
      "toffoliHarnessEquivalent": 13429,
-     "lambdaEffPublished": 43.6538
+     "lambdaEffPublished": 43.6538,
+     "scorePublished": 21270566
     }
    ]
   }

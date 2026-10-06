@@ -1,0 +1,25 @@
+{
+ "schema": "qac-submission-v1",
+ "challenge": "femoco",
+ "track": "li",
+ "architecture": "onehot-split",
+ "title": "Split one-hot with paired corrections: sa-toff imchxgrdky6zabCHVIXZJNOBWsot+_~, keep 9+9, blocks 3/2",
+ "build": {
+  "FEMOCO_WALK_ARCH": "sa-toff",
+  "FEMOCO_SA_MU_O": "9",
+  "FEMOCO_SA_MU_I": "9",
+  "FEMOCO_SA_INNER_A": "3",
+  "FEMOCO_SA_OUTER_A": "2",
+  "FEMOCO_SA_TWEAKS": "imchxgrdky6zabCHVIXZJNOBWsot+_~"
+ },
+ "claimed": {
+  "toffoli": 23092.542,
+  "qubits": 396
+ },
+ "authors": [
+  "teddyjfpender"
+ ],
+ "model": "Claude Opus 5.5",
+ "harness": "Claude Code",
+ "pin": "gkr_l6_m9"
+}

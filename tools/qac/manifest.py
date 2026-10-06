@@ -12,7 +12,7 @@ from .common import LOGIN, SLUG, Challenge, ContractError, load_json
 
 SCHEMA = "qac-submission-v1"
 REQUIRED = ("schema", "challenge", "track", "architecture", "title", "build", "authors", "model", "harness")
-OPTIONAL = ("claimed", "parents", "discussion")
+OPTIONAL = ("claimed", "parents", "discussion", "pin")
 TEXT_MAX = 200
 NOTES_MIN_BYTES = 1024
 NOTES_MAX_BYTES = 100 * 1024
@@ -73,6 +73,9 @@ def validate(challenge: Challenge, track: str, submission_id: str, data: dict, a
     discussion = data.get("discussion")
     if discussion is not None and not (isinstance(discussion, str) and re.match(r"^https://github\.com/[\w.-]+/[\w.-]+/discussions/\d+$", discussion)):
         raise ContractError("submission.json: discussion must be a GitHub Discussion URL")
+    pin = data.get("pin")
+    if pin is not None and not (isinstance(pin, str) and re.match(r"^[a-z0-9_]{1,64}$", pin)):
+        raise ContractError("submission.json: pin must name a byte-identity pin of the challenge's test suite")
     return {
         "schema": SCHEMA,
         "challenge": challenge.id,
@@ -87,6 +90,7 @@ def validate(challenge: Challenge, track: str, submission_id: str, data: dict, a
         "claimed": claimed,
         "parents": parents,
         "discussion": discussion,
+        "pin": pin,
     }
 
 

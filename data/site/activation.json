@@ -11,7 +11,12 @@
   {
    "name": "Starting board re-validated by the judge pipeline with ledger-key seeds",
    "status": "done",
-   "evidence": "challenges/femoco/results.tsv (kind = historical)"
+   "evidence": "challenges/femoco/results.tsv (kind = historical): 267 circuits validated with ledger-key seeds"
+  },
+  {
+   "name": "Every starting-board manifest rebuilds its circuit byte for byte",
+   "status": "partial",
+   "evidence": "challenges/femoco/tools/verify_submissions.py; every builder and knob shape checked, full sweep in progress"
   },
   {
    "name": "Judge workflow: sandboxed build, trusted evaluation, signed ledger rows",

@@ -1,0 +1,25 @@
+{
+ "schema": "qac-submission-v1",
+ "challenge": "femoco",
+ "track": "reiher",
+ "architecture": "rank-scheduled",
+ "title": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq195_1, keep 8+8, blocks 3/3",
+ "build": {
+  "FEMOCO_WALK_ARCH": "sa-toff",
+  "FEMOCO_SA_MU_O": "8",
+  "FEMOCO_SA_MU_I": "8",
+  "FEMOCO_SA_INNER_A": "3",
+  "FEMOCO_SA_OUTER_A": "3",
+  "FEMOCO_SA_TWEAKS": "imchxgrdky3zabCHKVIDXtNBWsq195_1"
+ },
+ "claimed": {
+  "toffoli": 9018.556,
+  "qubits": 495
+ },
+ "authors": [
+  "teddyjfpender"
+ ],
+ "model": "Claude Opus 5.5",
+ "harness": "Claude Code",
+ "pin": "rdr_r3q195b_m8"
+}

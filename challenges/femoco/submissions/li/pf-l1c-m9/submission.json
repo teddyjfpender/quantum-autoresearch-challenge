@@ -1,0 +1,25 @@
+{
+ "schema": "qac-submission-v1",
+ "challenge": "femoco",
+ "track": "li",
+ "architecture": "onehot",
+ "title": "One-hot angle delivery: sa-toff imchxgrEC, keep 9+9, blocks 5/2",
+ "build": {
+  "FEMOCO_WALK_ARCH": "sa-toff",
+  "FEMOCO_SA_MU_O": "9",
+  "FEMOCO_SA_MU_I": "9",
+  "FEMOCO_SA_INNER_A": "5",
+  "FEMOCO_SA_OUTER_A": "2",
+  "FEMOCO_SA_TWEAKS": "imchxgrEC"
+ },
+ "claimed": {
+  "toffoli": 13189.02,
+  "qubits": 1210
+ },
+ "authors": [
+  "teddyjfpender"
+ ],
+ "model": "Claude Opus 5.5",
+ "harness": "Claude Code",
+ "pin": "pf_l1c_m9"
+}

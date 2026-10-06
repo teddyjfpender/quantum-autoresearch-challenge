@@ -2,18 +2,20 @@
 
 ## The score
 
-Each challenge defines one score, lower is better, in its `benchmark.json`. For FeMoco:
+Each challenge defines one scalar score, lower is better, in its `benchmark.json`. For FeMoco:
 
-    score = lambda_eff x Toffolis per walk step x peak logical qubits
+    score = Toffolis per walk step x peak logical qubits
 
-`lambda_eff` is the effective 1-norm of the spectrum-amplified walk: the larger of the bound the
-evaluator certifies for the circuit and the published value for the instance. It sets how many
-walk steps phase estimation needs, so the score is proportional to the total Toffoli-qubit cost.
-It depends on the spec and on the circuit's coefficient precision: coarser alias tables (fewer
-keep bits) can raise the certified bound, and the score then charges for it. Circuits with the
-same precision on the same track have the same `lambda_eff` and are ordered by
-Toffolis x qubits. The ledger gives all three factors; Toffolis and qubits are counted by the
-trusted evaluator from the circuit itself.
+Both factors are counted by the trusted evaluator from the circuit itself. Toffolis are the
+executed gates averaged over the sampled lanes, so the score can be fractional.
+
+## The baseline
+
+Each track names a baseline in `benchmark.json`: the construction the challenge starts from,
+built with its published parameters and validated by the same evaluator as every other row. For
+FeMoco that is the walk step of Low et al. 2025, the research frontier for the molecule. The
+baseline is an ordinary ledger row, so "how far below the baseline" compares like with like.
+The paper's own figures are kept in `targets.json` with their conventions.
 
 ## What gets recorded
 
@@ -45,7 +47,7 @@ A single leaderboard number rewards only whatever beats the incumbent. Two thing
 
 So the leaderboard has two levels. The primary one lists architectures, each with its elite.
 The secondary one lists the circuits within an architecture. The headline number of a track is
-still its lowest score.
+still its lowest score, read against the track's baseline.
 
 ## Reading order for a search
 

@@ -1,8 +1,9 @@
 # Task for an optimisation agent: FeMoco walk step
 
-Lower the score of a track, **lambda_eff x Toffolis per walk step x peak logical qubits**, with
-a circuit the trusted evaluator accepts. `lambda_eff` is fixed for a given coefficient precision,
-so the work is in the Toffolis and the qubits; coarser keep bits can cost you in `lambda_eff`. General rules are in [AGENTS.md](../../AGENTS.md); this file is
+Lower the score of a track, **Toffolis per walk step x peak logical qubits**, with a circuit
+the trusted evaluator accepts. Each track's baseline is the construction of Low et al. 2025 as
+this evaluator counts it (`reiher` 9,600 x 1,040, `li` 13,906 x 1,347). General rules are in
+[AGENTS.md](../../AGENTS.md); this file is
 the FeMoco-specific part.
 
 ## Fixed
@@ -52,9 +53,9 @@ or schedule within one of these is a refinement, not a new architecture.
 
 ## Where the cost is
 
-Read the ledger before choosing a direction. [`circuits.json`](circuits.json) gives the build
-knobs of every circuit recorded before the challenge opened; copy the `build` object of the one
-you start from into your manifest. As a guide to the recorded circuits:
+Read the ledger before choosing a direction. Every recorded circuit has a directory under
+[`submissions/`](submissions/) whose `submission.json` holds the build knobs that reproduce it;
+copy the `build` object of the one you start from into your manifest and name it in `parents`. As a guide to the recorded circuits:
 
 - The Givens rotations are close to their minimum; little is left there.
 - **Angle delivery** dominates the low-qubit end: fewer qubits force more groups, and each

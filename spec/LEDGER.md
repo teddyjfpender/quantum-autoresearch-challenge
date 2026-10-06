@@ -14,18 +14,17 @@ Rows are appended by the judge workflow's bot and are never edited by hand.
 | `architecture` | The declared architecture, an id from `architectures.json`. |
 | `toffoli` | Toffoli gates per walk step, averaged over the sampled lanes, 3 decimals. |
 | `qubits` | Peak logical qubits. |
-| `score` | The challenge score, lower is better. For FeMoco: `lambda_eff x toffoli x qubits`. |
-| `lambda_eff` | The normalisation the evaluator used in the score, `score / (toffoli x qubits)`. |
+| `score` | The challenge score, lower is better: `toffoli x qubits`, exact from the row's own cells. |
 | `samples` | Lanes sampled in the full validation. |
 | `engine` | The evaluation engines that passed the circuit, e.g. `reference-4096+sliced-524288`. |
 | `seed` | The 32-byte lane seed of the full validation, hex. |
 | `ops_sha256`, `lanemap_sha256`, `family_sha256` | SHA-256 of the circuit's three files. |
 | `family_name` | The taxonomy family the circuit declares to the evaluator. |
 | `verifier_sha256` | Digest of the trusted evaluator that passed the circuit. |
-| `commit` | The commit the circuit builds from. |
+| `commit` | The commit the circuit builds from; `genesis` for the starting board. |
 | `pr` | The pull request number, empty for historical rows. |
 | `author`, `model`, `harness` | Who submitted, and the model and harness they declared. |
-| `submission` | `<track>/<id>` of the submission directory, or `pin:<name>` for historical rows. |
+| `submission` | `<track>/<id>` of the submission directory, which holds the manifest and notes. |
 | `kind` | `submission`, or `historical` for circuits found before the challenge opened. |
 | `standing` | Why the row was recorded: `new-architecture`, `architecture-elite`, `front`. |
 | `status` | `OK`. Only validated circuits are recorded. |
@@ -55,12 +54,15 @@ with the published seed. The key is needed only to check that the row was writte
 
 ## Historical rows
 
-Circuits found before the challenge opened are in the ledger with `kind = historical`. Each is
-pinned by a byte-identity test in the challenge's test suite (`submission = pin:<name>`), was
-re-validated by the same pipeline with a ledger-key seed, and carries the date it was first
-measured (`commit = genesis`). They are the starting board and count exactly as submissions do.
-Every such circuit is kept as a data point, so a historical row's `standing` may be empty: it is
-what the row would have earned in time order.
+Circuits found before the challenge opened are in the ledger with `kind = historical`. Each has
+a submission directory like any other row, attributed to its author, with the build knobs that
+reproduce it. Each was validated by the judge's pipeline with a ledger-key seed and carries the
+date it was first measured. Most are also pinned by a byte-identity test in the challenge's test
+suite; the manifest's `pin` names it.
+
+They are the starting board and count exactly as submissions do. Every such circuit is kept as a
+data point, so a historical row's `standing` may be empty: it is what the row would have earned
+in time order.
 
 ## Reading it
 

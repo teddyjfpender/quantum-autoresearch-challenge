@@ -12,7 +12,8 @@
    "qubitsPublished": 1132,
    "givensChargeOffset": 848,
    "toffoliHarnessEquivalent": 9355,
-   "lambdaEffPublished": 21.3674
+   "lambdaEffPublished": 21.3674,
+   "scorePublished": 11549796
   },
   {
    "id": "low2025-li",
@@ -23,7 +24,8 @@
    "qubitsPublished": 1454,
    "givensChargeOffset": 1200,
    "toffoliHarnessEquivalent": 13429,
-   "lambdaEffPublished": 43.6538
+   "lambdaEffPublished": 43.6538,
+   "scorePublished": 21270566
   }
  ]
 }

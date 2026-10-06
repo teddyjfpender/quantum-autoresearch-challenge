@@ -1,0 +1,19 @@
+{
+ "schema": "qac-submission-v1",
+ "challenge": "femoco",
+ "track": "li",
+ "architecture": "qroam-word",
+ "title": "Low et al. 2025 construction on the Li active space",
+ "build": {
+  "FEMOCO_WALK_ARCH": "sa-low2025"
+ },
+ "authors": [
+  "teddyjfpender"
+ ],
+ "model": "Claude Opus 5.5",
+ "harness": "Claude Code",
+ "claimed": {
+  "toffoli": 13906.0,
+  "qubits": 1347
+ }
+}

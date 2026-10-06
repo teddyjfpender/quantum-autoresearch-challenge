@@ -70,6 +70,10 @@ def run(signed: bool = False) -> list[str]:
                         errors.append(f"{rel(directory)}: {exc}")
                     recorded.discard(f"{track_dir.name}/{directory.name}")
         errors += [f"{where}: ledger row names submission '{s}', which has no directory" for s in sorted(recorded)]
+        for track in contract["tracks"]:
+            wanted = track.get("baseline", {}).get("submission")
+            if wanted is None or not any(r["submission"] == wanted and r["track"] == track["name"] for r in rows):
+                errors.append(f"{where}: track {track['name']} needs a baseline that is a ledger row of the track")
         for target in challenge.targets():
             if target.get("track") not in challenge.tracks:
                 errors.append(f"{where}: target '{target.get('id')}' names an unknown track")

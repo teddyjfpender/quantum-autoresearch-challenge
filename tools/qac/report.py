@@ -62,9 +62,9 @@ def build(directory: pathlib.Path, stages: dict[str, str], approved: bool, run_u
 
     toffoli, qubits = float(row["toffoli"]), int(row["qubits"])
     lines += [
-        "| Toffolis per step | Peak qubits | Toffolis x qubits | Score | Lanes | Engines |",
-        "| ---: | ---: | ---: | ---: | ---: | --- |",
-        f"| {toffoli:,.3f} | {qubits:,} | {toffoli * qubits:,.0f} | {float(row['score']):.4e} | {int(row['samples']):,} | `{row['engine']}` |",
+        "| Toffolis per step | Peak qubits | Score (Toffolis x qubits) | Lanes | Engines |",
+        "| ---: | ---: | ---: | ---: | --- |",
+        f"| {toffoli:,.3f} | {qubits:,} | {float(row['score']):,.3f} | {int(row['samples']):,} | `{row['engine']}` |",
         "",
         f"- Circuit `ops_sha256`: `{row['ops_sha256']}`",
         f"- Lane seed: `{row['seed']}`",

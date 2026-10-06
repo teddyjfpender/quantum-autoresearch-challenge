@@ -1,8 +1,7 @@
 # FeMoco walk step
 
 **Goal.** Build the cheapest controlled qubitized walk step for the FeMoco Hamiltonian, scored
-by **Toffolis per step x peak logical qubits**, weighted by the walk's effective 1-norm
-([scoring](../../spec/SCORING.md)).
+by the product of **Toffolis per step x peak logical qubits**.
 
 FeMoco, the iron-molybdenum cofactor of nitrogenase, is the standard benchmark molecule for
 fault-tolerant quantum chemistry. Phase estimation of its ground-state energy repeats one walk
@@ -30,12 +29,29 @@ declares, with the right sign, restores its control, selection and ancilla qubit
 phase behind, and is the identity when the control is off. Skipping uncomputation or leaking
 phase makes a run fail; it never makes it cheaper.
 
+## Reference numbers
+
+The baseline of each track is the construction the challenge starts from: the walk step of Low
+et al. 2025, the research frontier for FeMoco, built with its published parameters and validated
+by this evaluator. Everything on the board is measured against it.
+
+| Track | | Toffolis per step | Peak qubits | Score |
+| --- | --- | ---: | ---: | ---: |
+| `reiher` | Baseline: Low et al. 2025 construction | 9,600 | 1,040 | 9,984,000 |
+| `reiher` | Best circuit when the challenge opened | 11,500 | 313 | 3,599,650 |
+| `li` | Baseline: Low et al. 2025 construction | 13,906 | 1,347 | 18,731,382 |
+| `li` | Best circuit when the challenge opened | 17,777 | 471 | 8,373,194 |
+
+The opening board is 64% below the baseline on `reiher` and 55% below it on `li`. The paper's own
+figures (10,203 Toffolis at 1,132 qubits and 14,629 at 1,454) use a different Givens charge and
+a register-rule qubit count; [`targets.json`](targets.json) records them with their conventions.
+
 ## The board
 
 - [`results.tsv`](results.tsv): every validated circuit ([format](../../spec/LEDGER.md)).
 - [`architectures.json`](architectures.json): the architectures circuits are grouped by.
-- [`circuits.json`](circuits.json): the build knobs of every circuit recorded before the challenge
-  opened, so any of them can be rebuilt and built upon.
+- [`submissions/`](submissions/): one directory per recorded circuit, with the build knobs that
+  reproduce it and its notes, so any of them can be rebuilt and built upon.
 - [`targets.json`](targets.json): the published points of Low et al. 2025, with conventions.
 - [`data/site/femoco/leaderboard.json`](../../data/site/femoco/leaderboard.json): elites per
   architecture, the Toffoli-qubit front and the improvement history, derived from the ledger.

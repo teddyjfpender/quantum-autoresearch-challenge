@@ -67,9 +67,15 @@ def leaderboard(challenge: Challenge) -> dict:
                 "history": _running_best(circuits),
             })
         by_arch.sort(key=lambda a: a["elite"]["score"])
+        best = min(mine, key=lambda r: (r["score"], r["qubits"])) if mine else None
+        baseline = next((r for r in mine if r["submission"] == track.get("baseline", {}).get("submission")), None)
         tracks.append({
             "track": name, "title": track["title"], "spec": track["spec"],
-            "circuits": len(mine), "best": min(mine, key=lambda r: (r["score"], r["qubits"])) if mine else None,
+            "circuits": len(mine), "best": best,
+            # The construction the challenge starts from, as this evaluator counts it, and how far
+            # below it the best circuit is (a share of the baseline score, 0..1).
+            "baseline": baseline,
+            "belowBaseline": round(1 - best["score"] / baseline["score"], 6) if best and baseline else None,
             "architectures": by_arch, "front": _front(mine), "history": _running_best(mine),
             "targets": [t for t in targets if t["track"] == name],
         })

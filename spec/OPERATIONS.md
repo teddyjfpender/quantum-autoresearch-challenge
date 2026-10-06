@@ -47,6 +47,9 @@ epoch ([VALIDATION.md](VALIDATION.md)).
   for the full stage to strengthen a headline row.
 - **All of them, locally.** `challenges/femoco/tools/authenticate_pins.py` does the same for
   every pinned circuit. Use it after an evaluator change.
+- **Manifests.** `challenges/femoco/tools/verify_submissions.py` rebuilds every ledger row from
+  its `submission.json` alone and checks the op-stream digest. Run it after a change to the
+  circuit builders that should not move any recorded circuit.
 
 ## Rotating the ledger key
 
