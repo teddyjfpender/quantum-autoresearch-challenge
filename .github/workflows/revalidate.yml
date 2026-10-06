@@ -1,9 +1,15 @@
 name: Re-validate a recorded circuit
 
-# Audit: rebuild one pinned circuit of the starting board from main, validate it exactly as the judge does (release
-# evaluator, ledger-key seed, both stages) and require the result to equal its ledger row. No
-# pull-request code is involved. Use it after an evaluator release, or with the reference engine
-# at full size to strengthen a headline row.
+# Audit: rebuild one pinned circuit from main, validate it exactly as the judge does (release
+# evaluator, ledger-key seed, both stages) and require the result to equal its ledger row. Use it
+# after an evaluator release, or with the reference engine at full size to strengthen a headline
+# row.
+#
+# The circuit code on main was merged by the judge, not reviewed by a person, so it is treated
+# like a pull request's: the pin test runs in the build sandbox (read-only filesystem, no
+# network, no secrets, unprivileged uid), only the three circuit files are taken from it, and
+# their digests must equal the ledger row before the result counts. The ledger key exists only
+# in the last step, which runs trusted code on those files.
 on:
   workflow_dispatch:
     inputs:
@@ -32,15 +38,27 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Rebuild the pinned circuit (byte identity is asserted by the pin test)
-        working-directory: challenges/femoco
+      # The sandbox uid cannot traverse the runner's home directory, so the workspace is bound
+      # to a neutral path, as in the judge.
+      - name: Rebuild the pinned circuit in the sandbox (the pin test asserts byte identity)
         run: |
           [[ "$SUBMISSION" =~ ^[a-z0-9-]+/[a-z0-9-]+$ ]]
-          PIN="$(jq -er '.pin' "submissions/$SUBMISSION/submission.json")"
+          PIN="$(jq -er '.pin' "challenges/femoco/submissions/$SUBMISSION/submission.json")"
           [[ "$PIN" =~ ^[a-z0-9_]+$ ]]
           echo "PIN=$PIN" >> "$GITHUB_ENV"
-          FEMOCO_PIN_EXPORT_DIR="$RUNNER_TEMP/pins" cargo test --release --locked --test sa_digests -- --exact "$PIN"
-          test -s "$RUNNER_TEMP/pins/$PIN/ops.bin"
+          sudo mkdir -p /opt/qac /opt/qac-export
+          sudo mount --bind "$GITHUB_WORKSPACE" /opt/qac
+          cd /opt/qac/challenges/femoco
+          ./setup.sh
+          PIN_EXPORT_DIR=/opt/qac-export tools/ci/pins_sandboxed.sh --exact "$PIN"
+          # Take the three circuit files, as regular files, into a directory walk code never saw.
+          root="$RUNNER_TEMP/circuit"
+          mkdir "$root"
+          for name in ops.bin lanemap.bin family.out.json; do
+            src="/opt/qac-export/$PIN/$name"
+            [[ -f "$src" && ! -L "$src" && -s "$src" ]]
+            cat "$src" > "$root/$name"
+          done
       - name: Trusted evaluator (release binary, or built from source)
         working-directory: challenges/femoco
         run: |
@@ -67,7 +85,7 @@ jobs:
         env:
           QAC_LEDGER_KEY: ${{ secrets.QAC_LEDGER_KEY }}
         run: |
-          root="$RUNNER_TEMP/pins/$PIN"
+          root="$RUNNER_TEMP/circuit"
           ln -s "$GITHUB_WORKSPACE/challenges/femoco/specs" "$root/specs"
           ln -s "$GITHUB_WORKSPACE/challenges/femoco/taxonomy" "$root/taxonomy"
           seed="$(python3 challenge.py seed --root "$root")"

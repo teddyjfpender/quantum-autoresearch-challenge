@@ -91,11 +91,54 @@ class IntakeTest(unittest.TestCase):
         registry["architectures"].append({"id": "brand-new", "name": "Brand new", "mechanism": "m" * 220,
                                           "distinguishing": "d" * 120, "references": []})
         (self.repo / F / "architectures.json").write_text(json.dumps(registry, indent=1) + "\n")
-        self.submit(manifest={**MANIFEST, "architecture": "brand-new"})
+        # A new architecture comes with a new builder, which the rules cannot classify.
+        self.submit(manifest={**MANIFEST, "architecture": "brand-new", "build": {"FEMOCO_WALK_ARCH": "sa-new"}})
         policy, manifest = self.intake(self.commit("new architecture"))
         self.assertTrue(policy["ok"], policy["errors"])
         self.assertTrue(policy["proposes_architecture"])
+        self.assertIsNone(policy["classified"])
         self.assertEqual(manifest["architecture"], "brand-new")
+
+    def test_declared_architecture_must_match_the_build_knobs(self):
+        self.submit(manifest={**MANIFEST, "architecture": "qroam-word"})
+        policy, manifest = self.intake(self.commit("misfiled"))
+        self.assertFalse(policy["ok"])
+        self.assertIsNone(manifest)
+        self.assertIn("onehot-split", " ".join(policy["errors"]))
+
+    def test_source_gate(self):
+        for name, body in (
+            ("a.rs", "fn f() { unsafe { core::hint::unreachable_unchecked() } }\n"),
+            ("b.rs", "use std::process::Command;\n"),
+            ("c.rs", 'const X: &[u8] = include_bytes!("/etc/passwd");\n'),
+            ("blob.bin", "x"),
+            ("Cargo.toml", "[package]\n"),
+        ):
+            self.git("reset", "-q", "--hard", self.base)
+            self.git("clean", "-qfd")
+            self.submit()
+            (self.repo / F / "src/walk" / name).write_text(body)
+            policy, _ = self.intake(self.commit(f"gate {name}"))
+            self.assertFalse(policy["ok"], name)
+        self.git("reset", "-q", "--hard", self.base)
+        self.git("clean", "-qfd")
+        self.submit()
+        (self.repo / F / "src/walk/ok.rs").write_text('// unsafe is only a word here\npub fn f() -> &\x27static str { "extern" }\n')
+        policy, _ = self.intake(self.commit("fine"))
+        self.assertTrue(policy["ok"], policy["errors"])
+
+    def test_branch_must_contain_the_base_tip(self):
+        self.submit()
+        head = self.commit("submission")
+        self.git("checkout", "-q", "-b", "moved", self.base)
+        (self.repo / F / "src/walk/mod.rs").write_text("// main moved on\n")
+        tip = self.commit("another submission landed")
+        out = self.tmp / "out"
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli.main(["intake", "--repo", str(self.repo), "--base", self.base, "--head", head, "--tip", tip, "--out", str(out)])
+        policy = json.loads((out / "policy.json").read_text())
+        self.assertFalse(policy["ok"])
+        self.assertIn("update it", " ".join(policy["errors"]))
 
     def test_registry_rewrite_is_refused(self):
         registry = json.loads((self.repo / F / "architectures.json").read_text())

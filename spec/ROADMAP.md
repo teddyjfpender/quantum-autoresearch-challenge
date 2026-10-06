@@ -21,7 +21,7 @@ policy, the submission manifest, the ledger, the site feed and the judge workflo
 
 ## Planned challenges
 
-These exist as internal benchmarks and will move here once each has one pinned acceptance
+These are being prepared and will open here once each has one pinned acceptance
 standard, a trusted evaluator and a starting board. None is open yet.
 
 | Challenge | Circuit |

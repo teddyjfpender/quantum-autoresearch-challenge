@@ -3,6 +3,7 @@ name: Contract
 # Repository invariants: tooling tests, registry and contracts, ledger integrity, site feed
 # freshness, documentation links. Runs on every pull request with a read-only token.
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:

@@ -8,6 +8,9 @@ output directory; nothing is appended to the ledger here.
 
     QAC_LEDGER_KEY=<hex> tools/heavy.sh python3 tools/authenticate_pins.py --out DIR [--only NAME ...]
 
+The ledger key is read once and withheld from every process that runs walk code. Run it on walk
+code you trust (main): the pin test is not sandboxed here; CI uses tools/ci/pins_sandboxed.sh.
+
 Circuits are exported in small batches and deleted after evaluation, so disk use stays bounded.
 The trusted evaluator is built once, without the editable walk code, into target/trusted.
 """
@@ -38,7 +41,8 @@ def run(command: list[str], **kwargs) -> subprocess.CompletedProcess:
 
 
 def pin_names() -> list[str]:
-    out = run([*CARGO_TEST, "--list"], check=True, capture_output=True).stdout
+    env = {k: v for k, v in os.environ.items() if k != "QAC_LEDGER_KEY"}
+    out = run([*CARGO_TEST, "--list"], check=True, capture_output=True, env=env).stdout
     return [line.split(":")[0] for line in out.splitlines() if line.endswith(": test")]
 
 
@@ -78,7 +82,9 @@ def main() -> int:
         batch = todo[start:start + BATCH]
         shutil.rmtree(scratch, ignore_errors=True)
         scratch.mkdir(parents=True)
-        build_env = {k: v for k, v in os.environ.items() if not k.startswith("FEMOCO_SA_") and not k.startswith("FEMOCO_WALK_")}
+        # The pin test runs walk code: it gets neither build knobs nor the ledger key.
+        build_env = {k: v for k, v in os.environ.items()
+                     if not k.startswith(("FEMOCO_SA_", "FEMOCO_WALK_")) and k != "QAC_LEDGER_KEY"}
         run([*CARGO_TEST, "--exact", *batch, "--test-threads=2"], check=True, capture_output=True,
             env={**build_env, "FEMOCO_PIN_EXPORT_DIR": str(scratch)})
         for name in batch:

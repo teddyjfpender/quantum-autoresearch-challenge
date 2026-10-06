@@ -1,7 +1,8 @@
 """The website feed: derived JSON under data/site/, rebuilt from the ledgers.
 
-Nothing here is authored by hand. `data/site/sources.json` is the single entry point a site
-reads; it names every other file. All figures come from the ledger rows unchanged.
+`sources.json` and each `<challenge>/leaderboard.json` are derived and never edited by hand;
+`activation.json` and each `<challenge>/challenge.json` are authored. `sources.json` is the single
+entry point a site reads; it names every other file. All figures come from the ledger rows.
 """
 from __future__ import annotations
 
@@ -47,7 +48,8 @@ def _running_best(rows: list[dict]) -> list[dict]:
 
 
 def leaderboard(challenge: Challenge) -> dict:
-    rows = [_row(r) for r in ledger.read(challenge.ledger)]
+    raw = ledger.read(challenge.ledger)
+    rows = [_row(r) for r in raw]
     architectures = challenge.architectures()
     targets = challenge.targets()
     tracks = []
@@ -82,7 +84,8 @@ def leaderboard(challenge: Challenge) -> dict:
     return {
         "schema": "qac-leaderboard-v1", "challenge": challenge.id,
         "metric": challenge.contract["metric"], "ledger": f"{challenge.path}/{challenge.contract['ledger']}",
-        "ledgerRows": len(rows), "tracks": tracks,
+        # The row count and the last row's MAC: a later ledger must extend this one.
+        "ledgerRows": len(rows), "ledgerHead": raw[-1]["mac"] if raw else None, "tracks": tracks,
     }
 
 

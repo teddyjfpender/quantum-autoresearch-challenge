@@ -27,10 +27,26 @@ For maintainers.
 - **Submissions** need no action unless they propose an architecture. For those, read the
   registry entry against [ARCHITECTURES.md](ARCHITECTURES.md), then either add the label
   `architecture-approved` (the judge re-runs and records) or ask for the circuit to be filed
-  under an existing architecture.
+  under an existing architecture. The approval covers the commit that was labelled: a later
+  push removes the label and needs a new one.
 - **Re-judging.** Add the label `rejudge` to run the judge again on an unchanged pull request.
-- **Ledger audit.** The *Ledger audit* workflow verifies the MAC chains weekly and whenever a
-  ledger changes. Locally: `QAC_LEDGER_KEY=… python3 challenge.py verify-ledger`.
+- **Ledger audit.** The *Ledger audit* workflow verifies the MAC chains weekly, on every push to
+  `main` that changes a ledger, and after each row the judge records. Locally: `QAC_LEDGER_KEY=… python3 challenge.py verify-ledger`.
+
+## Recovery
+
+The judge merges a submission and then pushes its ledger row. If the row could not be pushed
+(the job says so on the pull request), the code is on `main` without a row. Re-run the failed
+`record` job from the Actions page first. If that is no longer possible, record the row from
+the run's `evaluate` output on a checkout of `main`:
+
+```sh
+QAC_LEDGER_KEY=… python3 challenge.py record <challenge> --row row.json
+python3 challenge.py check --signed
+```
+
+with the row's `commit` set to the merge commit, then commit `results.tsv` and `data/site` and
+push. Never edit or reorder existing rows.
 
 ## Changing trusted code
 
@@ -42,11 +58,12 @@ epoch ([VALIDATION.md](VALIDATION.md)).
 ## Re-validating recorded circuits
 
 - **One circuit, on a runner.** The *Re-validate a recorded circuit* workflow rebuilds a pinned
-  circuit, validates it with the released evaluator and the ledger key, and requires the result
+  circuit in the build sandbox, validates it with the released evaluator and the ledger key, and requires the result
   to equal its ledger row (seed, digests, counts, verifier digest). Choose the reference engine
   for the full stage to strengthen a headline row.
 - **All of them, locally.** `challenges/femoco/tools/authenticate_pins.py` does the same for
-  every pinned circuit. Use it after an evaluator change.
+  every pinned circuit. Use it after an evaluator change, on a checkout of `main` only: it
+  runs the pin tests unconfined, with the ledger key withheld from them.
 - **Manifests.** `challenges/femoco/tools/verify_submissions.py` rebuilds every ledger row from
   its `submission.json` alone and checks the op-stream digest. Run it after a change to the
   circuit builders that should not move any recorded circuit.

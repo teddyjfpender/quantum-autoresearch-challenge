@@ -41,8 +41,7 @@ Every circuit object has the same keys: `unixTime`, `track`, `architecture`, `to
 
 ## Conventions
 
-- `score` is `toffoli x qubits`; `toffoliTimesQubits` is the same number, kept for readers of
-  the first feed version.
+- `score` is `toffoli x qubits`. `toffoliTimesQubits` repeats it under an explicit name.
 - Lower is better for `score`, `toffoli` and `qubits`. `benchmark.json` states the metric's
   name, formula, components and units, so nothing about units needs to be hard-coded.
 - The primary grouping is `architecture`; circuits are the secondary level.

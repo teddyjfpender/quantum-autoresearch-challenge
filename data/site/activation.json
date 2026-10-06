@@ -4,9 +4,9 @@
  "summary": "The ledgers are open and the judge runs on every submission. Rows may be re-validated before a challenge goes live.",
  "gates": [
   {
-   "name": "Trusted evaluator with byte-identity pins of every recorded circuit",
+   "name": "Trusted evaluator with byte-identity pins of the recorded circuits",
    "status": "done",
-   "evidence": "challenges/femoco/tests/sa_digests.rs"
+   "evidence": "challenges/femoco/tests/sa_digests.rs: 266 of 267 circuits pinned; the li baseline is reproduced by its manifest"
   },
   {
    "name": "Starting board re-validated by the judge pipeline with ledger-key seeds",
@@ -14,9 +14,9 @@
    "evidence": "challenges/femoco/results.tsv (kind = historical): 267 circuits validated with ledger-key seeds"
   },
   {
-   "name": "Every starting-board manifest rebuilds its circuit byte for byte",
+   "name": "Starting-board manifests rebuild their circuits byte for byte",
    "status": "partial",
-   "evidence": "challenges/femoco/tools/verify_submissions.py; every builder and knob shape checked, full sweep in progress"
+   "evidence": "challenges/femoco/tools/verify_submissions.py: 52 of 267 rebuilt from the manifest alone (the ten best of each track, both baselines and every builder and knob shape), no mismatch"
   },
   {
    "name": "Judge workflow: sandboxed build, trusted evaluation, signed ledger rows",

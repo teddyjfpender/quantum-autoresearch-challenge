@@ -5,6 +5,7 @@ the circuit. The judge reads it as untrusted data.
 """
 from __future__ import annotations
 
+import importlib
 import pathlib
 import re
 
@@ -16,14 +17,18 @@ OPTIONAL = ("claimed", "parents", "discussion", "pin")
 TEXT_MAX = 200
 NOTES_MIN_BYTES = 1024
 NOTES_MAX_BYTES = 100 * 1024
-ENV_VALUE = re.compile(r"^[A-Za-z0-9_+.,:=~-]{0,256}$")
+ENV_VALUE = re.compile(r"\A[A-Za-z0-9_+.,:=~-]{0,256}\Z")
+TITLE = re.compile(r"\A[A-Za-z0-9 _+.,:;=~()/\x27-]+\Z")
+PLACEHOLDERS = {"your-github-login", "exact model name", "exact harness name"}
 
 
 def _text(value, name: str, limit: int = TEXT_MAX) -> str:
     if not isinstance(value, str) or not value.strip() or len(value) > limit:
         raise ContractError(f"{name}: a non-empty string of at most {limit} characters is required")
-    if any(c in value for c in "\t\r\n"):
-        raise ContractError(f"{name}: tabs and line breaks are not allowed")
+    if not TITLE.match(value):
+        raise ContractError(f"{name}: only letters, digits, spaces and _+.,:;=~()/'- are allowed")
+    if value.strip() in PLACEHOLDERS:
+        raise ContractError(f"{name}: replace the template placeholder")
     return value.strip()
 
 
@@ -57,24 +62,29 @@ def validate(challenge: Challenge, track: str, submission_id: str, data: dict, a
     if not isinstance(build, dict):
         raise ContractError("submission.json: build must be an object of environment knobs")
     for key, value in build.items():
-        if not isinstance(key, str) or not allowed.match(key) or key in reserved:
+        if not isinstance(key, str) or not allowed.fullmatch(key) or key in reserved:
             raise ContractError(f"submission.json: build knob '{key}' is not allowed")
         if not isinstance(value, str) or not ENV_VALUE.match(value):
             raise ContractError(f"submission.json: build knob '{key}' has a value outside [A-Za-z0-9_+.,:=~-]")
     authors = data["authors"]
     if not isinstance(authors, list) or not 1 <= len(authors) <= 8 or not all(isinstance(a, str) and LOGIN.match(a) for a in authors):
         raise ContractError("submission.json: authors must be 1-8 GitHub logins")
+    if PLACEHOLDERS & set(authors):
+        raise ContractError("submission.json: replace the template placeholder in authors")
     claimed = data.get("claimed") or {}
-    if not isinstance(claimed, dict) or any(k not in ("toffoli", "qubits") or not isinstance(v, (int, float)) or v <= 0 for k, v in claimed.items()):
+    if not isinstance(claimed, dict) or any(
+        k not in ("toffoli", "qubits") or isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 < v < 1e12
+        for k, v in claimed.items()
+    ):
         raise ContractError("submission.json: claimed may hold positive 'toffoli' and 'qubits' only")
     parents = data.get("parents") or []
     if not isinstance(parents, list) or len(parents) > 8 or not all(isinstance(p, str) and SLUG.match(p) for p in parents):
         raise ContractError("submission.json: parents must be up to 8 submission ids")
     discussion = data.get("discussion")
-    if discussion is not None and not (isinstance(discussion, str) and re.match(r"^https://github\.com/[\w.-]+/[\w.-]+/discussions/\d+$", discussion)):
+    if discussion is not None and not (isinstance(discussion, str) and re.fullmatch(r"https://github\.com/[\w.-]+/[\w.-]+/discussions/\d+", discussion)):
         raise ContractError("submission.json: discussion must be a GitHub Discussion URL")
     pin = data.get("pin")
-    if pin is not None and not (isinstance(pin, str) and re.match(r"^[a-z0-9_]{1,64}$", pin)):
+    if pin is not None and not (isinstance(pin, str) and re.fullmatch(r"[a-z0-9_]{1,64}", pin)):
         raise ContractError("submission.json: pin must name a byte-identity pin of the challenge's test suite")
     return {
         "schema": SCHEMA,
@@ -92,6 +102,16 @@ def validate(challenge: Challenge, track: str, submission_id: str, data: dict, a
         "discussion": discussion,
         "pin": pin,
     }
+
+
+def classified(challenge: Challenge, checked: dict) -> str | None:
+    """The architecture the build knobs produce under the challenge's rules, or None when the
+    builder is not one the rules know (new circuit code)."""
+    name = challenge.contract.get("architectureRules")
+    if name is None:
+        return None
+    rules = importlib.import_module(f"qac.rules_{name}")
+    return rules.architecture_of(checked["build"])
 
 
 def load(challenge: Challenge, directory: pathlib.Path, architectures: dict[str, dict] | None = None) -> dict:

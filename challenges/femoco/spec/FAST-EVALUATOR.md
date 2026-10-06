@@ -38,17 +38,19 @@ measurement: Apple M4 Max (10 performance and 4 efficiency cores, 36 GiB), macOS
 
 ### 0.1 What is and is not audited
 
-- **The reference engine is the oracle and the acceptance engine.** `eval_circuit` uses it
-  unless `--engine` is given, and `benchmark.sh` does not pass `--engine`. A result is a
-  result of the reference engine.
-- **The sliced engine is tooling.** It is meant for search-time evaluation and local
-  confirmation runs. Its code has **not been independently audited** against section 5. Its
-  agreement with the reference is evidenced by testing only: the equivalence harness of
-  section 10, on the circuit classes listed in sections 10.3, 10.4 and 10.6.
-- **The engine is not recorded.** `eval_circuit --engine NAME` prints the engine name and the
-  engine's counters on stdout. Neither is written to `score.json`. A `score.json` therefore
-  does not say which engine produced it; a result that matters should be produced (or
-  re-produced) with the default engine.
+- **The reference engine is the oracle.** `eval_circuit` uses it unless `--engine` is given,
+  and `benchmark.sh` does not pass `--engine`.
+- **How the judge uses the two engines.** Every submission is first screened by the reference
+  engine on 4,096 lanes, then validated in full by the sliced engine on 524,288 lanes with the
+  same seed (`benchmark.json`, `validation`). A ledger row therefore rests on the reference
+  engine for its screen and on the sliced engine for its full sample. The `revalidate`
+  workflow can repeat the full stage on the reference engine for any recorded circuit.
+- **The sliced engine is not independently audited** against section 5. Its agreement with the
+  reference is evidenced by testing only: the equivalence harness of section 10, on the
+  circuit classes listed in sections 10.3, 10.4 and 10.6.
+- **`score.json` does not name the engine.** `eval_circuit --engine NAME` prints the engine
+  name and the engine's counters on stdout only. The ledger records the engines and sample
+  sizes of both stages in its `engine` column.
 - **The guard band's derivation (section 6.1) is an argument on paper plus tests.** The harness
   checks the engine's behaviour at the threshold; it cannot check the derivation.
 - **What the harness does not show** is listed in section 10.5. In short: it is testing, not

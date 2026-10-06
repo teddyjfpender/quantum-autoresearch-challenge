@@ -13,8 +13,8 @@ document says what is trusted, what is not, and what a recorded row does and doe
 | The circuit files a builder emits | No | Parsed defensively by the evaluator. |
 | `submission.json`, `NOTES.md` | No | Read as data. Build knobs are restricted to a pattern and a safe character set. |
 
-The judge workflow runs on `pull_request_target`, so its definition and every script it calls
-come from `main`. Its jobs are separated by what they may touch:
+The judge workflow runs on `pull_request_target`, so its definition comes from `main` and every
+script it calls comes from the pull request's base commit, never from the pull request. Its jobs are separated by what they may touch:
 
 | Job | Runs submission code | Token | Secrets | Output |
 | --- | --- | --- | --- | --- |
@@ -34,6 +34,15 @@ trusted, so a compromised `build` job cannot forge a result.
 It is used only if that digest equals the digest of the trusted files on the base branch and
 the download's SHA-256 matches. Otherwise the evaluator is built from source in the job. The
 release is cut by `evaluator-release.yml` whenever trusted files change on `main`.
+
+## Circuit code on main
+
+A merged submission's circuit code is on `main` because its circuit passed the judge, not because
+a person read it. The intake job refuses source that names process, network, `unsafe`, `extern`
+or file-inclusion constructs, and every job that runs circuit code does so in the sandbox with
+no secret. Workflows that hold the ledger key take only circuit files from such a job and check
+their digests. The same care applies to anyone running the code locally
+([SECURITY.md](../SECURITY.md)).
 
 ## Lanes and seeds
 

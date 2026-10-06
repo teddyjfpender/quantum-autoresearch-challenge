@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 
 MARKER = "<!-- qac-judge -->"
 LABELS = {
@@ -16,6 +17,11 @@ LABELS = {
     "validated": "submission-validated",
     "recorded": "submission-recorded",
 }
+
+
+def clean(text) -> str:
+    """Untrusted text for a comment: one line, no markup that could render or mention."""
+    return re.sub(r"[^A-Za-z0-9 _.,:;=+~()/'`-]", "?", str(text))[:300]
 
 
 def _load(path: pathlib.Path):
@@ -36,7 +42,7 @@ def build(directory: pathlib.Path, stages: dict[str, str], approved: bool, run_u
 
     def stop(reason: str, details: list[str] | None = None) -> dict:
         lines.append(f"**Not valid.** {reason}")
-        lines.extend(f"- {d}" for d in (details or [])[:20])
+        lines.extend(f"- {clean(d)}" for d in (details or [])[:20])
         lines.extend(["", f"[Workflow run]({run_url})"])
         return {"outcome": "invalid", "label": LABELS["invalid"], "body": "\n".join(lines) + "\n", "merge": False}
 
@@ -79,13 +85,21 @@ def build(directory: pathlib.Path, stages: dict[str, str], approved: bool, run_u
         lines += [f"**Valid, not recorded.** {decision['reason'][0].upper()}{decision['reason'][1:]}.", ""]
     else:
         standing = ", ".join(f"`{s}`" for s in decision["standing"])
-        if policy.get("proposes_architecture") and not approved:
+        reasons = []
+        if policy.get("proposes_architecture"):
+            reasons.append("it adds an architecture to the registry")
+        if policy.get("classified") is None:
+            reasons.append("its builder is new, so the declared architecture cannot be checked mechanically")
+        if "new-architecture" in decision["standing"]:
+            reasons.append("it would be the first circuit of its architecture on this track")
+        if reasons and not approved:
             outcome = "review"
             lines += [
                 f"**Valid.** Standing: {standing}.",
                 "",
-                "This pull request adds an architecture to the registry, so it waits for a maintainer. "
-                "It is recorded once the label `architecture-approved` is added.",
+                f"This submission waits for a maintainer because {'; '.join(reasons)}. A maintainer checks the "
+                "declared architecture against the registry's rules and adds the label `architecture-approved`; "
+                "the judge then runs again on this exact commit and records it. A new push needs a new approval.",
                 "",
             ]
         else:

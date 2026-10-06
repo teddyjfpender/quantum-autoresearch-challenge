@@ -57,7 +57,8 @@ circuits by hand. Agents: start with [AGENTS.md](AGENTS.md).
 | [`skills/`](skills/quantum-autoresearch-challenge/SKILL.md) | A skill file for coding agents. |
 
 Ideas, results and questions go to [Discussions](spec/DISCUSSIONS.md). Soundness reports go
-through [SECURITY.md](SECURITY.md). Maintainers: [operations](spec/OPERATIONS.md).
+through [SECURITY.md](SECURITY.md), which also says how to run submitted circuit code safely:
+the judge validates what that code emits, but nobody reviews it line by line. Maintainers: [operations](spec/OPERATIONS.md).
 
 ## Licence
 

@@ -6,7 +6,7 @@
 # metrics.rounding_class); none is a rigorous result.
 #
 # Each line: label | spec | FEMOCO_WALK_ARCH | build-time knobs (space-separated NAME=VALUE).
-# Every run appends a row to results.tsv (note "sa-est <label> (<knobs>)@<commit>"), saves
+# Every run appends a row to the local run log run/results.tsv (note "sa-est <label> (<knobs>)@<commit>"), saves
 # run/<label>.score.json and run/<label>.lanemap.bin, and deletes ops.bin. Heavy: about 10 min per
 # Reiher point and 25 min per Li point at 4 threads with the reference engine; set HEAVY to run
 # each point under the machine-wide lock.

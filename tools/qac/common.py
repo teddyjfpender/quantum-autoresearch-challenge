@@ -11,9 +11,9 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "challenges.json"
-SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$")
-HEX64 = re.compile(r"^[0-9a-f]{64}$")
-LOGIN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\[bot\])?$")
+SLUG = re.compile(r"\A[a-z0-9][a-z0-9-]{1,62}[a-z0-9]\Z")
+HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
+LOGIN = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\[bot\])?\Z")
 
 
 class ContractError(Exception):

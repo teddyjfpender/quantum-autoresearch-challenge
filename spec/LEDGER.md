@@ -57,8 +57,9 @@ with the published seed. The key is needed only to check that the row was writte
 Circuits found before the challenge opened are in the ledger with `kind = historical`. Each has
 a submission directory like any other row, attributed to its author, with the build knobs that
 reproduce it. Each was validated by the judge's pipeline with a ledger-key seed and carries the
-date it was first measured. Most are also pinned by a byte-identity test in the challenge's test
-suite; the manifest's `pin` names it.
+date it was first measured. All but one are also pinned by a byte-identity test in the
+challenge's test suite, which the manifest's `pin` names; the exception is the `li` baseline,
+`li/low2025-reference`, which its manifest alone reproduces.
 
 They are the starting board and count exactly as submissions do. Every such circuit is kept as a
 data point, so a historical row's `standing` may be empty: it is what the row would have earned
@@ -73,3 +74,11 @@ in time order.
 
 `data/site/<challenge>/leaderboard.json` holds exactly these three views, rebuilt from the
 ledger on every recorded row ([WEBSITE.md](WEBSITE.md)).
+
+## What the chain does and does not show
+
+Each row's `mac` covers the row and the previous row's `mac`, so a row cannot be changed,
+inserted or reordered without the key. The chain alone does not show that rows were not removed
+from the end. That is covered by the repository history: the ledger is append-only on `main`,
+the contract check refuses a pull request that touches it, and the feed states the row count
+and the last row's `mac` (`ledgerRows`, `ledgerHead`), so a shortened ledger is visible.

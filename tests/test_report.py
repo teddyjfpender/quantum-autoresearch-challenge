@@ -8,7 +8,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
 
 from qac import report  # noqa: E402
 
-POLICY = {"ok": True, "is_submission": True, "proposes_architecture": False, "errors": []}
+POLICY = {"ok": True, "is_submission": True, "proposes_architecture": False, "classified": "onehot-split", "errors": []}
 MANIFEST = {"challenge": "femoco", "track": "li", "id": "my-circuit", "architecture": "onehot-split", "claimed": {}}
 ROW = {"toffoli": "17855.560", "qubits": "474", "score": "3.877e8", "samples": "524288", "engine": "reference-4096+sliced-524288",
        "ops_sha256": "a" * 64, "seed": "b" * 64, "verifier_sha256": "c" * 64}
@@ -44,6 +44,17 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(self.build(proposing)["outcome"], "review")
         self.assertFalse(self.build(proposing)["merge"])
         self.assertTrue(self.build(proposing, approved=True)["merge"])
+        # A new builder, or the first circuit of an architecture, also waits for a maintainer.
+        unknown = {**files, "policy.json": {**POLICY, "classified": None}, "decision.json": accepted}
+        self.assertEqual(self.build(unknown)["outcome"], "review")
+        first = {**files, "decision.json": {"accepted": True, "standing": ["new-architecture"], "reason": ""}}
+        self.assertEqual(self.build(first)["outcome"], "review")
+        self.assertTrue(self.build(first, approved=True)["merge"])
+
+    def test_untrusted_text_is_neutralised(self):
+        result = self.build({"policy.json": {**POLICY, "ok": False, "errors": ["x [click](http://evil) @everyone <b>"]}})
+        self.assertNotIn("@everyone", result["body"])
+        self.assertNotIn("[click]", result["body"])
 
 
 if __name__ == "__main__":

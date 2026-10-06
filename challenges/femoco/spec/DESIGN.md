@@ -26,9 +26,12 @@ the same for one point addition of Shor's algorithm on secp256k1.
 - **Two tracks.** `reiher-sa-est-v1` and `li-sa-est-v1`, one per instance. Their rigorous twins
   `reiher-sa-v1` and `li-sa-v1` state the same operator (the same `sa.bin`) under the exact
   0.1 mHa rounding rule of section 6; they ship as test fixtures and are not tracks.
-- **Score.** `score = lambda_eff_used x C_step x Q_peak`, lower is better. `C_step` is the average
-  executed Toffoli count per walk step (section 8) and `Q_peak` the peak number of live qubits.
-  `lambda_eff_used` is the spectrum-amplified walk's effective normalization (section 12): the
+- **Score.** The challenge score is `C_step x Q_peak`, Toffolis times qubits, lower is better
+  (the repository's `spec/SCORING.md`). `C_step` is the average executed Toffoli count per walk
+  step (section 8) and `Q_peak` the peak number of live qubits. The ledger computes it from those
+  two measured cells. `eval_circuit` also writes a normalization-weighted figure,
+  `lambda_eff_used x C_step x Q_peak`, to the `score` field of `score.json`; it is report-only
+  and is not the challenge score. `lambda_eff_used` is the spectrum-amplified walk's effective normalization (section 12): the
   larger of the bound from the spec's ground-energy certificate and the value Low et al. publish.
   The number of walk steps is proportional to it, which is why it is in the score.
 - **Unit of search: architecture.** Every submission declares a family tuple from
@@ -501,8 +504,10 @@ not match the loaded spec. The default build writes:
 
 (The values above are placeholders showing the keys.)
 
-- `metrics.lambda` is `lambda_decl`. For an `sos-sa` run the score uses `lambda_eff_used`
-  instead (section 12), so `score != lambda x toffoli x qubits` for these runs.
+- The top-level `score` is the evaluator's normalization-weighted figure, not the challenge
+  score. The challenge score is `metrics.toffoli x metrics.qubits`, which the ledger computes.
+- `metrics.lambda` is `lambda_decl`. For an `sos-sa` run the evaluator's `score` uses
+  `lambda_eff_used` instead (section 12), so it is not `lambda x toffoli x qubits` for these runs.
   `total_toffoli_lit` uses `lambda_decl`.
 - `metrics.conventions` holds the report-only views of spec/CONVENTIONS.md.
 - `metrics.spectral_amplification` is present on `sos-sa` runs (section 12);
@@ -532,7 +537,8 @@ spec/SPEC-SA.md is the contract. This section lists what the harness does for th
 - **`SpinSwap` / `SpinSwapDg`** (op kinds 32 / 33; spec/SPEC-SA.md section 11). Low et al.'s
   controlled swap of the spin sectors, run through the same tracker and charged `N + 1` Toffolis
   per execution. Accepted for `sos-sa` specs only.
-- **Score.** `score = lambda_eff_used x C_step x Q_peak` with `lambda_eff_used = max(ours,
+- **The evaluator's weighted figure** (report-only; the challenge score is `C_step x Q_peak`).
+  `score.json` holds `lambda_eff_used x C_step x Q_peak` with `lambda_eff_used = max(ours,
   published)`. "Ours" is the bound from the spec's certificate at the run's `lambda_decl` and
   `2 x rounding_error` (spec/CONVENTIONS.md sections 3 and 4); "published" is the paper's
   `lambda_eff`, 21.3674 (Reiher) and 43.6538 (Li). Both are upper bounds, and the larger is the
@@ -594,6 +600,9 @@ The acceptance standard of the two tracks. spec/SPEC-SA.md section 14 is the ful
   fail, and a lane map that is not a floor-or-ceiling rounding fails.
 
 ## 14. Fresh-seed audit and server seed
+
+These are evaluator modes. The judge uses the server seed, derived from the ledger key
+(`spec/LEDGER.md` at the repository root); the fresh-seed audit and `tools/server` are local tooling.
 
 Both modes answer the grinding weakness of section 9 by mixing a value into the seed that the
 submitter could not know when the circuit was fixed. Both use the audit seed stream

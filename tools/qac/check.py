@@ -13,6 +13,7 @@ BENCHMARK_KEYS = {
 }
 TRACK = re.compile(r"^[a-z0-9][a-z0-9-]{0,30}$")
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+CODE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
 
 
 def check_markdown_links() -> list[str]:
@@ -21,8 +22,12 @@ def check_markdown_links() -> list[str]:
     for path in ROOT.rglob("*.md"):
         if skip & set(path.relative_to(ROOT).parts):
             continue
-        for target in LINK.findall(path.read_text(encoding="utf-8")):
+        # Links are read outside code, and only targets that look like paths are followed, so
+        # notation such as T[k](n) in technical prose is not mistaken for one.
+        for target in LINK.findall(CODE.sub(" ", path.read_text(encoding="utf-8"))):
             if re.match(r"^[a-z]+:", target) or target.startswith("#"):
+                continue
+            if "/" not in target and "." not in target:
                 continue
             resolved = (path.parent / target.split("#")[0]).resolve()
             if not resolved.exists():
@@ -58,7 +63,11 @@ def run(signed: bool = False) -> list[str]:
             if not SLUG.match(arch_id) or arch.get("parent") not in (None, *architectures):
                 errors.append(f"{where}: architecture '{arch_id}' has a bad id or parent")
         errors += [f"{where}/{contract['ledger']}: {e}" for e in ledger.check_rows(rows, challenge.tracks, architectures, signed)]
-        recorded = {r["submission"] for r in rows if r["kind"] == "submission"}
+        names = [r["submission"] for r in rows]
+        if len(names) != len(set(names)):
+            errors.append(f"{where}/{contract['ledger']}: a submission is recorded twice")
+        recorded = set(names)
+        present = set()
         for base in contract["submissionPaths"]:
             for track_dir in sorted((challenge.dir / base).glob("*")):
                 if not track_dir.is_dir():
@@ -68,8 +77,15 @@ def run(signed: bool = False) -> list[str]:
                         manifest.load(challenge, directory, architectures)
                     except ContractError as exc:
                         errors.append(f"{rel(directory)}: {exc}")
-                    recorded.discard(f"{track_dir.name}/{directory.name}")
-        errors += [f"{where}: ledger row names submission '{s}', which has no directory" for s in sorted(recorded)]
+                    present.add(f"{track_dir.name}/{directory.name}")
+                    row = next((r for r in rows if r["submission"] == f"{track_dir.name}/{directory.name}"), None)
+                    try:
+                        checked = manifest.load(challenge, directory, architectures)
+                    except ContractError:
+                        continue
+                    if row is not None and (row["track"], row["architecture"]) != (checked["track"], checked["architecture"]):
+                        errors.append(f"{rel(directory)}: track or architecture differs from its ledger row")
+        errors += [f"{where}: ledger row names submission '{s}', which has no directory" for s in sorted(recorded - present)]
         for track in contract["tracks"]:
             wanted = track.get("baseline", {}).get("submission")
             if wanted is None or not any(r["submission"] == wanted and r["track"] == track["name"] for r in rows):

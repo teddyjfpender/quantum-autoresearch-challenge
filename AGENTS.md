@@ -51,7 +51,8 @@ direction when its first measurements do not pay, and record that it failed and 
 ```sh
 python3 challenge.py setup <challenge>
 python3 challenge.py new <challenge> <track> <id> --architecture <architecture>
-# edit circuit code and the manifest's build knobs
+# edit circuit code and the manifest's build knobs; write NOTES.md (the template is shorter
+# than the 1 KiB the check requires, on purpose)
 python3 challenge.py run <challenge> challenges/<challenge>/submissions/<track>/<id>
 python3 challenge.py check
 ```

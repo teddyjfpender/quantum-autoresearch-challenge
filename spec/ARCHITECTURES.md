@@ -27,7 +27,15 @@ Each challenge has an `architectures.json`. An entry states:
 | `parent` | The architecture it specialises or was derived from, if any. |
 | `references` | Primary sources for the construction. |
 
-Every submission declares exactly one architecture from the registry. The registry is kept
+Three words are kept apart throughout. An **architecture** is a registry entry: a way of
+organising the circuit, and the unit the board is ranked by. A **builder** is the code that
+emits circuits, selected by a build knob; one builder may serve several architectures and one
+architecture may have several builders. A challenge may also have its own finer labels (FeMoco's
+evaluator reports a taxonomy `family` per circuit); those are recorded but do not affect
+standing.
+
+Every submission declares exactly one architecture from the registry. Where a challenge states
+rules that derive the architecture from the build knobs, the declaration must agree with them. The registry is kept
 small on purpose: a handful of designs a reader can tell apart, not one entry per variant.
 
 ## What is and is not a new architecture

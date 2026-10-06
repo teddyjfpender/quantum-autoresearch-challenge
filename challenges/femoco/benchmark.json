@@ -117,6 +117,7 @@
  "scorePath": "score.json",
  "runner": {
   "provider": "github-actions",
-  "workflow": "submission.yml"
- }
+  "workflow": "judge.yml"
+ },
+ "architectureRules": "femoco"
 }

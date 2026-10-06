@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -74,24 +75,33 @@ def _show(repo: str, ref: str, path: str) -> bytes:
 
 
 def cmd_intake(args) -> int:
-    """Path policy and manifest check of a pull request, read from git objects only.
+    """Path policy, source scan and manifest check of a pull request, read from git objects only.
 
     Writes policy.json and manifest.json to --out. Nothing from the pull request is executed and
-    no file of it is checked out; the two submission files are read with `git show`.
+    no file of it is checked out; its files are read with `git show`.
     """
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     verdict = policy.evaluate(policy.diff(args.repo, args.base, args.head))
     checked = None
     if verdict.is_submission and verdict.ok:
-        challenge = Challenge(verdict.challenge)
-        architectures = None
         try:
+            challenge = Challenge(verdict.challenge)
+            # The judge builds the pull request's code on the current base. If the branch does
+            # not contain that base, the merged tree would be one nobody built.
+            if args.tip and subprocess.run(
+                ["git", "-C", args.repo, "merge-base", "--is-ancestor", args.tip, args.head], capture_output=True
+            ).returncode != 0:
+                verdict.errors.append("the branch does not contain the current main; update it (merge or rebase) and push")
+            for path in verdict.editable_changed:
+                verdict.errors += policy.scan_source(path, _show(args.repo, args.head, path))
+            architectures = None
             if verdict.proposes_architecture:
                 path = f"{challenge.path}/{challenge.contract['architectures']}"
                 old, new = json.loads(_show(args.repo, args.base, path)), json.loads(_show(args.repo, args.head, path))
                 verdict.errors += policy.registry_is_append_only(old, new)
-                architectures = {a["id"]: a for a in new.get("architectures", []) if isinstance(a, dict) and "id" in a}
+                if verdict.ok:
+                    architectures = {a["id"]: a for a in new["architectures"]}
             directory = out / "submission" / verdict.track / verdict.submission_id
             directory.mkdir(parents=True, exist_ok=True)
             for name in sorted(policy.SUBMISSION_FILES):
@@ -101,13 +111,33 @@ def cmd_intake(args) -> int:
                 (directory / name).write_bytes(data)
             if verdict.ok:
                 checked = manifest.load(challenge, directory, architectures)
-        except (ContractError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeDecodeError) as exc:
-            verdict.errors.append(str(exc) if isinstance(exc, ContractError) else "submission files or registry are unreadable")
+                verdict.classified = manifest.classified(challenge, checked)
+                if verdict.classified is not None and verdict.classified != checked["architecture"]:
+                    verdict.errors.append(
+                        f"the build knobs produce a `{verdict.classified}` circuit, but the manifest declares "
+                        f"`{checked['architecture']}`; declare the architecture the circuit has"
+                    )
+                    checked = None
+        except ContractError as exc:
+            verdict.errors.append(str(exc))
+            checked = None
+        except Exception as exc:  # noqa: BLE001 - untrusted input must never crash the judge silently
+            verdict.errors.append(f"the submission files or the registry are unreadable ({type(exc).__name__})")
+            checked = None
     (out / "policy.json").write_text(verdict.to_json() + "\n", encoding="utf-8")
     if checked is not None:
         (out / "manifest.json").write_text(json.dumps(checked, indent=1) + "\n", encoding="utf-8")
     print(verdict.to_json())
     return 0
+
+
+def build_env(challenge: Challenge, checked: dict) -> dict[str, str]:
+    """The environment of a build: the manifest's knobs and the track's spec, and nothing else of
+    the challenge's knob namespace or the ledger key that the caller's shell may hold."""
+    build = challenge.contract["build"]
+    pattern = re.compile(build["envPattern"])
+    inherited = {k: v for k, v in os.environ.items() if not pattern.fullmatch(k) and k not in build["reservedEnv"] and k != KEY_ENV}
+    return {**inherited, **checked["build"], build["specEnv"]: challenge.tracks[checked["track"]]["spec"]}
 
 
 def cmd_overlay(args) -> int:
@@ -126,8 +156,7 @@ def cmd_build(args) -> int:
     """[judge] Run only the untrusted build stage for a checked manifest."""
     challenge = Challenge(args.challenge)
     checked = load_json(pathlib.Path(args.manifest))
-    build = challenge.contract["build"]
-    env = {**os.environ, **checked["build"], build["specEnv"]: challenge.tracks[checked["track"]]["spec"], build["stageEnv"]: "build"}
+    env = {**build_env(challenge, checked), challenge.contract["build"]["stageEnv"]: "build"}
     return subprocess.run(challenge.contract["benchmarkCommand"], cwd=challenge.dir, env=env, check=False).returncode
 
 
@@ -264,7 +293,11 @@ def cmd_unchanged(args) -> int:
         ["git", "-C", args.repo, "diff", "--name-only", "--no-renames", "-z", args.base, args.head],
         check=True, capture_output=True,
     ).stdout.decode("utf-8").split("\0")
-    watched = challenge.repo_paths("trustedPaths") + challenge.repo_paths("editablePaths") + ["tools/qac", "challenge.py"]
+    watched = (
+        challenge.repo_paths("trustedPaths") + challenge.repo_paths("editablePaths")
+        + [f"{challenge.path}/{name}" for name in ("benchmark.json", challenge.contract["architectures"], "tools/ci")]
+        + ["tools/qac", "challenge.py", "challenges.json", ".github/workflows"]
+    )
     changed = [n for n in names if n and (n in watched or any(n.startswith(w + "/") for w in watched))]
     for name in changed[:20]:
         print(f"changed: {name}")
@@ -283,11 +316,18 @@ def cmd_run(args) -> int:
     challenge = Challenge(args.challenge)
     directory = pathlib.Path(args.submission).resolve()
     checked = manifest.load(challenge, directory)
-    env = {**os.environ, **checked["build"], challenge.contract["build"]["specEnv"]: challenge.tracks[checked["track"]]["spec"]}
+    env = build_env(challenge, checked)
     extra = args.extra[1:] if args.extra[:1] == ["--"] else args.extra
     command = [*challenge.contract["benchmarkCommand"], *extra]
     print(f"{checked['track']}/{checked['id']} ({checked['architecture']}), knobs {checked['build']}", flush=True)
-    return subprocess.run(command, cwd=challenge.dir, env=env, check=False).returncode
+    status = subprocess.run(command, cwd=challenge.dir, env=env, check=False).returncode
+    score = challenge.dir / challenge.contract["scorePath"]
+    if status == 0 and score.is_file():
+        metrics = load_json(score)["metrics"]
+        toffoli = f"{float(metrics['toffoli']):.3f}"
+        print(f"challenge score (Toffolis x qubits): {ledger.score_of(toffoli, int(metrics['qubits']))} "
+              f"= {toffoli} x {metrics['qubits']}")
+    return status
 
 
 NOTES_TEMPLATE = """# {title}
@@ -390,6 +430,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--repo", default=str(ROOT))
     for name in ("base", "head", "out"):
         p.add_argument(f"--{name}", required=True)
+    p.add_argument("--tip", default="", help="the base branch tip the branch must contain")
     p.set_defaults(run=cmd_intake)
     p = sub.add_parser("overlay", help="[judge] take the editable paths from a pull request head")
     p.add_argument("challenge")

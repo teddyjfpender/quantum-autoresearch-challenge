@@ -1,5 +1,9 @@
 # tools/server: a local validation service and its client tools
 
+This is optional local tooling for a search loop on one machine. It is not part of the judge and
+nothing it stores reaches the ledger; submissions are judged only by the repository's workflow
+(`spec/VALIDATION.md` at the repository root).
+
 `femoco_serve` (src/bin/femoco_serve.rs) accepts **artifacts, not source code**, for the pinned
 `sos-sa` specs, and runs the trusted `eval_circuit` binary on them. A fast screen uses 4,096
 sampled lanes; a passing artifact then enters a single-worker queue for a 524,288-lane

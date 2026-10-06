@@ -26,13 +26,13 @@ immutable; improve on it with a new one.
  "track": "li",
  "architecture": "onehot-split",
  "title": "Folded item read at five groups",
- "build": {"FEMOCO_WALK_ARCH": "sa-toff", "FEMOCO_SA_TWEAKS": "…", "FEMOCO_SA_MU_O": "9"},
+ "build": {"FEMOCO_WALK_ARCH": "sa-toff", "FEMOCO_SA_TWEAKS": "imchxg", "FEMOCO_SA_MU_O": "9"},
  "claimed": {"toffoli": 19965.5, "qubits": 427},
  "authors": ["github-login"],
  "model": "exact model name",
  "harness": "exact harness name",
  "parents": ["id-of-a-submission-this-builds-on"],
- "discussion": "https://github.com/…/discussions/12"
+ "discussion": "https://github.com/teddyjfpender/quantum-autoresearch-challenge/discussions/12"
 }
 ```
 

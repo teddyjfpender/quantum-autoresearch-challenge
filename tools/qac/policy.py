@@ -10,10 +10,32 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 import subprocess
 
 from .common import SLUG, Challenge, ContractError, challenges, under
 
+EDITABLE_EXTENSIONS = (".rs", ".md")
+MAX_FILE_BYTES = 1 << 20
+SAFE_PATH = re.compile(r"\A[A-Za-z0-9_./-]+\Z")
+# Constructs circuit-building code has no use for. This is a filter, not a proof: it keeps the
+# obvious ways to reach outside the process out of code that is merged without human review.
+FORBIDDEN_SOURCE = [
+    (re.compile(r"\bunsafe\b"), "unsafe"),
+    (re.compile(r"\bextern\b"), "extern"),
+    (re.compile(r"\binclude(?:_bytes|_str)?\s*!"), "include!, include_str! or include_bytes!"),
+    (re.compile(r"\b(?:global_)?asm\s*!"), "asm!"),
+    (re.compile(r"#\s*!?\s*\[\s*(?:link|no_mangle|export_name|path|used|link_section)\b"), "a linkage or path attribute"),
+    (re.compile(r"\bstatic\s+mut\b"), "static mut"),
+    (
+        re.compile(
+            r"\bstd\s*::\s*(?:process\s*::\s*(?!id\b)|net\b)"
+            r"|\buse\s+std\s*::\s*\{[^}]*\b(?:process|net)\b"
+            r"|\bCommand\b|\bTcp(?:Stream|Listener)\b|\bUdpSocket\b"
+        ),
+        "process or network access",
+    ),
+]
 REGULAR = "100644"
 ABSENT = "000000"
 SUBMISSION_FILES = {"submission.json", "NOTES.md"}
@@ -37,6 +59,10 @@ class Verdict:
     submission_dir: str | None = None
     touches_code: bool = False
     proposes_architecture: bool = False
+    editable_changed: list[str] = dataclasses.field(default_factory=list)
+    # The architecture the challenge's rules derive from the build knobs; None when the builder
+    # is not one the rules know, which needs a maintainer's approval.
+    classified: str | None = None
     errors: list[str] = dataclasses.field(default_factory=list)
 
     @property
@@ -74,7 +100,27 @@ def diff(repo: str, base: str, head: str) -> list[Change]:
 
 
 def _safe(path: str) -> bool:
-    return bool(path) and not path.startswith("/") and ".." not in path.split("/") and "\\" not in path and all(32 <= ord(c) < 127 for c in path)
+    return bool(SAFE_PATH.match(path)) and not path.startswith("/") and ".." not in path.split("/") and "//" not in path
+
+
+def strip_comments_and_strings(source: str) -> str:
+    """Rust source with comments and string literals blanked, so the scan reads code only."""
+    pattern = re.compile(r'//[^\n]*|/\*.*?\*/|b?r(#*)".*?"\1|b?"(?:\\.|[^"\\])*"', re.S)
+    return pattern.sub(" ", source)
+
+
+def scan_source(path: str, data: bytes) -> list[str]:
+    """Reasons an editable file may not be merged unreviewed."""
+    if len(data) > MAX_FILE_BYTES:
+        return [f"`{path}`: larger than {MAX_FILE_BYTES} bytes"]
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return [f"`{path}`: not UTF-8 text"]
+    if not path.endswith(".rs"):
+        return []
+    code = strip_comments_and_strings(text)
+    return [f"`{path}`: uses {name}, which circuit builders may not" for pattern, name in FORBIDDEN_SOURCE if pattern.search(code)]
 
 
 def evaluate(changes: list[Change], all_challenges: list[Challenge] | None = None) -> Verdict:
@@ -97,7 +143,7 @@ def evaluate(changes: list[Change], all_challenges: list[Challenge] | None = Non
     for change in changes:
         path = change.path
         if not _safe(path):
-            verdict.errors.append(f"unusual path: {path!r}")
+            verdict.errors.append("a changed path has characters outside A-Z a-z 0-9 _ . / -")
             continue
         if change.status not in "AMD":
             verdict.errors.append(f"{path}: only additions, modifications and deletions are allowed")
@@ -128,6 +174,10 @@ def evaluate(changes: list[Change], all_challenges: list[Challenge] | None = Non
             verdict.proposes_architecture = True
         elif under(path, editable):
             verdict.touches_code = True
+            if change.status != "D":
+                if not path.endswith(EDITABLE_EXTENSIONS):
+                    verdict.errors.append(f"`{path}`: only {', '.join(EDITABLE_EXTENSIONS)} files may be added to the editable paths")
+                verdict.editable_changed.append(path)
         else:
             verdict.errors.append(f"{path}: outside the editable surface ({', '.join(editable)})")
     if len(dirs) != 1:
@@ -138,9 +188,13 @@ def evaluate(changes: list[Change], all_challenges: list[Challenge] | None = Non
 def registry_is_append_only(old: dict, new: dict) -> list[str]:
     """New registry keeps every existing architecture unchanged, in order, and only adds entries."""
     errors = []
+    if not isinstance(new, dict):
+        return ["architectures.json: a JSON object is required"]
     if {k: v for k, v in old.items() if k != "architectures"} != {k: v for k, v in new.items() if k != "architectures"}:
         errors.append("architectures.json: only the architectures list may change")
     before, after = old.get("architectures", []), new.get("architectures", [])
+    if not isinstance(after, list) or not all(isinstance(a, dict) and isinstance(a.get("id"), str) for a in after):
+        return ["architectures.json: architectures must be a list of objects with string ids"]
     if after[: len(before)] != before:
         errors.append("architectures.json: existing architectures must stay unchanged and in order")
     added = after[len(before):]
@@ -154,8 +208,13 @@ def registry_is_append_only(old: dict, new: dict) -> list[str]:
         if not isinstance(entry, dict) or set(entry) - required - {"parent"} or required - set(entry):
             errors.append(f"architectures.json: a new architecture needs exactly {sorted(required)} (and optionally 'parent')")
             continue
-        if not SLUG.match(str(entry["id"])):
-            errors.append("architectures.json: architecture id must be a lowercase slug")
+        if not all(isinstance(entry[k], str) for k in ("id", "name", "mechanism", "distinguishing")) or not (
+            isinstance(entry["references"], list) and all(isinstance(r, str) for r in entry["references"])
+        ):
+            errors.append("architectures.json: id, name, mechanism and distinguishing must be strings and references a list of strings")
+            continue
+        if not SLUG.match(entry["id"]) or len(entry["name"]) > 80:
+            errors.append("architectures.json: architecture id must be a lowercase slug and its name at most 80 characters")
         if len(str(entry["mechanism"])) < 200 or len(str(entry["distinguishing"])) < 100:
             errors.append("architectures.json: 'mechanism' (200+ characters) and 'distinguishing' (100+) must say what is structurally new")
         if entry.get("parent") is not None and entry["parent"] not in ids:

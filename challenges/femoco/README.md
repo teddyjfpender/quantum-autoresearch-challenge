@@ -45,6 +45,9 @@ by this evaluator. Everything on the board is measured against it.
 The opening board is 64% below the baseline on `reiher` and 55% below it on `li`. The paper's own
 figures (10,203 Toffolis at 1,132 qubits and 14,629 at 1,454) use a different Givens charge and
 a register-rule qubit count; [`targets.json`](targets.json) records them with their conventions.
+Under this evaluator's Givens charge the paper's Toffoli counts correspond to 9,355 and 13,429.
+The `reiher` baseline row is 245 Toffolis above that figure and the `li` row 477 above; the
+difference is this repository's implementation of the construction, not the paper's.
 
 ## The board
 
