@@ -47,6 +47,7 @@ jobs:
           [[ "$PIN" =~ ^[a-z0-9_]+$ ]]
           echo "PIN=$PIN" >> "$GITHUB_ENV"
           sudo mkdir -p /opt/qac /opt/qac-export
+          sudo chown "$(id -u):$(id -g)" /opt/qac-export
           sudo mount --bind "$GITHUB_WORKSPACE" /opt/qac
           cd /opt/qac/challenges/femoco
           ./setup.sh
