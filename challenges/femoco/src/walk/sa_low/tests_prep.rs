@@ -36,6 +36,38 @@ fn aligned_alt_bit_keeps_every_count() {
     assert_eq!(m0.rounding_error(s).unwrap(), m1.rounding_error(s).unwrap());
 }
 
+#[test]
+#[ignore = "pinned Li estimated class; run in release"]
+fn sparse_keep_alias_is_exact_estimated_class() {
+    use crate::spec::rounding::RoundingClass;
+    let boxed = pinned("li-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cb"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        ..base
+    };
+    let map = lane_map(s, p).unwrap();
+    let RoundingClass::EstimatedLow2025(params) = &s.rounding_class else {
+        panic!("Li estimated spec needs its estimated class");
+    };
+    map.rounding_estimate(s, params).unwrap();
+    let high_rows = [3, 4, 5, 18, 25, 31, 33, 38];
+    for (q, t) in map.inner.iter().skip(s.n).enumerate() {
+        assert_eq!(t.counts(s.b + 1).iter().sum::<u64>(), 1 << 14);
+        assert_eq!(&t.alt[61..64], &[t.alt[63]; 3], "table {q}");
+        assert!(
+            t.keep
+                .iter()
+                .enumerate()
+                .all(|(i, &k)| k < 128 || high_rows.contains(&i)),
+            "table {q} has a high keep outside the sparse rows"
+        );
+    }
+}
+
 /// Dumps the alias tables and the weights they round (`PF_OUT` directory) for the pinned specs.
 #[test]
 #[ignore = "pinned specs; run in release"]

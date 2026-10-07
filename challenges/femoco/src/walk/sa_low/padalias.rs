@@ -21,6 +21,47 @@
 //! Cost: each skipped padding index saves the iteration's ANDs and one Toffoli per word bit in
 //! the read and two ANDs in the erasure pass, against `1 + w_A` Toffolis for the offset.
 use crate::lanemap::df_nested::Table;
+use std::sync::OnceLock;
+
+/// The independently optimized Li square-table witnesses for `.b`. The text is embedded in
+/// the builder, so the judge needs no solver or external data file. Each row is an alias table
+/// (`keep[64]`, `alt[64]`); the trusted estimated-class checker validates its integer counts.
+#[must_use]
+pub fn sparse_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    let tables = TABLES.get_or_init(|| {
+        let decode = |s: &str| -> Vec<u32> {
+            assert_eq!(s.len(), 128, "sparse Li alias column has 64 bytes");
+            (0..64)
+                .map(|i| u32::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
+                .collect()
+        };
+        let out: Vec<Table> = include_str!("li_sparse7_alias.txt")
+            .lines()
+            .filter(|line| !line.starts_with('#'))
+            .enumerate()
+            .map(|(q, line)| {
+                let mut fields = line.split_whitespace();
+                assert_eq!(fields.next().unwrap().parse::<usize>().unwrap(), q);
+                let keep = decode(fields.next().unwrap());
+                let alt = decode(fields.next().unwrap());
+                assert!(fields.next().is_none());
+                assert!(keep[58..].iter().all(|&k| k == 0));
+                assert!(alt.iter().all(|&a| a < 58));
+                assert!(alt[61..64].iter().all(|&a| a == alt[63]));
+                Table {
+                    k: 6,
+                    mu: 8,
+                    keep,
+                    alt,
+                }
+            })
+            .collect();
+        assert_eq!(out.len(), 285, "Li has 285 square inner tables");
+        out
+    });
+    tables[q].clone()
+}
 
 /// The table realizing `t`'s counts (`items` inner items) with every padding bucket aliased to
 /// the largest item while it has `2^mu` lanes left (from the top bucket down), then the

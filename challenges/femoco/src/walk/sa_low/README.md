@@ -474,6 +474,7 @@ added (`tests/sa_digests.rs`).
 | `+` | `pad_offset` | donor-padded inner tables, item-constant offset | `H`, `x`, `t` | 6.14 |
 | `.d` | `sparse_high` | sparse high keep bit via exact Reiher alias rerounding | `+`, Reiher estimated mu8 | 6.14 |
 | `.a` | `align_alias` | exact Li inner alias arrangement with a shared high alt bit over ten folded leaves | `+`, `H`, `V`, `-` | 6.14 |
+| `.b` | `sparse_keep_alias` | exact Li inner alias witnesses with high keep bit on eight rows | `+`, Li estimated spec with 8 inner keep bits | 6.14 |
 | `.e` | `erase_pairs` | item one-hot erasure pairs sibling leaves | `H`, two-group item one-hot | 6.14 |
 | `.c` | `factor_erase` | measured class and group flags corrected from row-index bits | `C`, four-by-four initial-row classes with one grafted tail row | 6.8 |
 | `~` | `hot_keep_release` | inner keep released through the item one-hot | `H`, `m`, `_`, and `S` or `t`; not `R`, `l`, `p`, `D`, `j` | 6.14 |
@@ -1030,6 +1031,14 @@ the top three donor padding rows, while matching alt bit 5 to the top donor on i
 8 + 8, 3 + 3 point, the inner read changes from 845 to 831 Toffolis per copy; static
 `C_step` changes from 17,755.5 to 17,727.5 and `Q_peak` remains 471. Other table shapes use
 the ordinary `+` arrangement.
+
+**`.b`: sparse high keep bit** (with `+`; `li_sparse7_alias.txt`). The Li 8-bit inner
+alias tables are chosen from exact floor/ceiling lane counts so keep bit 7 occurs only on
+rows 3, 4, 5, 18, 25, 31, 33, and 38. The top three padding rows still share a donor,
+so `+` retains its item-constant offset. The witness text is embedded in the builder; it
+does not invoke a solver at build time. At Li 8 + 8, 3 + 3, the inner read changes from
+845 to 805 Toffolis per copy, static `C_step` from 17,755.5 to 17,675.5, with
+`Q_peak = 471`. This is a table arrangement rather than a new read or erasure gadget.
 
 **`.e`: paired erasure** (with `H` and a two-group item one-hot;
 `itemhot::phase_rooted_paired`). The item one-hot erasure's phase pass pairs sibling leaves of the
