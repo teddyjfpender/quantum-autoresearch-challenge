@@ -566,6 +566,37 @@ fn c1_lanes_pinned() {
     }
 }
 
+/// Lever `.d` changes only the Reiher inner alias tables. Sample the complete circuit through
+/// the trusted evaluator and check that moving two lanes out of the legal rounding interval is
+/// rejected before any circuit result can be accepted.
+#[test]
+#[ignore = "pinned Reiher spec; run in release"]
+fn sparse_reiher_exact_and_mutant() {
+    let boxed = pinned("reiher-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e.d"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        inner_a: 2,
+        outer_a: 2,
+        ..base
+    };
+    let (lanemap, ops, _) = build(s, p);
+    let ev = eval(s, p, &lanemap, &ops, 128).unwrap();
+    println!("sparse Reiher: C {} Q {}", ev.toffoli, ev.qubits);
+
+    let mut map = lane_map(s, p).unwrap();
+    let t = &mut map.inner[s.n];
+    let i = (0..28)
+        .find(|&i| t.keep[i] <= 253 && t.alt[i] as usize != i)
+        .unwrap();
+    t.keep[i] += 2;
+    let err = eval(s, p, &map.to_bytes(), &ops, 128).unwrap_err();
+    assert!(err.contains("floor or the ceiling"), "{err}");
+}
+
 /// The outcome-gated keep release of `narrow.rs` in `sa-toff` (levers `k`
 /// outer, `j` inner) and the split one-hot with any group count (a digit `G`), alone and
 /// combined with every lever they touch.
