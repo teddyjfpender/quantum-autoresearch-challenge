@@ -391,6 +391,12 @@ pub struct Tweaks {
     /// function of the item alone; the item one-hot read and its erasure subtract it, skip the
     /// padding indices, and add it back from the one-hot under the control. Not in `all`.
     pub pad_offset: bool,
+    /// `.a` (with `+`): align one high alt bit over ten folded inner leaves
+    /// while preserving the top donor padding and every lane count.
+    pub align_alias: bool,
+    /// `.b` (with `+`): exact Li alias witnesses with high keep bit concentrated in
+    /// eight inner rows. The witness tables are checked against the estimated class.
+    pub sparse_keep_alias: bool,
     /// `.p` (with `G` and `n`): padding runs. Every square inner table's padding buckets
     /// are fed in aligned subcubes, each by one donor item (`padalias::arrange_runs`, the same
     /// counts), so the paired read's slot one-hot is a pruned expansion in which each fed
@@ -502,6 +508,8 @@ impl Tweaks {
         rank_mode: 0,
         rank_park: 0,
         pad_offset: false,
+        align_alias: false,
+        sparse_keep_alias: false,
         pad_runs: false,
         sparse_high: false,
         graft: false,
@@ -640,6 +648,8 @@ impl Tweaks {
             rank_mode: if all { 0 } else { rank_mode },
             rank_park: if all { 0 } else { rank_park },
             pad_offset: !all && has('+'),
+            align_alias: !all && ext.contains('a'),
+            sparse_keep_alias: !all && ext.contains('b'),
             pad_runs: !all && ext.contains('p'),
             sparse_high: !all && ext.contains('d'),
             factor_erase: !all && ext.contains('c'),
@@ -787,7 +797,11 @@ pub fn lane_map(spec: &SaSpec, p: Params) -> Result<SaNestedMap, String> {
     // item (the same counts).
     if p.tw.pad_offset {
         for t in inner.iter_mut().skip(spec.n) {
-            *t = padalias::arrange(t, spec.b + 1);
+            *t = if p.tw.align_alias {
+                padalias::arrange_aligned(t, spec.b + 1)
+            } else {
+                padalias::arrange(t, spec.b + 1)
+            };
         }
     }
     if p.tw.sparse_high {
@@ -795,6 +809,15 @@ pub fn lane_map(spec: &SaSpec, p: Params) -> Result<SaNestedMap, String> {
             return Err("lever .d needs Reiher estimated mu8 and donor padding (+)".into());
         }
         sparsealias::replace_reiher(&mut inner[spec.n..]);
+    }
+    if p.tw.sparse_keep_alias {
+        assert!(
+            p.tw.pad_offset && spec.id() == "li-sa-est-v1" && p.inner == (6, 8),
+            "lever .b needs the Li estimated spec at inner width (6, 8) with +"
+        );
+        for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
+            *t = padalias::sparse_li_table(q);
+        }
     }
     // Lever `.p`: every padding subcube fed by one donor (the same counts).
     if p.tw.pad_runs {

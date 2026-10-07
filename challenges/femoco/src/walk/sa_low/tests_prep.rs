@@ -1,10 +1,71 @@
 //! PREPARE-side data and bounds. Release only.
 use super::{lane_map, Params, Tweaks};
+use crate::lanemap::LaneMap;
 use crate::spec::sa::SaSpec;
 
 fn pinned(id: &str) -> Box<dyn crate::spec::EncodingSpec> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     crate::spec::load(root, id).unwrap()
+}
+
+#[test]
+#[ignore = "pinned Li tables; run in release"]
+fn aligned_alt_bit_keeps_every_count() {
+    let boxed = pinned("li-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p0 = Params {
+        tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4c"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        ..base
+    };
+    let p1 = Params {
+        tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4ca"),
+        ..p0
+    };
+    let (m0, m1) = (lane_map(s, p0).unwrap(), lane_map(s, p1).unwrap());
+    for (i, (a, b)) in m0.inner.iter().zip(&m1.inner).enumerate().skip(s.n) {
+        assert_eq!(a.counts(s.b + 1), b.counts(s.b + 1), "table {i}");
+        let top = b.alt[63];
+        assert_eq!(&b.alt[61..64], &[top; 3], "table {i}");
+        for row in 18..38 {
+            assert_eq!((b.alt[row] ^ top) & 32, 0, "table {i}, row {row}");
+        }
+    }
+    assert_eq!(m0.rounding_error(s).unwrap(), m1.rounding_error(s).unwrap());
+}
+
+#[test]
+#[ignore = "pinned Li estimated class; run in release"]
+fn sparse_keep_alias_is_exact_estimated_class() {
+    use crate::spec::rounding::RoundingClass;
+    let boxed = pinned("li-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cb"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        ..base
+    };
+    let map = lane_map(s, p).unwrap();
+    let RoundingClass::EstimatedLow2025(params) = &s.rounding_class else {
+        panic!("Li estimated spec needs its estimated class");
+    };
+    map.rounding_estimate(s, params).unwrap();
+    let high_rows = [3, 4, 5, 18, 25, 31, 33, 38];
+    for (q, t) in map.inner.iter().skip(s.n).enumerate() {
+        assert_eq!(t.counts(s.b + 1).iter().sum::<u64>(), 1 << 14);
+        assert_eq!(&t.alt[61..64], &[t.alt[63]; 3], "table {q}");
+        assert!(
+            t.keep
+                .iter()
+                .enumerate()
+                .all(|(i, &k)| k < 128 || high_rows.contains(&i)),
+            "table {q} has a high keep outside the sparse rows"
+        );
+    }
 }
 
 /// Dumps the alias tables and the weights they round (`PF_OUT` directory) for the pinned specs.
