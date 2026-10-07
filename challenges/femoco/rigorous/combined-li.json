@@ -1,0 +1,256 @@
+{
+  "schema": "femoco-combined-signed-walk-v1",
+  "instance": "li",
+  "operator_certificate_sha256": "5e03531e4fbe50fc57b5fbd2a9cfb0005798ea627fcbfa14852dcc40c8ddae04",
+  "program_sha256": "b54de8153bb12495a5541872636b3c79360ff7fa094f166460462c4d12d6b12b",
+  "network_sha256": "a8db28c28c341c7fc4791792d8ee6acadd3880c5a8d94cd81e3267aa5447c605",
+  "checker_sha256": "bf15839633e7f58311fc6653ecedd665efe813eadd7d5beb52573fa02cdb9dcc",
+  "targets_sha256": "89b66e2187b67d4c1e13319b8eb06bd038900f318bd7e8c4bdfc5f4179c4b94c",
+  "arithmetic": {
+    "precision_bits": 128,
+    "python_flint": "0.8.0",
+    "flint": "3.3.1",
+    "numpy": "2.3.5",
+    "python": "3.14.6"
+  },
+  "artifacts": {
+    "li-base.bin": {
+      "sha256": "dd3e03c5e2546055d7c576262c7711c91428c433bc084871eb6637b5084203e0",
+      "bytes": 412192
+    },
+    "li-signed.npz": {
+      "sha256": "8cba979c3788a4b14793c072612549eb2aeda92e19996c90b007ccdd4481ed04",
+      "bytes": 92582029
+    },
+    "li-combined-program.json": {
+      "sha256": "b54de8153bb12495a5541872636b3c79360ff7fa094f166460462c4d12d6b12b",
+      "bytes": 19511624
+    },
+    "li-combined-networks.npy": {
+      "sha256": "e5f0c0c5a4f912ad3f3dd11eba67b2d86d6e6cc90cf8980fc97ae5e388038ed0",
+      "bytes": 49367828
+    }
+  },
+  "rows": 2514,
+  "networks": 164559,
+  "beta": 28,
+  "alias_keep_bits": 24,
+  "verification": {
+    "checked": true,
+    "level": "layout conformance, exhaustive lookup-record and histogram check, exact coefficient error",
+    "scope": "every emitted lookup record and alias bucket of every row; the block-encoding identity of the layout and the logical primitives are assumed, not derived",
+    "independent_verification": false,
+    "fully_lowered_gate_certificate": false,
+    "checked_alias_buckets": 325888,
+    "rows_in_scope": {
+      "one_body": 76,
+      "signed_squares": 2438
+    },
+    "outer_error_upper_Ha": "741313778226452257728934343129268488824416766657755807/100433627766186892221372630771322662657637687111424552206336",
+    "inner_error_upper_Ha": "7174465922370651018456750439335531/340282366920938463463374607431768211456",
+    "coefficient_error_upper_Ha": "2858842365994803276497310355205602658950768750454045343/100433627766186892221372630771322662657637687111424552206336",
+    "normalization_Ha": "18916212872093792820107927791135476749206155818380077/93536104789177786765035829293842113257979682750464",
+    "chebyshev_offset_Ha": "16052779369847050291053622203862724206026978967235373/93536104789177786765035829293842113257979682750464",
+    "assumed_identity": "projected block = sum_one mass*B + sum_square sign*mass*(2*B^2-I); add const+sum_square sign*mass"
+  },
+  "resources": {
+    "scope": "hierarchical controlled walk; upper bounds from a per-primitive expansion, not a flattened gate count; qubits assume each lookup's junk register is measured out before the next lookup",
+    "givens_count": 300,
+    "givens_charge": "2*beta Toffolis per logical Givens (Low convention)",
+    "rotation_toffoli": 16800,
+    "non_lookup_toffoli": 18054,
+    "table_dimensions": [
+      {
+        "entries": 4096,
+        "word_bits": 53,
+        "calls_load_and_erase": 1
+      },
+      {
+        "entries": 321792,
+        "word_bits": 65,
+        "calls_load_and_erase": 2
+      },
+      {
+        "entries": 164560,
+        "word_bits": 2100,
+        "calls_load_and_erase": 2
+      }
+    ],
+    "min_toffoli": {
+      "blocks_outer_inner_angles": [
+        8,
+        64,
+        8
+      ],
+      "controlled_walk_toffoli_upper": 119339,
+      "logical_qubits_upper_including_system": 19375,
+      "TQ_upper": 2312193125,
+      "lookup_toffoli_by_stage": [
+        1267,
+        24858,
+        75160
+      ]
+    },
+    "min_TQ": {
+      "blocks_outer_inner_angles": [
+        8,
+        64,
+        2
+      ],
+      "controlled_walk_toffoli_upper": 217559,
+      "logical_qubits_upper_including_system": 6775,
+      "TQ_upper": 1473962225,
+      "lookup_toffoli_by_stage": [
+        1267,
+        24858,
+        173380
+      ]
+    },
+    "frontier": [
+      {
+        "blocks_outer_inner_angles": [
+          8,
+          32,
+          1
+        ],
+        "controlled_walk_toffoli_upper": 383815,
+        "logical_qubits_upper_including_system": 4675,
+        "TQ_upper": 1794335125,
+        "lookup_toffoli_by_stage": [
+          1267,
+          30754,
+          333740
+        ]
+      },
+      {
+        "blocks_outer_inner_angles": [
+          8,
+          64,
+          1
+        ],
+        "controlled_walk_toffoli_upper": 377919,
+        "logical_qubits_upper_including_system": 6735,
+        "TQ_upper": 2545284465,
+        "lookup_toffoli_by_stage": [
+          1267,
+          24858,
+          333740
+        ]
+      },
+      {
+        "blocks_outer_inner_angles": [
+          8,
+          64,
+          2
+        ],
+        "controlled_walk_toffoli_upper": 217559,
+        "logical_qubits_upper_including_system": 6775,
+        "TQ_upper": 1473962225,
+        "lookup_toffoli_by_stage": [
+          1267,
+          24858,
+          173380
+        ]
+      },
+      {
+        "blocks_outer_inner_angles": [
+          8,
+          64,
+          4
+        ],
+        "controlled_walk_toffoli_upper": 143679,
+        "logical_qubits_upper_including_system": 10975,
+        "TQ_upper": 1576877025,
+        "lookup_toffoli_by_stage": [
+          1267,
+          24858,
+          99500
+        ]
+      },
+      {
+        "blocks_outer_inner_angles": [
+          8,
+          64,
+          8
+        ],
+        "controlled_walk_toffoli_upper": 119339,
+        "logical_qubits_upper_including_system": 19375,
+        "TQ_upper": 2312193125,
+        "lookup_toffoli_by_stage": [
+          1267,
+          24858,
+          75160
+        ]
+      }
+    ],
+    "includes": [
+      "outer and inner preparation/unpreparation",
+      "angle lookups and rotations",
+      "signed SELECT",
+      "both controlled reflections",
+      "phase-fixup erasure",
+      "phase-gradient register"
+    ],
+    "excludes": [
+      "ground-state preparation",
+      "physical gate-synthesis error overhead",
+      "QFT synthesis"
+    ]
+  },
+  "offset_Ha": "-87829602415794765137176827723135484636351387789350099/93536104789177786765035829293842113257979682750464",
+  "budget": {
+    "operator_Ha": "80223593597338148213119559669551526308950842396236539936248675835829137107866683035352880545/533996758980227520598755426542388028650676130589163192486760401955554931445160137505740521734144",
+    "encoding_Ha": "2858842365994803276497310355205602658950768750454045343/100433627766186892221372630771322662657637687111424552206336",
+    "QPE_Ha": "1/1000",
+    "total_upper_Ha": "78677570726403848246902946547591290656848214429679730533442617594255085745520157932220730068893/66749594872528440074844428317798503581334516323645399060845050244444366430645017188217565216768000",
+    "total_mHa_display": 1.1786973520461697,
+    "remaining_systematic_margin_Ha": "140608905348208279364240693804431575366435058440764539819547313984279502717559347844636871389679/333747974362642200374222141588992517906672581618226995304225251222221832153225085941087826083840000",
+    "fits_1_6_mHa": true,
+    "chemical_accuracy_certified": false,
+    "missing": [
+      "physical synthesis accuracy including phase-gradient preparation",
+      "ground-state preparation/selection",
+      "implemented QPE/QFT failure accounting"
+    ]
+  },
+  "comparison": {
+    "paper_convention": {
+      "scope": "same pi*lambda/(2 sigma) resource convention; not a matched chemical-accuracy guarantee",
+      "sigma_Ha": "1/1000",
+      "our_ordinary_normalization_Ha": "18916212872093792820107927791135476749206155818380077/93536104789177786765035829293842113257979682750464",
+      "low_effective_normalization_Ha": "218269/5000",
+      "our_queries": 317669,
+      "low_queries": 68572,
+      "our_total_toffoli_upper": 37910300791,
+      "low_total_toffoli_from_printed_parameters": 1003139788,
+      "total_cost_ratio_display": 37.7916430436712,
+      "our_logical_qubits_upper": 19375,
+      "low_logical_qubits_published": 1454,
+      "qubit_ratio_display": 13.325309491059148,
+      "step_toffoli_x_qubits": {
+        "scope": "the challenge score for one walk step; ours at the point of this frontier that minimises it",
+        "ours_upper": 1473962225,
+        "our_toffoli_upper": 217559,
+        "our_qubits_upper": 6775,
+        "low_published": 21270566,
+        "ratio_display": 69.29586288394958
+      },
+      "total_toffoli_x_qubits_ratio_display": 321.02239203291987,
+      "break_even_step_toffoli_at_our_normalization": "1003139788/317669",
+      "continuous_break_even_normalization_at_our_step_Ha": "3193057201/596695000",
+      "source": "Low et al. PRX 15, 041016, Table V; https://doi.org/10.1103/pb2g-j9cw"
+    },
+    "conditional_99_percent_QPE": {
+      "energy_error_Ha": "1/1000",
+      "failure_probability": "1/100",
+      "normalization_Ha": "18916212872093792820107927791135476749206155818380077/93536104789177786765035829293842113257979682750464",
+      "phase_register_qubits": 26,
+      "controlled_walk_uses": 67108863,
+      "tail_bins": 51,
+      "conditional_on": "exact eigenstate and exact controlled walk/QFT",
+      "includes_state_preparation_or_gate_synthesis": false,
+      "controlled_walk_toffoli_upper": 119339,
+      "controlled_walk_total_toffoli_upper": 8008704601557
+    }
+  }
+}

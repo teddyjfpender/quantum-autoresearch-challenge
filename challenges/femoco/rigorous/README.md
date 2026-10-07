@@ -85,5 +85,30 @@ constructs new approximations with certified Hamiltonian errors below 0.267 mHa
 26/28-bit rotation precisions. Sparse correction retains over 99.3% of the packed
 residual entries; separate analytical correction-block resource bounds quantify
 the cost of that construction. The combined block encoding and complete
-ground-energy algorithm remain unimplemented, and no new full circuit-equivalence
-certificate is asserted.
+ground-energy algorithm were not implemented by that experiment, and it asserts
+no new full circuit-equivalence certificate.
+
+## Signed correction and combined logical walk
+
+The [signed correction follow-up](../tools/chemistry/SIGNED.md) replaces the large
+sparse table with 1,386/2,153 signed factors. Correction normalization falls from
+213.689/71.160 Ha to 32.396/22.505 Ha. The new numerical certificates
+([Reiher](signed-reiher.json), [Li](signed-li.json)) bound the explicit combined
+Hamiltonian errors below 0.161357/0.150233 mHa.
+
+The emitted combined programs are checked exactly for their layout, every lookup
+record and their coefficient errors ([Reiher](combined-reiher.json),
+[Li](combined-li.json)). That the layout block-encodes the Hamiltonian is an
+argued identity exercised on two-orbital instances, not something the checker
+derives, and the checker shares code with the compiler; the reports record
+`independent_verification: false`. The programs are hierarchical and logical,
+not gate streams, and carry no symbolic certificate.
+
+Controlled-walk upper bounds are 68,863/119,339 Toffolis and 12,825/19,375 logical
+qubits. This is much more expensive than Low et al.'s published estimate, and it
+is a different Hamiltonian from the challenge tracks': 28.7x/37.8x in total
+Toffolis under the paper's query convention, and 43x/69x in Toffolis x qubits
+for one step. The conditional
+budgets fit below 1.179 mHa; physical synthesis, state preparation/selection and
+implemented QPE accounting are still outstanding. Both combined reports keep
+`chemical_accuracy_certified: false`.
