@@ -1530,7 +1530,7 @@ mod tests_factor_erase {
         }
         if row < 16 {
             sim.set(cls[row / 4], true);
-            if row % 4 > 0 {
+            if row & 3 != 0 {
                 sim.set(grp[row % 4 - 1], true);
             }
         }
