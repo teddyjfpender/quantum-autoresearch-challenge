@@ -169,6 +169,16 @@ under `tests/fixtures/exact/`, which a Rust test regenerates. Reports bind the i
 checker source, circuit, lane map, family and payload by SHA-256. They are local audit
 evidence; they neither write the ledger nor replace judge validation.
 
+## Final candidates
+
+The circuit named as a track's final result must carry a certificate from `exact.py` with
+`certified: true` over the whole domain and `circuit_files_checked: true`, committed under
+`rigorous/` together with the paragraph that states what it shows and the trust base above
+(the repository's [validation rules](../../../../spec/VALIDATION.md#final-candidates)). Today
+one candidate has one: the Reiher fewest-Toffoli rebuild. The checker accepts untapered
+spin-swap chain circuits only, so a final candidate built with other mechanisms needs the
+checker extended, and its tests extended with it, before it can be certified.
+
 ## Rigorous promotions
 
 [`../../rigorous/promotions.json`](../../rigorous/promotions.json) lists eight candidates:

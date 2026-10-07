@@ -93,9 +93,31 @@ trust base; it is not a machine-checked proof. See
 - **Not an audit of the sliced engine.** A row's `engine` column says which engines passed it.
   Headline rows are re-validated on the reference engine at full size before the challenge
   leaves `staging` ([ROADMAP.md](ROADMAP.md)).
+- **Not a symbolic certificate.** A row rests on sampled lanes. The circuit a challenge
+  publishes as its final result on a track must also carry a complete symbolic certificate,
+  published with the statement of what it proves ([final candidates](#final-candidates)).
 - **Not a statement about hardware cost.** Only the counted metrics are compared.
 - **Not novelty.** The declared architecture is checked against the registry's rules by a
   maintainer when it is new, not against the literature.
+
+## Final candidates
+
+A ledger row is enough for a circuit to stand on the board. It is not enough for the circuit a
+challenge names as its final result on a track: the one quoted in a paper, a release note or
+the site's headline once the challenge is live. That circuit must have, in the repository:
+
+1. **A complete symbolic certificate**: every partition of the whole input and
+   measurement-outcome domain proved, issued by the challenge's symbolic checker at the
+   committed version, and bound by SHA-256 to the circuit's files and the pinned spec. A
+   partial run, a timeout or an unsupported structure is not a certificate.
+2. **The proved part, stated beside it**: what the certificate shows, in which model, and what
+   it rests on. A result is never described as proved beyond that statement.
+3. **Its ledger row and reference-engine re-validation**, as for any headline row.
+
+If the checker does not support the candidate's structure, the checker is extended and
+re-tested, or another circuit is the final candidate. For FeMoco the checker, the form of the
+certificate and its trust base are in
+[the verification guide](../challenges/femoco/tools/verification/README.md).
 
 ## Changing the contract
 
