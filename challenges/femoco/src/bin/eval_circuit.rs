@@ -426,6 +426,7 @@ fn run(
             engine,
             a.coverage,
             a.export_symbolic.as_deref(),
+            a.server_seed.as_ref(),
         )?;
     }
     Ok((ev, circuit))

@@ -1,23 +1,42 @@
 #!/usr/bin/env python3
-"""Exact Boolean and gate-algebra proof for the spin-swap/chain SA circuits.
+"""Symbolic check of a spin-swap/chain SA circuit against its pinned spec.
 
-The trusted evaluator supplies the lowered program; the pinned sa.bin supplies an
-independent reference. Reduced ordered BDDs quantify every remaining input and HMR
-outcome. Exhaustive address partitions are a proof decomposition, not sampling.
-Unsupported gate words fail closed. See README.md for the algebra and trust boundary.
+What a passing run shows: in the evaluator's lowered-op model, for every control, uniform
+and second-pass input and every measurement outcome, the circuit's classical controller
+restores its registers and its system gate word equals the reference word built from
+sa.bin, up to the stated gate identities, with the expected scalar phase.
+
+What it rests on (README.md, "Trust base"): the evaluator's lowering and export, the
+gate identities in `normalize`, the spin-swap gate taken as an opaque inverse pair, the
+reflection as an interface, this file's transcription of the spec, and CUDD. It is not a
+machine-checked proof and does not address coefficient magnitudes, which the evaluator's
+rounding rule checks.
+
+Reduced ordered BDDs quantify every input and outcome bit. The address partitions are a
+decomposition of the whole domain, not a sample. Unsupported structure fails closed.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import math
+import multiprocessing
 import pathlib
 import struct
 import time
 from concurrent.futures import ProcessPoolExecutor
-import multiprocessing
 
+import dd
 from dd import cudd
+
+SCHEMA = 'femoco-exact-report-v2'
+CLAIM = ('For every input and measurement outcome in input_domain, in the evaluator\'s '
+         'lowered-op model: registers are restored and the system gate word equals the '
+         'reference word of the pinned spec with the expected scalar phase. Rests on the '
+         'trust base in tools/verification/README.md; not a machine-checked proof.')
+# The three files the evaluator hashed into the export, by their names in a circuit directory.
+CIRCUIT_FILES = {'ops': 'ops.bin', 'lanemap': 'lanemap.bin', 'family': 'family.out.json'}
 
 NONE = 2**32 - 1
 
@@ -53,7 +72,6 @@ def payload(path, doc):
     angles = read('I', r*b*(n-1))
     if at != len(data) or any(a >= 1 << beta for a in (*ea, *angles)):
         raise ValueError('malformed payload angles or length')
-    import math
     if not all(math.isfinite(v) for v in (*e, *wb, *weights)):
         raise ValueError('nonfinite payload coefficient')
     return dict(n=n, r=r, b=b, c=c, beta=beta, e=e, ea=ea, wb=wb,
@@ -158,7 +176,8 @@ def variables(doc, shard_bits, shard):
 class Controller:
     def __init__(self, doc, f, c, uniform, second, count):
         self.doc, self.f = doc, f
-        self.first = 1 + doc['layout']['system']
+        self.system = doc['layout']['system']
+        self.first = 1 + self.system
         self.q = [f.zero] * doc['layout']['num_qubits']
         self.bits = [f.zero] * doc['layout']['num_bits']
         self.q[0] = c
@@ -171,6 +190,18 @@ class Controller:
     def phase_add(self, mask, k):
         self.phase = self.f.add(self.phase, tuple(mask if k >> i & 1 else self.f.zero
                                                  for i in range(3)))
+
+    def wires(self, *ids):
+        """Wires a classical gate may touch: the control and everything after the system
+        qubits. The system wires are tracked as gate words, never as Boolean state."""
+        for v in ids:
+            if v != NONE and not (v == 0 or self.first <= v < len(self.q)):
+                raise ValueError(f'classical gate on system or unknown wire {v}')
+
+    def system_qubits(self, *ids):
+        for v in ids:
+            if not 0 <= v < self.system:
+                raise ValueError(f'system gate on unknown qubit {v}')
 
     def run(self):
         f, q, bits = self.f, self.q, self.bits
@@ -198,38 +229,48 @@ class Controller:
                 stack.append(mask)
                 mask &= bits[a['bit']]
             elif kind in ('X', 'Cx', 'Ccx'):
+                self.wires(a['t'], a.get('c', NONE), a.get('a', NONE), a.get('b', NONE))
                 if kind == 'Cx': m &= q[a['c']]
                 if kind == 'Ccx': m &= q[a['a']] & q[a['b']]
                 if m != f.zero:
                     q[a['t']] = m if q[a['t']] == f.zero else f.xor(q[a['t']], m)
             elif kind == 'Swap':
                 x, y = a['a'], a['b']
+                self.wires(x, y)
                 delta = m & f.xor(q[x], q[y])
                 q[x], q[y] = f.xor(q[x], delta), f.xor(q[y], delta)
             elif kind == 'Phase':
+                self.wires(*a['q'])
                 self.phase_add(m & f.all(q[v] for v in a['q'] if v != NONE), a['k'])
             elif kind == 'Neg':
                 self.phase_add(m, 4)
             elif kind == 'Hmr':
+                self.wires(a['t'])
                 outcome = f.bdd.var(f'm{self.hmr}')
                 self.hmr += 1
                 self.phase_add(m & q[a['t']] & outcome, 4)
                 q[a['t']] &= ~m
                 bits[a['bit']] = f.bdd.ite(m, outcome, bits[a['bit']])
             elif kind == 'Reset':
+                self.wires(a['t'])
                 f.require(~(m & q[a['t']]), f'clean reset at op {i}')
             elif kind == 'Bit':
                 k, v = a['kind'], bits[a['bit']]
                 if k not in (0, 1, 2): raise ValueError('invalid bit operation')
                 bits[a['bit']] = f.xor(v, m) if k == 0 else v & ~m if k == 1 else v | m
             elif kind == 'Sys':
+                self.wires(*a['ctrl'])
+                self.system_qubits(a['q'])
                 m &= f.all(q[v] for v in a['ctrl'] if v != NONE)
                 self.events[self.pass_id].append(('Z' if a['z'] else 'X', a['q'], m))
             elif kind == 'SpinSwap':
+                self.wires(a['c'])
                 self.events[self.pass_id].append(('F', a['dagger'], m & q[a['c']]))
             elif kind == 'Givens':
                 width = self.doc['beta']
                 reg = self.doc['registers'][a['reg']]
+                self.wires(*reg[:width])
+                self.system_qubits(a['p'], a['q'])
                 angle = tuple(m & q[v] for v in reg[:width])
                 angle += (f.zero,) * (width-len(angle))
                 self.events[self.pass_id].append(('G', a['p'], a['q'], angle))
@@ -354,15 +395,15 @@ def quantum(doc, spec, f, c, uniform, second, actual):
             return out
         angles = [f.lookup(values(j), flat, beta) for j in range(n-1)]
         # The vector u and -u give the same square. A one-body Majorana changes
-        # sign, accounted for explicitly in the global scalar phase below.
+        # sign, accounted for explicitly in the global scalar phase below. The sign-normalized
+        # form is accepted for one-rotation networks only (N = 2), where adding pi to the
+        # angle is the whole change and the tests cover it; longer chains must match the
+        # payload form or stay unproved.
         matched = None
-        for normalized in (False, True):
+        for normalized in ((False, True) if n == 2 else (False,)):
             flip = angles[-1][-1] if normalized else f.zero
-            aa = []
-            for j, angle in enumerate(angles):
-                flipped = (f.add(f.neg(angle), f.word(1 << (beta-1), beta))
-                           if j < n-2 else f.add(angle, f.word(1 << (beta-1), beta)))
-                aa.append(f.mux(flip, flipped, angle))
+            aa = [f.mux(flip, f.add(angle, f.word(1 << (beta-1), beta)), angle)
+                  for angle in angles]
             reference = [('G', 2*j, 2*j+2, f.neg(aa[j])) for j in reversed(range(n-1))]
             reference += [('Z', 0, z), ('X', 0, x)]
             reference += [('G', 2*j, 2*j+2, aa[j]) for j in range(n-1)]
@@ -411,10 +452,70 @@ def worker(shard):
         return {'partition': shard, 'status': 'unproved', 'reason': str(error)}
 
 
+def bind_circuit(doc, directory):
+    """The export's digests must be those of the circuit files in `directory`."""
+    for key, name in CIRCUIT_FILES.items():
+        have = hashlib.sha256((pathlib.Path(directory) / name).read_bytes()).hexdigest()
+        if have != doc['digests'].get(key):
+            raise ValueError(f'{name} is not the file the evaluator export was made from')
+
+
+def certify(doc, spec, input_sha256, partition_bits=8, partition=None, jobs=1, progress=None):
+    """Run the partitions and return the report. `certified` is true only when every
+    partition of the whole domain was run and proved; a single partition never certifies."""
+    if doc.get('schema') != 'femoco-symbolic-input-v1':
+        raise ValueError('requires a trusted evaluator export')
+    if 'rotation_widths' not in doc or doc['rotation_widths'] is not None:
+        raise ValueError('requires an explicit untapered rotation-width export')
+    if not 0 <= partition_bits <= doc['outer']['k'] or jobs < 1:
+        raise ValueError('invalid partition bits or worker count')
+    total = 1 << partition_bits
+    if partition is not None and not 0 <= partition < total:
+        raise ValueError('invalid partition')
+    started = time.monotonic()
+    report = {'schema': SCHEMA, 'claim': CLAIM, 'spec': doc['spec'], 'digests': doc['digests'],
+              'input_sha256': input_sha256,
+              'checker_sha256': hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),
+              'backend': f'dd.cudd {dd.__version__}', 'partition_bits': partition_bits,
+              'partition_domain': 'most significant outer alias bucket bits',
+              'lowered_operations': len(doc['ops']),
+              'input_domain': {'controls': 2, 'uniform_bits': doc['layout']['uniform'],
+                               'second_pass_bits': doc['inner']['width'],
+                               'independent_measurement_bits': sum(isinstance(o, dict) and 'Hmr' in o
+                                                                  for o in doc['ops'])},
+              'partitions': [], 'certified': False}
+    partitions = range(total) if partition is None else [partition]
+    global _worker_input
+    _worker_input = (doc, spec, partition_bits)
+    if jobs == 1:
+        results = map(worker, partitions)
+        pool = None
+    else:
+        # fork shares the read-only lowered program. Each worker creates its own CUDD
+        # manager after the fork; none is shared.
+        pool = ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context('fork'))
+        results = pool.map(worker, partitions)
+    try:
+        for result in results:
+            report['partitions'].append(result)
+            if progress is not None:
+                progress(report, result)
+    finally:
+        if pool is not None:
+            pool.shutdown()
+    proved = [r['partition'] for r in report['partitions'] if r['status'] == 'proved']
+    report['certified'] = partition is None and proved == list(range(total))
+    report['wall_seconds'] = round(time.monotonic()-started, 1)
+    return report
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('input', type=pathlib.Path)
     p.add_argument('--payload', type=pathlib.Path, required=True)
+    p.add_argument('--circuit', type=pathlib.Path,
+                   help='directory with ops.bin, lanemap.bin and family.out.json; their digests '
+                        'must equal the export\'s')
     p.add_argument('--out', type=pathlib.Path, required=True)
     p.add_argument('--partition-bits', type=int, default=8)
     p.add_argument('--partition', type=int, help='one partition only; never a full certificate')
@@ -423,38 +524,19 @@ def main():
     args.out.unlink(missing_ok=True)
     raw = args.input.read_bytes()
     doc = json.loads(raw)
-    if doc.get('schema') != 'femoco-symbolic-input-v1':
-        raise ValueError('requires a trusted evaluator export')
-    if 'rotation_widths' not in doc or doc['rotation_widths'] is not None:
-        raise ValueError('requires an explicit untapered rotation-width export')
-    if not 0 <= args.partition_bits <= doc['outer']['k'] or args.jobs < 1:
-        raise ValueError('invalid partition bits or worker count')
+    if args.circuit is not None:
+        bind_circuit(doc, args.circuit)
     spec = payload(args.payload, doc)
-    report = {'schema': 'femoco-exact-report-v1', 'spec': doc['spec'], 'digests': doc['digests'],
-              'input_sha256': hashlib.sha256(raw).hexdigest(),
-              'checker_sha256': hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),
-              'backend': 'dd.cudd 0.6.0', 'partition_bits': args.partition_bits,
-              'partition_domain': 'most significant outer alias bucket bits',
-              'input_domain': {'controls': 2, 'uniform_bits': doc['layout']['uniform'],
-                               'second_pass_bits': doc['inner']['width'],
-                               'independent_measurement_bits': sum(isinstance(o, dict) and 'Hmr' in o
-                                                                  for o in doc['ops'])},
-              'partitions': [], 'full_quantum_equivalence_certified': False}
-    del raw
-    partitions = range(1 << args.partition_bits) if args.partition is None else [args.partition]
-    global _worker_input
-    _worker_input = (doc, spec, args.partition_bits)
-    # Linux maintainer tooling: fork shares the read-only lowered program. Separate
-    # CUDD managers are created AFTER fork, never shared between workers.
-    with ProcessPoolExecutor(max_workers=args.jobs, mp_context=multiprocessing.get_context('fork')) as pool:
-        for result in pool.map(worker, partitions):
-            report['partitions'].append(result)
-            args.out.write_text(json.dumps(report, indent=2)+'\n')
-            print(json.dumps(result), flush=True)
-    if any(r['status'] != 'proved' for r in report['partitions']): return 2
-    report['full_quantum_equivalence_certified'] = args.partition is None
+
+    def progress(report, result):
+        args.out.write_text(json.dumps(report, indent=2)+'\n')
+        print(json.dumps(result), flush=True)
+
+    report = certify(doc, spec, hashlib.sha256(raw).hexdigest(), args.partition_bits,
+                     args.partition, args.jobs, progress)
+    report['circuit_files_checked'] = args.circuit is not None
     args.out.write_text(json.dumps(report, indent=2)+'\n')
-    return 0
+    return 0 if all(r['status'] == 'proved' for r in report['partitions']) else 2
 
 
 if __name__ == '__main__':

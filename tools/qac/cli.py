@@ -235,7 +235,11 @@ def cmd_record(args) -> int:
 
 
 def cmd_compare_row(args) -> int:
-    """[audit] A fresh validation of a recorded circuit must reproduce its ledger row."""
+    """[audit] A fresh validation of a recorded circuit must reproduce its ledger row.
+
+    The row keeps the digest of the evaluator that recorded it. When the evaluator has changed
+    since, the fresh validation shows that the row still reproduces under the current one; the
+    difference is reported and, unless `--same-verifier` is given, is not a failure."""
     challenge = Challenge(args.challenge)
     row = next((r for r in ledger.read(challenge.ledger) if r["submission"] == args.submission), None)
     if row is None:
@@ -249,10 +253,16 @@ def cmd_compare_row(args) -> int:
         "qubits": int(row["qubits"]) == int(metrics["qubits"]),
         "toffoli": abs(float(row["toffoli"]) - float(metrics["toffoli"])) < 5e-4,
         "samples": int(row["samples"]) == int(metrics["samples"]),
-        "verifier_sha256": row["verifier_sha256"] == verifier.digest(challenge),
     }
+    current = verifier.digest(challenge)
+    if row["verifier_sha256"] == current:
+        checks["verifier_sha256"] = True
+    elif args.same_verifier:
+        checks["verifier_sha256"] = False
     for name, ok in checks.items():
         print(f"{'ok  ' if ok else 'FAIL'} {name}")
+    if row["verifier_sha256"] != current:
+        print(f"note verifier_sha256: recorded by {row['verifier_sha256'][:16]}, re-validated by {current[:16]}")
     print(f"{args.submission}: {metrics['toffoli']:.3f} Toffolis x {metrics['qubits']} qubits; ledger {row['toffoli']} x {row['qubits']}")
     return 0 if all(checks.values()) else 1
 
@@ -469,6 +479,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("verify-ledger", help="[judge] verify every ledger's MAC chain").set_defaults(run=cmd_verify_ledger)
     p = sub.add_parser("compare-row", help="[audit] check a fresh validation against a ledger row")
     p.add_argument("challenge")
+    p.add_argument("--same-verifier", action="store_true",
+                   help="also require the row to have been recorded by the current evaluator")
     for name in ("submission", "score", "seed"):
         p.add_argument(f"--{name}", required=True)
     p.set_defaults(run=cmd_compare_row)

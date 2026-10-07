@@ -1,11 +1,16 @@
 //! Deterministic input coverage, supplementary to the sampled resource run.
 //!
 //! `exhaustive` enumerates the entire finite control/uniform/second-pass domain when it
-//! fits the cap. `terms` enumerates a representative of EVERY reachable selected-term pair,
-//! both controls and all semantically relevant spin bits, plus every alias bucket's boundaries on
-//! both inner passes. Neither mode exhausts measurement outcomes or proves a large circuit
-//! constant within an alias cell. Gaussian operator comparisons still use the reference
-//! tracker's numerical tolerances. These limitations are part of the report.
+//! fits the cap. `terms` enumerates one representative of EVERY reachable selected-term pair
+//! with both controls and every value of the outer and both inner spin bits, plus every alias
+//! bucket's boundaries on both inner passes. A spin bit is enumerated even where the reference
+//! operator ignores it: whether the circuit ignores it is what is being checked.
+//!
+//! Neither mode exhausts measurement outcomes or proves a large circuit constant within an
+//! alias cell, and `terms` takes one alias-cell representative per item. Measurement outcomes
+//! come from one stream per batch keyed by the circuit digest and, when the run has one, the
+//! server seed. Gaussian operator comparisons still use the reference tracker's numerical
+//! tolerances. These limitations are part of the report.
 use crate::fiat_shamir::Lane;
 use crate::lanemap::df_nested::Table;
 use crate::lanemap::sa_nested::SaNestedMap;
@@ -14,8 +19,10 @@ use crate::score::{self, Inputs};
 use crate::sim::{self, validate, Inner, Layout};
 use crate::spec::sa::SaSpec;
 use serde_json::{json, Value};
+use sha2::Digest;
 
-pub const MAX_LANES: usize = 1 << 24;
+/// The most lanes one coverage run may hold. A plan above it is refused, never truncated.
+pub const MAX_LANES: usize = 1 << 25;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
@@ -111,20 +118,15 @@ pub fn plan(map: &SaNestedMap, spec: &SaSpec, mode: Mode, cap: usize) -> Result<
             .flatten()
             .collect();
         let boundary = boundaries(t);
-        // Square generators ignore the outer spin. One-body generators use both spins.
-        for outer_spin in 0..if o < spec.n { 2u64 } else { 1u64 } {
+        // Every spin bit takes both values, including where the reference operator does not
+        // depend on it (the outer spin of a square, the inner spin of a one-body or identity
+        // item): a circuit can read a bit its reference ignores.
+        for outer_spin in 0..2u64 {
             let out = rep | outer_spin << (lo - 1);
             for a in &inner {
                 for b in &inner {
-                    let spins = |v: u64| {
-                        if o < spec.n || t.item(v) == spec.b {
-                            1u64
-                        } else {
-                            2u64
-                        }
-                    };
-                    for spin_a in 0..spins(*a) {
-                        for spin_b in 0..spins(*b) {
+                    for spin_a in 0..2u64 {
+                        for spin_b in 0..2u64 {
                             p.push(
                                 out | (a | spin_a << (w - 1)) << lo,
                                 out | (b | spin_b << (w - 1)) << lo,
@@ -161,21 +163,38 @@ pub fn plan(map: &SaNestedMap, spec: &SaSpec, mode: Mode, cap: usize) -> Result<
         for spin in 0..2u64 {
             let out = s | spin << (lo - 1);
             for a in inner.iter().copied() {
-                let v = out | a << lo;
-                p.push(v, v, cap)?;
-                p.boundary_cases += 1;
+                for inner_spin in 0..2u64 {
+                    let v = out | (a | inner_spin << (w - 1)) << lo;
+                    p.push(v, v, cap)?;
+                    p.boundary_cases += 1;
+                }
             }
         }
     }
     Ok(p)
 }
 
+/// The key of the coverage run's measurement-outcome streams: the circuit digest, and the
+/// run's server seed when it has one, so a judged run's outcomes are not known in advance.
+fn outcome_key(ops_sha256: &[u8; 32], seed: Option<&[u8; 32]>) -> [u8; 32] {
+    let mut h = sha2::Sha256::new();
+    h.update(b"femoco-deterministic-outcomes-v2");
+    h.update(ops_sha256);
+    if let Some(seed) = seed {
+        h.update(seed);
+    }
+    h.finalize().into()
+}
+
 /// Revalidates the exact rounding rule and static circuit before any coverage/export.
+/// `seed` is the run's server seed, if any. The export is written only after the requested
+/// coverage has passed, so a rejected run leaves none behind.
 pub fn check(
     inp: &Inputs<'_>,
     engine: validate::Engine,
     mode: Option<Mode>,
     export: Option<&std::path::Path>,
+    seed: Option<&[u8; 32]>,
 ) -> Result<Option<Value>, String> {
     let lm = lanemap::parse(inp.lanemap, inp.spec)?;
     score::check_lanemap(lm.as_ref(), inp.spec)?;
@@ -196,7 +215,8 @@ pub fn check(
         width: map.inner_width(),
     };
     let compiled = sim::compile_sa(&inp.ops.ops, &layout, inp.tracker, Some(inner))?;
-    if let Some(path) = export {
+    let write_export = || -> Result<(), String> {
+        let Some(path) = export else { return Ok(()) };
         // This is an INPUT to the independent SMT checker, never a certificate supplied by
         // the builder. The checker binds its result to these artifact digests.
         let table = |t: &Table| json!({"k":t.k,"mu":t.mu,"keep":t.keep,"alt":t.alt});
@@ -215,16 +235,23 @@ pub fn check(
         });
         std::fs::write(path, serde_json::to_vec(&doc).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
-    }
-    let Some(mode) = mode else { return Ok(None) };
+        Ok(())
+    };
+    let Some(mode) = mode else {
+        write_export()?;
+        return Ok(None);
+    };
     let p = plan(map, spec, mode, MAX_LANES)?;
+    if p.lanes.is_empty() {
+        return Err("deterministic coverage: the plan is empty".into());
+    }
     let reference = |s| lm.reference_op(inp.spec, s);
     let reference_nested = |s, after| lm.reference_nested(inp.spec, s, after);
     let uniform_after = |s| lm.uniform_after(s);
     let ctx = validate::Context {
         compiled: &compiled,
         layout,
-        hmr_key: inp.ops.sha256,
+        hmr_key: outcome_key(&inp.ops.sha256, seed),
         reference: &reference,
         uniform_after: &uniform_after,
         tracker: inp.tracker,
@@ -239,15 +266,21 @@ pub fn check(
     if let Some(why) = out.rejection() {
         return Err(format!("deterministic coverage: {why}"));
     }
+    if out.lanes != p.lanes.len() {
+        return Err(format!(
+            "deterministic coverage: the engine ran {} of {} lanes",
+            out.lanes,
+            p.lanes.len()
+        ));
+    }
+    write_export()?;
     Ok(Some(json!({
-        "protocol":"femoco-deterministic-v1", "status":"passed", "mode":format!("{mode:?}"),
+        "protocol":"femoco-deterministic-v2", "status":"passed", "mode":format!("{mode:?}"),
         "lanes":p.lanes.len(), "term_pair_cases":p.term_pairs, "boundary_cases":p.boundary_cases,
-        "input_coverage":if mode==Mode::Exhaustive {"all finite control/uniform/second-pass inputs"} else {"all reachable term-pair representatives and alias comparator boundaries"},
-        "measurement_outcomes":"sampled, not exhaustive",
+        "input_coverage":if mode==Mode::Exhaustive {"all finite control/uniform/second-pass inputs"} else {"one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries"},
+        "measurement_outcomes":if seed.is_some() {"one stream per batch keyed by the circuit digest and the server seed; not exhaustive"} else {"one fixed stream per batch keyed by the circuit digest; not exhaustive"},
         "system_equivalence":"reference Gaussian tolerances, not exact symbolic quantum equivalence",
         "certified":false,
         "resource_counts":"independent sampled run; deterministic coverage does not change the score"
     })))
 }
-
-use sha2::Digest;

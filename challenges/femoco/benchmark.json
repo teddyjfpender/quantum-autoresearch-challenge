@@ -117,9 +117,7 @@
   "Cargo.lock",
   "rust-toolchain",
   "benchmark.sh",
-  "setup.sh",
-  "rigorous",
-  "tools/verification"
+  "setup.sh"
  ],
  "architectures": "architectures.json",
  "targets": "targets.json",
