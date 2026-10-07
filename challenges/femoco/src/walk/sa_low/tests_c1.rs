@@ -2872,6 +2872,73 @@ const WIDE9: Params = Params {
     ..WIDE
 };
 
+/// Fourteen orbitals and fifteen five-item square rows give four classes of four rows once the
+/// first one-body row is included, plus a six-leaf tail for the factored erasure gadget.
+fn spec_factor() -> SaSpec {
+    let e: Vec<f64> = (0..14)
+        .map(|j| if j % 2 == 0 { 2.0 } else { -1.0 })
+        .collect();
+    let wb = vec![1.0; 15];
+    let w: Vec<f64> = (0..75)
+        .map(|j| if j % 5 == 0 { 2.0 } else { 1.0 })
+        .collect();
+    parse_payload("test-sa-factor-v1", &payload(14, (15, 5, 1), &e, &wb, &w)).unwrap()
+}
+
+const FACTOR: Params = Params {
+    outer: (5, 22),
+    inner: (3, 22),
+    ..WIDE9
+};
+
+#[test]
+fn factored_layout_on_small_spec() {
+    let s = spec_factor();
+    let map = lane_map(&s, FACTOR).unwrap();
+    let t = super::tables::SaTables::with_items(&s, &map, true);
+    onehot::FORCE_GRAFT_DEPTHS.with(|c| *c.borrow_mut() = Some(vec![0, 2]));
+    let plan = onehot::class_plan_g(&t, 4, false, true, true);
+    onehot::FORCE_GRAFT_DEPTHS.with(|c| *c.borrow_mut() = None);
+    assert_eq!(t.rows(), 17);
+    assert_eq!(plan.defs.len(), 4, "{plan:?}");
+    assert_eq!(plan.grafts.len(), 3, "{plan:?}");
+    assert!(
+        plan.defs
+            .iter()
+            .enumerate()
+            .all(|(i, d)| { d.members == (4 * i..4 * i + 4).collect::<Vec<_>>() }),
+        "{plan:?}"
+    );
+}
+
+#[test]
+fn factored_erasure_passes_exact_spec_and_mutant_fails() {
+    let s = spec_factor();
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4c"),
+        inner_a: 2,
+        outer_a: 2,
+        ..FACTOR
+    };
+    let run = |fault| {
+        onehot::FORCE_GRAFT_DEPTHS.with(|c| *c.borrow_mut() = Some(vec![0, 2]));
+        onehot::FAULT.with(|c| c.set(fault));
+        let built = build(&s, p);
+        onehot::FAULT.with(|c| c.set(0));
+        onehot::FORCE_GRAFT_DEPTHS.with(|c| *c.borrow_mut() = None);
+        built
+    };
+    let (lm, ops, _) = run(0);
+    let ev = eval(&s, p, &lm, &ops, 1 << 12).unwrap();
+    assert!(ev.facts.nested_validated);
+    for axis in ["encoding", "lane_map", "select", "rotation", "uncompute"] {
+        let v = ev.verdicts.iter().find(|v| v.axis == axis).unwrap();
+        assert_eq!(v.status, AxisStatus::Verified, "{axis}");
+    }
+    let (lm_bad, ops_bad, _) = run(220);
+    assert!(eval(&s, p, &lm_bad, &ops_bad, 1 << 12).is_err());
+}
+
 /// Lever `.g` (and `.h<k>`) bundles: the Li candidate and smaller compositions.
 const GRAFT: [&str; 6] = [
     "imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4",

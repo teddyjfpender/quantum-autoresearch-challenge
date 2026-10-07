@@ -1455,6 +1455,111 @@ pub fn write_classes_pre(
 /// the unfold, which recomputes a class's other virtual rows as `F_m AND g_j`, costs one Toffoli
 /// per such row (`G - 1` per class). Needs `lo` and `hi` intact (the checkpoint rebuilds them).
 pub fn erase_classes(b: &mut Builder, lo: &[Qubit], hi: &[Qubit], hot: Hot) {
+    erase_classes_with(b, lo, hi, hot, false);
+}
+
+/// `.c`: the first sixteen rows are four classes named by the high two row bits, with four
+/// groups named by the low two. Measure the flags and correct their phase as a degree-three
+/// Boolean polynomial. The only charged term is an outcome-selected CCZ.
+fn erase_factor_flags(b: &mut Builder, tail: Qubit, x: Qubit, y: Qubit, q: [Option<Qubit>; 4]) {
+    use crate::circuit::{Op, OperationType};
+    let ms: Vec<Bit> = q
+        .into_iter()
+        .map(|v| match v {
+            Some(v) => b.hmr(v),
+            None => super::narrow::zero_bit(b),
+        })
+        .collect();
+    let parity = |b: &mut Builder, subset: &[usize]| {
+        let p = super::narrow::zero_bit(b);
+        for &j in subset {
+            b.push_condition(ms[j]);
+            let mut op = Op::new(OperationType::BitInvert);
+            op.c_target = p.0;
+            b.emit(op);
+            b.pop_condition();
+        }
+        p
+    };
+    let p01 = parity(b, &[0, 1]);
+    let p02 = parity(b, &[0, 2]);
+    let pall = parity(b, &[0, 1, 2, 3]);
+    b.x(tail); // first sixteen rows = NOT tail row
+    b.z_if(tail, ms[0]);
+    b.cz_if(tail, x, p01);
+    b.cz_if(tail, y, p02);
+    b.push_condition(pall);
+    if !fault_is(220) {
+        b.ccz(tail, x, y);
+    }
+    b.pop_condition();
+    b.x(tail);
+}
+
+#[cfg(test)]
+mod tests_factor_erase {
+    use super::{erase_factor_flags, FAULT};
+    use crate::circuit::Builder;
+    use crate::walk::shared::testsim::Sim;
+
+    fn lane(row: usize, seed: u64, fault: u8) -> bool {
+        let mut b = Builder::new(1);
+        b.declare_uniform(1);
+        let hi = b.alloc_n(5);
+        let cls = b.alloc_n(4);
+        let grp = b.alloc_n(3);
+        FAULT.with(|c| c.set(fault));
+        erase_factor_flags(
+            &mut b,
+            hi[4],
+            hi[2],
+            hi[3],
+            [Some(cls[0]), Some(cls[1]), Some(cls[2]), Some(cls[3])],
+        );
+        erase_factor_flags(
+            &mut b,
+            hi[4],
+            hi[0],
+            hi[1],
+            [None, Some(grp[0]), Some(grp[1]), Some(grp[2])],
+        );
+        FAULT.with(|c| c.set(0));
+        let mut sim = Sim::new(&b, seed);
+        for (j, &q) in hi.iter().enumerate() {
+            sim.set(q, row >> j & 1 == 1);
+        }
+        if row < 16 {
+            sim.set(cls[row / 4], true);
+            if row % 4 > 0 {
+                sim.set(grp[row % 4 - 1], true);
+            }
+        }
+        sim.run(b.ops());
+        assert_eq!(sim.read(&hi), row as u64);
+        for &q in &hi {
+            sim.set(q, false);
+        }
+        std::panic::catch_unwind(|| sim.assert_clean()).is_ok()
+    }
+
+    #[test]
+    fn every_row_and_measurement_seed_is_clean() {
+        for row in 0..17 {
+            for seed in 0..16 {
+                assert!(lane(row, seed, 0), "row {row} seed {seed}");
+            }
+        }
+    }
+
+    #[test]
+    fn missing_cubic_phase_is_detected() {
+        assert!((0..16).any(|seed| !lane(15, seed, 220)));
+    }
+}
+
+/// The ordinary class erasure, or `.c`'s factored phase correction for a rectangular
+/// four-by-four first-row layout with a single grafted tail row.
+pub fn erase_classes_with(b: &mut Builder, lo: &[Qubit], hi: &[Qubit], hot: Hot, factor: bool) {
     let rec = hot.rec.clone().expect("a write_classes register");
     let keep = rec.keep;
     let hmr = |b: &mut Builder, q: Qubit| {
@@ -1535,6 +1640,33 @@ pub fn erase_classes(b: &mut Builder, lo: &[Qubit], hi: &[Qubit], hot: Hot) {
                 b.cx(vq[gr.v], hot.g[gr.group - 1]);
             }
         }
+    }
+    if factor {
+        assert!(
+            !keep
+                && hi.len() == 5
+                && hot.g.len() == 3
+                && rec.classes.len() == 4
+                && rec.row_v.len() == 17
+                && rec.grafts.len() == 3
+                && rec.sub_splits.iter().all(|&(n, c, _)| n >= 16 && c >= 16)
+                && rec.classes.iter().enumerate().all(|(i, (members, _, _))| {
+                    members.len() == 4 && members.iter().enumerate().all(|(j, &v)| v == 4 * i + j)
+                }),
+            "lever .c needs four-by-four initial classes and one grafted tail row"
+        );
+        let cls: [Option<Qubit>; 4] = std::array::from_fn(|i| Some(vq[rec.classes[i].0[0]]));
+        erase_factor_flags(b, hi[4], hi[2], hi[3], cls);
+        let grp = [None, Some(hot.g[0]), Some(hot.g[1]), Some(hot.g[2])];
+        erase_factor_flags(b, hi[4], hi[0], hi[1], grp);
+        for &(node, child, bit) in rec.sub_splits.iter().rev() {
+            b.cx(vq[child], vq[node]);
+            let m = b.hmr(vq[child]);
+            b.cz_if(vq[node], lo[bit], m);
+        }
+        let m = b.hmr(vq[rec.row_v[16]]);
+        b.z_if(hi[4], m);
+        return;
     }
     // Unfold: virtual row first + j = F_m AND g_j.
     let mut fresh = Vec::new();
