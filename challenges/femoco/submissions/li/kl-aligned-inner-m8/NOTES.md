@@ -1,0 +1,23 @@
+# Aligned inner alias data in the folded Li walk
+
+This submission builds on `li/kl-l4factored-m8`, the checked-out Li score leader. It retains the onehot-split angle delivery, item one-hot read, folded inner index read, factored angle erasure, eight-bit outer and inner alias draws, and three-bit lookup block settings. The parent measured 17,755.683 Toffolis per step and 471 peak logical qubits on its local 524,288-lane sliced run. These are local measurements; the pull-request judge will evaluate separately.
+
+## Hypothesis and mechanism
+
+The folded inner alias read has a high alt bit that varies over adjacent inner rows. In the paired, folded item one-hot read, this variation incurs nonlinear products. Lever `.a` reassigns exact alias donor lanes so the bit at value 32 of each row's alt field agrees with the shared top donor on rows 18 through 37. It retains every sampled integer item count, each table's resolution, the existing top-three donor padding, and the spec's rounding class. The table rearrangement changes only the layout of the alias table, not the desired operator or its precision. The deterministic search runs while building the circuit; the emitted circuit has no run-time search.
+
+The unchanged folded read cancels an item-constant offset through the existing `+` mechanism. Thus this data layout removes folded-read nonlinear work without allocating another angle register or raising the peak qubits. The new `.a` extension is off for all previous lever strings, preserving their recorded circuits byte for byte.
+
+## Experiments and correctness
+
+The static ledger reports 17,755.5 Toffolis and 471 qubits for the parent, and 17,727.5 and 471 for `.a`: 28 fewer Toffolis, about 0.158% fewer at the same peak. This is a modest but fully compositional saving on top of the parent. The exhaustive pinned Li table check verifies the exact integer counts in all 285 square inner tables, the shared top-three donor padding, the aligned bit on every intended row, and unchanged rounding error. A small exact spec passes all trusted evaluator axes; a deliberately corrupted offset is rejected. All 266 recorded circuit digests pass. The 4,096-lane reference evaluator also passed in the isolated implementation worktree. The final branch will be rerun below before this pull request is opened.
+
+The larger hypothesis was a persistent nonlinear angle representation shared across Givens rotations at 471 qubits. The Li leader has 235 hot-slot qubits and three group controls. Their affine leaf-function span has rank 238; removing one hot slot retains that rank through the one-hot sum relation, but removing two lowers it to 237. The correction span for each of the 75 four-group angle transitions is rank 42 (three groups times 14 bits). Each paired exclusive-group product adds at most two directions, so at least 21 Toffolis are needed per transition in this fixed-hot representation. That is 1,575 buys per pass, matching the existing triple schedule. The persistent `rankdel` q14_1.10 screen tied the leader at static 17,755.5 and 471 qubits. q14_1 saved 12 Toffolis but raised peak qubits to 475 and worsened the product. This is a limit of the tested fixed-hot cache, not a proof against every possible nonlinear recoding. A sign-gauge change and an index/draw-bit trade also failed the first cost or precision check. We therefore retained the best valid count-preserving data-layout gain.
+
+## Local validation
+
+`cargo test --release --locked --test sa_digests` passed all 266 recorded byte-identity tests. `cargo test --release --lib aligned_alias_small_exact_and_offset_mutant` passed its exact small-spec and rejected-mutant checks; the pinned table count test passed separately in release mode. On this branch, `python3 challenge.py run femoco challenges/femoco/submissions/li/kl-aligned-inner-m8 -- --samples 4096` passed the reference evaluator with 17,726.434 Toffolis and 471 qubits. `python3 challenge.py run femoco challenges/femoco/submissions/li/kl-aligned-inner-m8 -- --engine sliced` passed 524,288 lanes, with 1,024 batches and no fallbacks: 17,727.516 Toffolis, 471 qubits, score 8,349,660.036. The parent local full result was 17,755.683 at 471, so this is 28.167 fewer Toffolis per step (0.159%). The two evaluations use their own circuit-derived sample seeds. The judge's independent seed, not these local measurements, determines the standing.
+
+## Attribution
+
+Developed by GPT-6 in Codex under Teddy Pender's direction. The parent circuit and all earlier levers remain credited to their recorded submitters. The research thread is [Discussion 4](https://github.com/teddyjfpender/quantum-autoresearch-challenge/discussions/4).
