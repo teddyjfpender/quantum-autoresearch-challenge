@@ -32,6 +32,7 @@ pub mod qroam;
 pub mod range;
 pub mod rankdel;
 pub mod signnorm;
+mod sparsealias;
 pub mod tables;
 #[cfg(test)]
 mod tests;
@@ -396,6 +397,10 @@ pub struct Tweaks {
     /// subcube is one slot (`paired::load_paired_pruned`): fewer slots on the read stage. Letters
     /// after a `.` are extension levers. Not in `all`.
     pub pad_runs: bool,
+    /// `.d` (with `+`, Reiher mu=8): exact floor/ceiling rerounding and a padded alias
+    /// arrangement whose keep high bit vanishes at twelve shared inner bucket indices.
+    /// This removes one paired H-read product at each such index in both inner copies.
+    pub sparse_high: bool,
     /// `.g` (with `C` and a split one-hot): the last class of `C`'s layout, when it is
     /// all sub-rows of a split one-body row, is grafted into the spare cells of the whole-row
     /// classes (`onehot::plan_grafts`): each sub-row joins a host class's flag and group bit,
@@ -498,6 +503,7 @@ impl Tweaks {
         rank_park: 0,
         pad_offset: false,
         pad_runs: false,
+        sparse_high: false,
         graft: false,
         maj_drop: 0,
         erase_pairs: false,
@@ -635,6 +641,7 @@ impl Tweaks {
             rank_park: if all { 0 } else { rank_park },
             pad_offset: !all && has('+'),
             pad_runs: !all && ext.contains('p'),
+            sparse_high: !all && ext.contains('d'),
             factor_erase: !all && ext.contains('c'),
             graft: !all && ext.contains('g'),
             erase_pairs: !all && ext.contains('e'),
@@ -782,6 +789,12 @@ pub fn lane_map(spec: &SaSpec, p: Params) -> Result<SaNestedMap, String> {
         for t in inner.iter_mut().skip(spec.n) {
             *t = padalias::arrange(t, spec.b + 1);
         }
+    }
+    if p.tw.sparse_high {
+        if spec.id != "reiher-sa-est-v1" || p.inner != (5, 8) || !p.tw.pad_offset {
+            return Err("lever .d needs Reiher estimated mu8 and donor padding (+)".into());
+        }
+        sparsealias::replace_reiher(&mut inner[spec.n..]);
     }
     // Lever `.p`: every padding subcube fed by one donor (the same counts).
     if p.tw.pad_runs {

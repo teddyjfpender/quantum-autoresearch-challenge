@@ -472,6 +472,7 @@ added (`tests/sa_digests.rs`).
 | `D` | `stash` | one-body bits stashed in the read's output | `H`, `K` | 6.14 |
 | `-` | `item_fold` | folded, `i_0`-refined item one-hot | `H`, `V` | 6.14 |
 | `+` | `pad_offset` | donor-padded inner tables, item-constant offset | `H`, `x`, `t` | 6.14 |
+| `.d` | `sparse_high` | sparse high keep bit via exact Reiher alias rerounding | `+`, Reiher estimated mu8 | 6.14 |
 | `.e` | `erase_pairs` | item one-hot erasure pairs sibling leaves | `H`, two-group item one-hot | 6.14 |
 | `.c` | `factor_erase` | measured class and group flags corrected from row-index bits | `C`, four-by-four initial-row classes with one grafted tail row | 6.8 |
 | `~` | `hot_keep_release` | inner keep released through the item one-hot | `H`, `m`, `_`, and `S` or `t`; not `R`, `l`, `p`, `D`, `j` | 6.14 |
@@ -1011,6 +1012,15 @@ subtract `A`, skip the then-zero padding rows and add `A` back under the control
 (`itemhot::fan_rooted`). The in-pass sign's item offset is left uncorrected: both copies apply it,
 so it cancels. -24 Toffolis per step on Reiher, -46 on Li item one-hot points; same Q. Not with
 `.p`.
+
+**`.d`: sparse high keep bit** (with `+`, Reiher estimated `mu_i = 8`;
+`sparsealias.rs`). The estimated rounding rule allows each inner count to be the exact floor or
+ceiling of its ideal. A pinned, exact alias arrangement preserves the parent counts in 268 of
+270 square tables; two tables each move one lane from one item to another. The four padding
+donors remain as under `+`. At twelve common own bucket indices, all tables' keep high bits are
+zero, so the paired item one-hot read skips one Toffoli per index and copy: `−24 C_step` at the
+same 313-qubit peak on the `kc-r3re-m8` bundle. The pinned test checks exact rounding and a
+two-lane mutant, and `tests_c1::sparse_reiher_exact_and_mutant` checks the complete circuit.
 
 **`.e`: paired erasure** (with `H` and a two-group item one-hot;
 `itemhot::phase_rooted_paired`). The item one-hot erasure's phase pass pairs sibling leaves of the
