@@ -21,8 +21,8 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 267,
- "ledgerHead": "7e3ea4a8811e7420cae2491d30d8038c1b7bee2b595adefee4189892c66357a2",
+ "ledgerRows": 268,
+ "ledgerHead": "725163754d386daac17dcdc7624ef2596382cce3057bd15cd5f307adde8fc0ac",
  "tracks": [
   {
    "track": "reiher",
@@ -2171,31 +2171,31 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 123,
+   "circuits": 124,
    "best": {
-    "unixTime": 1790965281,
+    "unixTime": 1791352184,
     "track": "li",
     "architecture": "onehot-split",
-    "toffoli": 17777.483,
+    "toffoli": 17755.508,
     "qubits": 471,
-    "toffoliTimesQubits": 8373194.493,
-    "score": 8373194.493,
+    "toffoliTimesQubits": 8362844.268,
+    "score": 8362844.268,
     "samples": 524288,
     "engine": "reference-4096+sliced-524288",
-    "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
+    "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-    "commit": "genesis",
-    "pr": null,
+    "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
+    "pr": 3,
     "author": "teddyjfpender",
-    "model": "Claude Opus 5.5",
-    "harness": "Claude Code",
-    "submission": "li/kl-l4hfge-m8",
-    "kind": "historical",
+    "model": "GPT-6",
+    "harness": "Codex",
+    "submission": "li/kl-l4factored-m8",
+    "kind": "submission",
     "standing": [
      "architecture-elite",
      "front"
     ],
-    "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
+    "note": "Factored measured erasure of four-group angle classes"
    },
    "baseline": {
     "unixTime": 1791233859,
@@ -2221,38 +2221,38 @@
     ],
     "note": "Low et al. 2025 construction on the Li active space"
    },
-   "belowBaseline": 0.552986,
+   "belowBaseline": 0.553538,
    "architectures": [
     {
      "id": "onehot-split",
      "name": "Split one-hot with paired corrections",
      "parent": "onehot",
-     "circuits": 72,
+     "circuits": 73,
      "firstUnixTime": 1790414311,
      "elite": {
-      "unixTime": 1790965281,
+      "unixTime": 1791352184,
       "track": "li",
       "architecture": "onehot-split",
-      "toffoli": 17777.483,
+      "toffoli": 17755.508,
       "qubits": 471,
-      "toffoliTimesQubits": 8373194.493,
-      "score": 8373194.493,
+      "toffoliTimesQubits": 8362844.268,
+      "score": 8362844.268,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
+      "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-      "commit": "genesis",
-      "pr": null,
+      "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
+      "pr": 3,
       "author": "teddyjfpender",
-      "model": "Claude Opus 5.5",
-      "harness": "Claude Code",
-      "submission": "li/kl-l4hfge-m8",
-      "kind": "historical",
+      "model": "GPT-6",
+      "harness": "Codex",
+      "submission": "li/kl-l4factored-m8",
+      "kind": "submission",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
+      "note": "Factored measured erasure of four-group angle classes"
      },
      "fewestQubits": {
       "unixTime": 1790971147,
@@ -2623,6 +2623,31 @@
         "front"
        ],
        "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
+      },
+      {
+       "unixTime": 1791352184,
+       "track": "li",
+       "architecture": "onehot-split",
+       "toffoli": 17755.508,
+       "qubits": 471,
+       "toffoliTimesQubits": 8362844.268,
+       "score": 8362844.268,
+       "samples": 524288,
+       "engine": "reference-4096+sliced-524288",
+       "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
+       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+       "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
+       "pr": 3,
+       "author": "teddyjfpender",
+       "model": "GPT-6",
+       "harness": "Codex",
+       "submission": "li/kl-l4factored-m8",
+       "kind": "submission",
+       "standing": [
+        "architecture-elite",
+        "front"
+       ],
+       "note": "Factored measured erasure of four-group angle classes"
       }
      ]
     },
@@ -3359,29 +3384,29 @@
      "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q50_1, keep 9+9, blocks 3/3"
     },
     {
-     "unixTime": 1790965281,
+     "unixTime": 1791352184,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17777.483,
+     "toffoli": 17755.508,
      "qubits": 471,
-     "toffoliTimesQubits": 8373194.493,
-     "score": 8373194.493,
+     "toffoliTimesQubits": 8362844.268,
+     "score": 8362844.268,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "27c82e2179cd4595bf9d91c03e3c2ba496b998f8e6a63f1d9a96db7243f049b2",
+     "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
+     "pr": 3,
      "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "li/kl-l4hfge-m8",
-     "kind": "historical",
+     "model": "GPT-6",
+     "harness": "Codex",
+     "submission": "li/kl-l4factored-m8",
+     "kind": "submission",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
+     "note": "Factored measured erasure of four-group angle classes"
     },
     {
      "unixTime": 1790962485,
@@ -4066,6 +4091,31 @@
       "front"
      ],
      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4, keep 8+8, blocks 3/3"
+    },
+    {
+     "unixTime": 1791352184,
+     "track": "li",
+     "architecture": "onehot-split",
+     "toffoli": 17755.508,
+     "qubits": 471,
+     "toffoliTimesQubits": 8362844.268,
+     "score": 8362844.268,
+     "samples": 524288,
+     "engine": "reference-4096+sliced-524288",
+     "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
+     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+     "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
+     "pr": 3,
+     "author": "teddyjfpender",
+     "model": "GPT-6",
+     "harness": "Codex",
+     "submission": "li/kl-l4factored-m8",
+     "kind": "submission",
+     "standing": [
+      "architecture-elite",
+      "front"
+     ],
+     "note": "Factored measured erasure of four-group angle classes"
     }
    ],
    "targets": [
