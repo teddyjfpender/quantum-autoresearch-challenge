@@ -473,6 +473,7 @@ added (`tests/sa_digests.rs`).
 | `-` | `item_fold` | folded, `i_0`-refined item one-hot | `H`, `V` | 6.14 |
 | `+` | `pad_offset` | donor-padded inner tables, item-constant offset | `H`, `x`, `t` | 6.14 |
 | `.d` | `sparse_high` | sparse high keep bit via exact Reiher alias rerounding | `+`, Reiher estimated mu8 | 6.14 |
+| `.a` | `align_alias` | exact Li inner alias arrangement with a shared high alt bit over ten folded leaves | `+`, `H`, `V`, `-` | 6.14 |
 | `.e` | `erase_pairs` | item one-hot erasure pairs sibling leaves | `H`, two-group item one-hot | 6.14 |
 | `.c` | `factor_erase` | measured class and group flags corrected from row-index bits | `C`, four-by-four initial-row classes with one grafted tail row | 6.8 |
 | `~` | `hot_keep_release` | inner keep released through the item one-hot | `H`, `m`, `_`, and `S` or `t`; not `R`, `l`, `p`, `D`, `j` | 6.14 |
@@ -1021,6 +1022,14 @@ donors remain as under `+`. At twelve common own bucket indices, all tables' kee
 zero, so the paired item one-hot read skips one Toffoli per index and copy: `−24 C_step` at the
 same 313-qubit peak on the `kc-r3re-m8` bundle. The pinned test checks exact rounding and a
 two-lane mutant, and `tests_c1::sparse_reiher_exact_and_mutant` checks the complete circuit.
+
+**`.a`: aligned inner alias bit** (with `+`, `H`, `V`, `-`; `padalias.rs`). For Li's
+58-item square tables, a deterministic Vose search keeps every item's exact lane count and
+the top three donor padding rows, while matching alt bit 5 to the top donor on inner rows
+18 through 37. The folded read then removes that bit's support on ten leaves. At the Li
+8 + 8, 3 + 3 point, the inner read changes from 845 to 831 Toffolis per copy; static
+`C_step` changes from 17,755.5 to 17,727.5 and `Q_peak` remains 471. Other table shapes use
+the ordinary `+` arrangement.
 
 **`.e`: paired erasure** (with `H` and a two-group item one-hot;
 `itemhot::phase_rooted_paired`). The item one-hot erasure's phase pass pairs sibling leaves of the

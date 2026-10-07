@@ -540,6 +540,13 @@ fn c1_lanes_pinned() {
     let ia: Option<usize> = std::env::var("SA_INNER_A")
         .ok()
         .and_then(|v| v.parse().ok());
+    let oa: Option<usize> = std::env::var("SA_OUTER_A")
+        .ok()
+        .and_then(|v| v.parse().ok());
+    let mu: Option<(u32, u32)> = std::env::var("SA_MU").ok().map(|v| {
+        let (o, i) = v.split_once(',').expect("SA_MU=o,i");
+        (o.parse().unwrap(), i.parse().unwrap())
+    });
     for id in ids.split(',') {
         let boxed = pinned(id);
         let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
@@ -548,6 +555,9 @@ fn c1_lanes_pinned() {
             let p = Params {
                 tw: Tweaks::parse(tw),
                 inner_a: ia.unwrap_or(base.inner_a),
+                outer_a: oa.unwrap_or(base.outer_a),
+                outer: mu.map_or(base.outer, |m| (base.outer.0, m.0)),
+                inner: mu.map_or(base.inner, |m| (base.inner.0, m.1)),
                 ..base
             };
             let (lm, ops, led) = build(s, p);
@@ -2331,6 +2341,44 @@ fn spec7() -> SaSpec {
         ],
     );
     parse_payload("test-sa7-v1", &bytes).unwrap()
+}
+
+/// `.a` changes only integer alias tables; the existing `+` read and phase-erasure
+/// gadget is exercised on a small exact spec. The pinned Li table test checks that `.a`
+/// actually aligns the intended bit on its production shape.
+#[test]
+fn aligned_alias_small_exact_and_offset_mutant() {
+    let s = spec7();
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdkyHt+.a"),
+        ..PAD7
+    };
+    let base = Params {
+        tw: Tweaks::parse("imchxgrdkyHt+"),
+        ..PAD7
+    };
+    let m0 = lane_map(&s, base).unwrap();
+    let m1 = lane_map(&s, p).unwrap();
+    for (a, b) in m0.inner.iter().zip(&m1.inner) {
+        assert_eq!(a.counts(6), b.counts(6));
+    }
+    let (lm, ops, led) = build(&s, p);
+    let ev = eval(&s, p, &lm, &ops, 1 << 12).unwrap();
+    assert!(ev.facts.nested_validated);
+    for axis in ["encoding", "lane_map", "select", "rotation", "uncompute"] {
+        assert_eq!(
+            ev.verdicts.iter().find(|v| v.axis == axis).unwrap().status,
+            AxisStatus::Verified,
+            "{axis}"
+        );
+    }
+    let (want, _) = ledger_c_step(&led, &s, p);
+    let tol = 6.0 * (gated_var_bound(&ops) / 4096.0).sqrt() + 1e-9;
+    assert!((ev.toffoli - want).abs() <= tol);
+    onehot::FAULT.with(|c| c.set(104));
+    let (bad_map, bad_ops, _) = build(&s, p);
+    onehot::FAULT.with(|c| c.set(0));
+    assert!(eval(&s, p, &bad_map, &bad_ops, 1 << 12).is_err());
 }
 
 const PAD7: Params = Params {

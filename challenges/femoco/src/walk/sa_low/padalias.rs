@@ -94,6 +94,139 @@ pub fn arrange(t: &Table, items: usize) -> Table {
     out
 }
 
+/// Experimental `.a`: align one high alt bit with the item-constant `+` offset on
+/// ten adjacent folded leaves (inner rows 18..38). The regular Vose read spends a product
+/// on that bit at every leaf. Counts, the lane map class, and top donor padding are exact.
+#[must_use]
+pub fn arrange_aligned(t: &Table, items: usize) -> Table {
+    if items != 58 || (1usize << t.k) != 64 || t.mu != 8 {
+        return arrange(t, items);
+    }
+    let counts = t.counts(items);
+    let mut tops: Vec<_> = (0..items).filter(|&i| counts[i] >= 3 * 256).collect();
+    tops.sort_by_key(|&i| (std::cmp::Reverse(counts[i]), i));
+    for seed in 0..256u64 {
+        for &top in tops.iter().take(4) {
+            for mode in 0..3 {
+                if let Some(out) = try_align_alt_bit(&counts, t.k, t.mu, top, seed, mode) {
+                    debug_assert_eq!(out.counts(items), counts);
+                    return out;
+                }
+            }
+        }
+    }
+    arrange(t, items)
+}
+
+struct AliasRng(u64);
+impl AliasRng {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+}
+
+fn alias_assign(
+    s: usize,
+    d: usize,
+    res: &mut [u64],
+    keep: &mut [u32],
+    alt: &mut [u32],
+    small: &mut [bool],
+    large: &mut [bool],
+) {
+    let v = res[s];
+    keep[s] = v as u32;
+    alt[s] = d as u32;
+    small[s] = false;
+    res[s] = 0;
+    res[d] -= 256 - v;
+    if res[d] < 256 {
+        large[d] = false;
+        small[d] = true;
+    }
+}
+
+fn try_align_alt_bit(
+    counts: &[u64],
+    k: u32,
+    mu: u32,
+    top: usize,
+    seed: u64,
+    mode: usize,
+) -> Option<Table> {
+    const FIRST: usize = 18;
+    const END: usize = 38;
+    const BIT: usize = 32;
+    let mut rng = AliasRng(seed.wrapping_add(1).wrapping_mul(0x9e37_79b9_7f4a_7c15));
+    let mut res = counts.to_vec();
+    res[top] -= 3 * 256;
+    let mut keep = vec![0u32; 64];
+    let mut alt = vec![0u32; 64];
+    alt[61..64].fill(top as u32);
+    for p in (58..61).rev() {
+        let donors: Vec<_> = (0..58).filter(|&i| res[i] >= 256).collect();
+        if donors.is_empty() {
+            return None;
+        }
+        let d = match mode {
+            0 => donors.into_iter().max_by_key(|&i| (res[i], rng.next()))?,
+            1 => donors
+                .into_iter()
+                .max_by_key(|&i| (res[i] / 256, rng.next()))?,
+            _ => donors[(rng.next() as usize) % donors.len()],
+        };
+        res[d] -= 256;
+        alt[p] = d as u32;
+    }
+    let mut small: Vec<bool> = (0..58).map(|i| res[i] < 256).collect();
+    let mut large: Vec<bool> = (0..58).map(|i| res[i] >= 256).collect();
+    // A target row that is itself a donor in the opposite bit half must first give
+    // enough lanes to a free small row to become a partial source.
+    for x in FIRST..END {
+        while large[x] && ((x ^ top) & BIT != 0) {
+            let source = (0..58)
+                .filter(|&s| small[s] && !(FIRST..END).contains(&s))
+                .min_by_key(|&s| (res[s], rng.next()))?;
+            alias_assign(
+                source, x, &mut res, &mut keep, &mut alt, &mut small, &mut large,
+            );
+        }
+    }
+    let mut targets: Vec<_> = (FIRST..END).filter(|&i| small[i]).collect();
+    targets.sort_by_key(|&i| (res[i], rng.next()));
+    for s in targets {
+        if !small[s] {
+            continue;
+        }
+        let d = (0..58)
+            .filter(|&d| large[d] && ((d ^ top) & BIT == 0))
+            .max_by_key(|&d| (res[d], rng.next()))?;
+        alias_assign(s, d, &mut res, &mut keep, &mut alt, &mut small, &mut large);
+    }
+    while let Some(s) = (0..58).find(|&i| small[i]) {
+        let d = (0..58)
+            .filter(|&i| large[i])
+            .max_by_key(|&i| (res[i], rng.next()))?;
+        alias_assign(s, d, &mut res, &mut keep, &mut alt, &mut small, &mut large);
+    }
+    for d in 0..58 {
+        if large[d] {
+            if res[d] != 256 {
+                return None;
+            }
+            alt[d] = d as u32;
+        }
+    }
+    if (FIRST..END).any(|i| ((alt[i] as usize ^ top) & BIT) != 0) {
+        return None;
+    }
+    let out = Table { k, mu, keep, alt };
+    (out.counts(58) == counts).then_some(out)
+}
+
 /// The aligned subcubes `[base, base + len)` (`len` a power of two, `base` a multiple of it)
 /// that tile `items..buckets`, largest first (lever `.p`).
 #[must_use]
