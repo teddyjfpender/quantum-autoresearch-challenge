@@ -76,3 +76,14 @@ This does not determine their ground-energy errors, and at the current rotation 
 establishes nothing about the rounded Hamiltonians the circuits encode. Both reports say
 `chemical_accuracy_certified: false`. The audit also holds validated rotation-precision
 proposals, which are not circuit specs, and Slater energy bounds for the stored Hamiltonian.
+
+## Corrected-Hamiltonian experiment
+
+The [explicit correction and compression experiment](../tools/chemistry/CORRECTED.md)
+constructs new approximations with certified Hamiltonian errors below 0.267 mHa
+(Reiher) and 0.261 mHa (Li). It rebuilds all eight base circuits at the validated
+26/28-bit rotation precisions. Sparse correction retains over 99.3% of the packed
+residual entries; separate analytical correction-block resource bounds quantify
+the cost of that construction. The combined block encoding and complete
+ground-energy algorithm remain unimplemented, and no new full circuit-equivalence
+certificate is asserted.

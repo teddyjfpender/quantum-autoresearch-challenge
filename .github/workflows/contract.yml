@@ -34,4 +34,4 @@ jobs:
       - name: Contract check
         run: python3 challenge.py check --signed
       - name: Compile tooling
-        run: python3 -m py_compile challenge.py tools/qac/*.py challenges/*/tools/*.py
+        run: python3 -m py_compile challenge.py tools/qac/*.py challenges/*/tools/*.py challenges/femoco/tools/chemistry/*.py

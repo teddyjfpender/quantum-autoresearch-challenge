@@ -1,5 +1,11 @@
 # Validated FeMoco energy bounds
 
+The follow-up [explicit correction experiment](CORRECTED.md) constructs new
+Hamiltonians with certified target errors below 0.267/0.261 mHa, rebuilds the
+higher-precision base circuits and measures sparse compression's limited benefit.
+Its correction resource counts are analytical bounds; it is not a complete
+ground-energy algorithm.
+
 This maintainer tool recomputes bounds from the original integrals and published
 DFTHC factors. It is a separate layer from circuit equivalence and the challenge's
 coefficient-rounding tracks. **Neither shipped instance is certified to chemical
