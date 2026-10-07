@@ -21,8 +21,8 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 269,
- "ledgerHead": "c83d9dd525f18bc93cb918ca496ae1bb9a1dbd596d3d25e5ef3b8190bdd0b814",
+ "ledgerRows": 270,
+ "ledgerHead": "d423993c89e24c61aca72c3ce76168c06fedea29bb4729a7da0d348d9dc080e8",
  "tracks": [
   {
    "track": "reiher",
@@ -2206,31 +2206,31 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 124,
+   "circuits": 125,
    "best": {
-    "unixTime": 1791352184,
+    "unixTime": 1791370986,
     "track": "li",
     "architecture": "onehot-split",
-    "toffoli": 17755.508,
+    "toffoli": 17675.509,
     "qubits": 471,
-    "toffoliTimesQubits": 8362844.268,
-    "score": 8362844.268,
+    "toffoliTimesQubits": 8325164.739,
+    "score": 8325164.739,
     "samples": 524288,
     "engine": "reference-4096+sliced-524288",
-    "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
+    "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-    "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
-    "pr": 3,
+    "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
+    "pr": 5,
     "author": "teddyjfpender",
     "model": "GPT-6",
     "harness": "Codex",
-    "submission": "li/kl-l4factored-m8",
+    "submission": "li/kl-aligned-inner-m8",
     "kind": "submission",
     "standing": [
      "architecture-elite",
      "front"
     ],
-    "note": "Factored measured erasure of four-group angle classes"
+    "note": "Sparse high keep bit in folded inner alias read"
    },
    "baseline": {
     "unixTime": 1791233859,
@@ -2256,38 +2256,38 @@
     ],
     "note": "Low et al. 2025 construction on the Li active space"
    },
-   "belowBaseline": 0.553538,
+   "belowBaseline": 0.55555,
    "architectures": [
     {
      "id": "onehot-split",
      "name": "Split one-hot with paired corrections",
      "parent": "onehot",
-     "circuits": 73,
+     "circuits": 74,
      "firstUnixTime": 1790414311,
      "elite": {
-      "unixTime": 1791352184,
+      "unixTime": 1791370986,
       "track": "li",
       "architecture": "onehot-split",
-      "toffoli": 17755.508,
+      "toffoli": 17675.509,
       "qubits": 471,
-      "toffoliTimesQubits": 8362844.268,
-      "score": 8362844.268,
+      "toffoliTimesQubits": 8325164.739,
+      "score": 8325164.739,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
+      "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-      "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
-      "pr": 3,
+      "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
+      "pr": 5,
       "author": "teddyjfpender",
       "model": "GPT-6",
       "harness": "Codex",
-      "submission": "li/kl-l4factored-m8",
+      "submission": "li/kl-aligned-inner-m8",
       "kind": "submission",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "Factored measured erasure of four-group angle classes"
+      "note": "Sparse high keep bit in folded inner alias read"
      },
      "fewestQubits": {
       "unixTime": 1790971147,
@@ -2683,6 +2683,31 @@
         "front"
        ],
        "note": "Factored measured erasure of four-group angle classes"
+      },
+      {
+       "unixTime": 1791370986,
+       "track": "li",
+       "architecture": "onehot-split",
+       "toffoli": 17675.509,
+       "qubits": 471,
+       "toffoliTimesQubits": 8325164.739,
+       "score": 8325164.739,
+       "samples": 524288,
+       "engine": "reference-4096+sliced-524288",
+       "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
+       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+       "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
+       "pr": 5,
+       "author": "teddyjfpender",
+       "model": "GPT-6",
+       "harness": "Codex",
+       "submission": "li/kl-aligned-inner-m8",
+       "kind": "submission",
+       "standing": [
+        "architecture-elite",
+        "front"
+       ],
+       "note": "Sparse high keep bit in folded inner alias read"
       }
      ]
     },
@@ -3419,78 +3444,29 @@
      "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q50_1, keep 9+9, blocks 3/3"
     },
     {
-     "unixTime": 1791352184,
+     "unixTime": 1791370986,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17755.508,
+     "toffoli": 17675.509,
      "qubits": 471,
-     "toffoliTimesQubits": 8362844.268,
-     "score": 8362844.268,
+     "toffoliTimesQubits": 8325164.739,
+     "score": 8325164.739,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "7fb1c38aff3aa1549700636920b8e60d9d71846ab962f0dffcdaa5eca429462f",
+     "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "3448928c11e8aad8300e9f571f3fcb2f49ae3073",
-     "pr": 3,
+     "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
+     "pr": 5,
      "author": "teddyjfpender",
      "model": "GPT-6",
      "harness": "Codex",
-     "submission": "li/kl-l4factored-m8",
+     "submission": "li/kl-aligned-inner-m8",
      "kind": "submission",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "Factored measured erasure of four-group angle classes"
-    },
-    {
-     "unixTime": 1790962485,
-     "track": "li",
-     "architecture": "onehot-split",
-     "toffoli": 17749.626,
-     "qubits": 477,
-     "toffoliTimesQubits": 8466571.602,
-     "score": 8466571.602,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "f3ff2b2a6b263a120e7b67ebe42c060625326376a33b5ce239a3d7de0c1c5276",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "li/kl-l4pgh-m8",
-     "kind": "historical",
-     "standing": [
-      "architecture-elite",
-      "front"
-     ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zabCAXZJtRNOBWMnFsYU.pgh4, keep 8+8, blocks 8/3"
-    },
-    {
-     "unixTime": 1790934487,
-     "track": "li",
-     "architecture": "onehot-split",
-     "toffoli": 17708.484,
-     "qubits": 497,
-     "toffoliTimesQubits": 8801116.548,
-     "score": 8801116.548,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "aace448cc14821147af18c3c71ad52df92b734cafc5a23f735c500bafc990b3b",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "li/pf-l4tc-m8",
-     "kind": "historical",
-     "standing": [
-      "front"
-     ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdy4zabCAXZJBMnFsYUt, keep 8+8, blocks 8/3"
+     "note": "Sparse high keep bit in folded inner alias read"
     },
     {
      "unixTime": 1790963522,
@@ -4151,6 +4127,31 @@
       "front"
      ],
      "note": "Factored measured erasure of four-group angle classes"
+    },
+    {
+     "unixTime": 1791370986,
+     "track": "li",
+     "architecture": "onehot-split",
+     "toffoli": 17675.509,
+     "qubits": 471,
+     "toffoliTimesQubits": 8325164.739,
+     "score": 8325164.739,
+     "samples": 524288,
+     "engine": "reference-4096+sliced-524288",
+     "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
+     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+     "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
+     "pr": 5,
+     "author": "teddyjfpender",
+     "model": "GPT-6",
+     "harness": "Codex",
+     "submission": "li/kl-aligned-inner-m8",
+     "kind": "submission",
+     "standing": [
+      "architecture-elite",
+      "front"
+     ],
+     "note": "Sparse high keep bit in folded inner alias read"
     }
    ],
    "targets": [
