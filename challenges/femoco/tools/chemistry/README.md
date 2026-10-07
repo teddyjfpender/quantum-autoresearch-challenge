@@ -1,10 +1,13 @@
 # Validated FeMoco energy bounds
 
 The newer [signed correction and combined-walk experiment](SIGNED.md) reduces
-correction normalization by 6.60x/3.16x, verifies the emitted hierarchical logical
-walk, and reports its complete logical step and QPE costs. It fits the conditional
-error budget but remains 28.7x/37.8x above Low's published cost under the paper's
-query convention. Its primitive contracts and full-algorithm limitations are explicit.
+correction normalization by 6.60x/3.16x, emits one hierarchical logical program
+for base and correction, checks its layout, lookup records and coefficient
+errors exactly, and reports upper bounds on its logical step and QPE costs. It
+fits the conditional error budget and is far more expensive than Low's
+published estimate: 28.7x/37.8x in total Toffolis under the paper's query
+convention, 43x/69x in Toffolis x qubits for one step. What is assumed and what
+is missing for a full algorithm is stated there.
 
 The follow-up [explicit correction experiment](CORRECTED.md) constructs new
 Hamiltonians with certified target errors below 0.267/0.261 mHa, rebuilds the

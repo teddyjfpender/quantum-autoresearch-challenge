@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Executable hierarchical signed-square walk and exact table/word verification.
+"""Hierarchical signed-square walk program, and a check of its tables and layout.
 
 The IR's primitives are clean QROAM (with feed-forward erasure), comparisons,
 Fredkin, logical integer-angle Givens, controlled Z, and uniform reflections.
-This is an operator-level certificate, not a fully lowered physical-gate proof.
+
+`verify` establishes three things about an emitted program, exactly: its body is
+the one layout this compiler emits, with every lookup and comparison uncomputed;
+every emitted lookup record names the row, sign, network and identity flag of the
+target rows; and the alias tables encode the target coefficients within the
+reported error. That the layout block-encodes sum mass*B + sum sign*mass*(2 B^2-I)
+is an identity argued in SIGNED.md and exercised on a two-orbital instance by
+`execute_projected`; it is not derived per row here. Nothing is lowered to gates.
 """
 from __future__ import annotations
 import argparse
@@ -16,7 +23,8 @@ import pathlib
 import struct
 import sys
 import numpy as np
-from flint import arb, ctx
+import flint
+from flint import arb, ctx, fmpq
 from bounds import ball, upper, qpe_plan
 from inputs import HERE, ROOT, sha256
 
@@ -213,14 +221,49 @@ def interpret_inner(code):
     return word[2][1]
 
 
-def execute_projected(program, z_operators, control=1):
-    """Exact small-instance execution from emitted words and reflection entries.
+def conditions(body):
+    """Which branches each controlled stage of the body acts on, read from the body.
 
-    z_operators[network][spin] are exact involution matrices. This interpreter
-    does not use target coefficients or the checker's 2 B^2-I rewrite.
+    Returns (first SELECT, inner reflection, second SELECT, row sign): each is
+    'control', 'control_and_square', or None when the stage is absent.
+    """
+    known = ('control', 'control_and_square')
+    def label(op, kind, name=None):
+        if op[0] != kind or (name is not None and op[1] != name):
+            return None
+        if op[-1] not in known:
+            raise ValueError('unknown condition')
+        return op[-1]
+    stages = [op for op in body if op[0] in ('inner', 'reflect', 'row_sign')]
+    inner = [interpret_inner(op[1]) for op in stages if op[0] == 'inner']
+    if len(inner) != 2:
+        raise ValueError('a signed-square walk has two inner passes')
+    reflection = [label(op, 'reflect', 'inner_uniform') for op in stages
+                  if op[0] == 'reflect' and op[1] == 'inner_uniform']
+    order = [op[0] if op[0] != 'reflect' else op[1] for op in stages]
+    if 'inner_uniform' in order and order.index('inner_uniform') != 1:
+        raise ValueError('the inner reflection lies between the two passes')
+    sign = [label(op, 'row_sign') for op in stages if op[0] == 'row_sign']
+    if len(reflection) > 1 or len(sign) > 1:
+        raise ValueError('repeated stage')
+    return inner[0], (reflection or [None])[0], inner[1], (sign or [None])[0]
+
+
+def execute_projected(program, z_operators, control=1):
+    """Exact small-instance execution of an emitted program.
+
+    z_operators[network][spin] are exact involution matrices. Read from the
+    program: every outer and inner lookup word, and from the body the condition
+    of each SELECT, of the inner reflection and of the row sign (`conditions`),
+    so a body that drops or re-conditions one of them executes differently.
+    Assumed, not read: that the primitives do what their names say, that the
+    preparation is the uniform superposition the reflection inverts about, and
+    the final walk reflection, which acts outside the projected block. No target
+    coefficient and no 2 B^2-I rewrite is used.
     """
     if control not in (0, 1):
         raise ValueError('control must be a bit')
+    active = lambda label, square: bool(control) and (label == 'control' or (label == 'control_and_square' and square))
     identity = z_operators[0][0]*z_operators[0][0]
     zero = 0*identity
     outer, inner = program['outer_table'], program['inner_tables']
@@ -228,8 +271,7 @@ def execute_projected(program, z_operators, control=1):
     netbits = max(1, len(z_operators).bit_length())
     if ko+mu > 10 or max(t['k']+t['mu'] for t in inner) > 7:
         raise ValueError('dense oracle is restricted to small circuits')
-    first = interpret_inner(program['body'][3][1])
-    second = interpret_inner(program['body'][5][1])
+    first, reflect, second, signed = conditions(program['body'])
     cache = {}
     result = zero
     for bucket in range(1 << ko):
@@ -237,7 +279,7 @@ def execute_projected(program, z_operators, control=1):
             record = decode_word(program['outer_words'][bucket], draw, mu, ko+2)
             row = record & ((1 << ko)-1)
             square = bool(record >> ko & 1)
-            sign = -1 if control and record >> (ko+1) & 1 else 1
+            sign = -1 if active(signed, square) and record >> (ko+1) & 1 else 1
             for outer_spin in range(2):
                 key = (row, outer_spin, control)
                 if key not in cache:
@@ -250,14 +292,13 @@ def execute_projected(program, z_operators, control=1):
                                 m = identity if rec & 1 else z_operators[(rec >> 2)-1][spin if square else outer_spin]
                                 matrices.append(-m if rec >> 1 & 1 else m)
                     size = len(matrices)
-                    applied_a = [m if control and (first == 'control' or square) else identity for m in matrices]
-                    applied_b = [m if control and (second == 'control' or square) else identity for m in matrices]
+                    applied_a = [m if active(first, square) else identity for m in matrices]
+                    applied_b = [m if active(second, square) else identity for m in matrices]
                     value = zero
                     for a, ma in enumerate(applied_a):
                         for b, mb in enumerate(applied_b):
-                            reflection = (F(2, size)-int(a == b)) if control and square else F(int(a == b))
+                            reflection = (F(2, size)-int(a == b)) if active(reflect, square) else F(int(a == b))
                             if reflection:
-                                from flint import fmpq
                                 weight = reflection/size
                                 value += fmpq(weight.numerator, weight.denominator)*(mb*ma)
                     cache[key] = value
@@ -266,10 +307,16 @@ def execute_projected(program, z_operators, control=1):
 
 
 def verify(program, rows, networks, outer, inner, *, reference_beta):
-    """All-row exact coefficient proof and compositional operator-word check.
+    """Layout, lookup-record and coefficient check of an emitted program against `rows`.
 
-    V R V reduces to 2 B^2-I for every system input, including noncommuting
-    rotated Paulis; negative rows change both the square AND its scalar offset.
+    Exact: the body equals the compiler's layout with all scratch uncomputed; every
+    lookup record names its row's index, kind, sign, networks and identity flags;
+    the histograms are the tables'; the coefficient error is rational arithmetic.
+    Not derived here: that the layout's V R V equals 2 B^2-I on each square row.
+    That identity is argued in SIGNED.md; `rows_in_scope` counts the rows it is
+    applied to. `rows` is the caller's reading of the certified inputs, so a wrong
+    `assemble` is outside this function: `run` cross-checks it against the
+    numerical certificate.
     """
     if program['schema'] != 'signed-square-walk-ir-v1' or program['beta'] != reference_beta:
         raise ValueError('incorrect schema or certified rotation precision')
@@ -300,7 +347,7 @@ def verify(program, rows, networks, outer, inner, *, reference_beta):
     error_o = sum((abs(norm*F(counts[j], draw_o)-r.mass()) for j, r in enumerate(rows)), F(0))
     inner_error = F(0)
     offset = F(0)
-    symbolic_pairs = 0
+    squares = 0
     checked_entries = len(counts)
     ko, mu = outer['k'], outer['mu']
     if len(program['outer_words']) != len(counts) or len(program['inner_words']) != len(rows):
@@ -346,18 +393,19 @@ def verify(program, rows, networks, outer, inner, *, reference_beta):
             # Norms of both B and Bhat are <=1: ||2 Bhat²-2 B²||<=4 delta.
             inner_error += dyadic_upper(4*norm*F(counts[j], draw_o)*delta)
             offset += r.sign*r.mass()
-            symbolic_pairs += (2*len(r.weights))**2
-        else:
-            symbolic_pairs += 2
+            squares += 1
         checked_entries += len(have)
-    return {'verified': True, 'level': 'exact compositional operator-word proof and exhaustive table histograms',
-        'scope': 'all system states, both controls, every encoded row; logical primitive contracts are trusted',
-        'fully_lowered_gate_certificate': False, 'checked_alias_buckets': checked_entries,
-        'ordered_operator_pairs_covered_by_identity': symbolic_pairs,
+    return {'checked': True,
+        'level': 'layout conformance, exhaustive lookup-record and histogram check, exact coefficient error',
+        'scope': 'every emitted lookup record and alias bucket of every row; the block-encoding identity '
+                 'of the layout and the logical primitives are assumed, not derived',
+        'independent_verification': False, 'fully_lowered_gate_certificate': False,
+        'checked_alias_buckets': checked_entries,
+        'rows_in_scope': {'one_body': len(rows)-squares, 'signed_squares': squares},
         'outer_error_upper_Ha': str(error_o), 'inner_error_upper_Ha': str(inner_error),
         'coefficient_error_upper_Ha': str(error_o+inner_error),
         'normalization_Ha': str(norm), 'chebyshev_offset_Ha': str(offset),
-        'identity': 'projected block = sum_one mass*B + sum_square sign*mass*(2*B^2-I); add const+sum_square sign*mass'}
+        'assumed_identity': 'projected block = sum_one mass*B + sum_square sign*mass*(2*B^2-I); add const+sum_square sign*mass'}
 
 
 def erase_cost(length):
@@ -410,7 +458,8 @@ def compile_resources(program, rows, networks, n, outer, inner):
             p = point(bs)
             if not frontier or p['controlled_walk_toffoli_upper'] < frontier[-1]['controlled_walk_toffoli_upper']:
                 frontier.append(p)
-    return {'scope': 'compiled hierarchical controlled walk; conservative primitive expansion, not a flattened gate-count measurement',
+    return {'scope': 'hierarchical controlled walk; upper bounds from a per-primitive expansion, not a flattened gate count; '
+                     'qubits assume each lookup\'s junk register is measured out before the next lookup',
         'givens_count': givens, 'givens_charge': '2*beta Toffolis per logical Givens (Low convention)',
         'rotation_toffoli': rotations, 'non_lookup_toffoli': fixed_t,
         'table_dimensions': [{'entries': l, 'word_bits': w, 'calls_load_and_erase': mult} for l, w, mult in tables],
@@ -420,10 +469,16 @@ def compile_resources(program, rows, networks, n, outer, inner):
         'excludes': ['ground-state preparation', 'physical gate-synthesis error overhead', 'QFT synthesis']}
 
 
-def low_comparison(name, norm, step):
+def low_comparison(name, norm, resources):
+    """This construction against Low et al.'s published point, on Toffolis and on the
+    challenge's score, Toffolis x qubits. Every ratio is this construction over theirs."""
+    step = resources['min_toffoli']['controlled_walk_toffoli_upper']
+    qubits = resources['min_toffoli']['logical_qubits_upper_including_system']
+    best = resources['min_TQ']
     target = next(t for t in json.loads((ROOT/'targets.json').read_text())['targets'] if t['track'] == name)
     low_norm = F(str(target['lambdaEffPublished']))
     low_step = target['toffoliPublished']
+    low_qubits = target['qubitsPublished']
     sigma = F(1, 1000)
     query = math.ceil(upper(arb.pi()*ball(norm)/(2*ball(sigma))))
     low_query = math.ceil(upper(arb.pi()*ball(low_norm)/(2*ball(sigma))))
@@ -433,11 +488,30 @@ def low_comparison(name, norm, step):
         'our_queries': query, 'low_queries': low_query, 'our_total_toffoli_upper': query*step,
         'low_total_toffoli_from_printed_parameters': low_query*low_step,
         'total_cost_ratio_display': query*step/(low_query*low_step),
+        'our_logical_qubits_upper': qubits, 'low_logical_qubits_published': low_qubits,
+        'qubit_ratio_display': qubits/low_qubits,
+        'step_toffoli_x_qubits': {
+            'scope': 'the challenge score for one walk step; ours at the point of this frontier that minimises it',
+            'ours_upper': best['TQ_upper'], 'our_toffoli_upper': best['controlled_walk_toffoli_upper'],
+            'our_qubits_upper': best['logical_qubits_upper_including_system'],
+            'low_published': low_step*low_qubits,
+            'ratio_display': best['TQ_upper']/(low_step*low_qubits)},
+        'total_toffoli_x_qubits_ratio_display':
+            query*best['TQ_upper']/(low_query*low_step*low_qubits),
         'break_even_step_toffoli_at_our_normalization': str(F(low_query*low_step, query)),
         'continuous_break_even_normalization_at_our_step_Ha': str(low_norm*low_step/step),
         'source': 'Low et al. PRX 15, 041016, Table V; https://doi.org/10.1103/pb2g-j9cw'},
         'conditional_99_percent_QPE': dict(plan, controlled_walk_toffoli_upper=step,
             controlled_walk_total_toffoli_upper=step*plan['controlled_walk_uses'])}
+
+
+def expected_offset(base, cert):
+    """The scalar offset of the square rows as the numerical certificate implies it:
+    every base square enters with sign +1, and the correction's signed offset is the
+    one signed_df.py certified. Independent of `assemble`'s row signs."""
+    base_squares = sum(((sum(map(abs, map(frac, w)), F(0))+abs(frac(wb)))**2/4
+                        for wb, w in zip(base['wb'], base['w'])), F(0))
+    return base_squares+F(cert['correction_rotations']['correction_chebyshev_offset_Ha'])
 
 
 def run(name, artifacts, out, mu=24, verify_only=False):
@@ -468,6 +542,9 @@ def run(name, artifacts, out, mu=24, verify_only=False):
     proof = verify(program, rows, nets, outer, inner, reference_beta=beta)
     if F(proof['normalization_Ha']) != F(cert['combined_normalization_Ha']):
         raise ValueError('normalization mismatch')
+    # The rows come from `assemble`; their signs are checked against the certificate.
+    if F(proof['chebyshev_offset_Ha']) != expected_offset(base, cert):
+        raise ValueError('row signs disagree with the numerical certificate')
     resources = compile_resources(program, rows, nets, base['n'], outer, inner)
     if not verify_only:
         path.write_text(json.dumps(program, separators=(',', ':'))+'\n')
@@ -480,6 +557,11 @@ def run(name, artifacts, out, mu=24, verify_only=False):
         'operator_certificate_sha256': sha256(ROOT/'rigorous'/f'signed-{name}.json'),
         'program_sha256': sha256(path), 'network_sha256': program['network_sha256'],
         'checker_sha256': sha256(pathlib.Path(__file__)),
+        'targets_sha256': sha256(ROOT/'targets.json'),
+        'arithmetic': {'precision_bits': ctx.prec, 'python_flint': flint.__version__,
+                       'flint': flint.__FLINT_VERSION__, 'numpy': np.__version__, 'python': sys.version.split()[0]},
+        'artifacts': {p.name: {'sha256': sha256(p), 'bytes': p.stat().st_size}
+                      for p in (base_path, data_path, path, network_path)},
         'rows': len(rows), 'networks': len(nets), 'beta': beta, 'alias_keep_bits': mu,
         'verification': proof, 'resources': resources,
         'offset_Ha': str(frac(base['const'])+F(proof['chebyshev_offset_Ha'])),
@@ -490,7 +572,7 @@ def run(name, artifacts, out, mu=24, verify_only=False):
                    'fits_1_6_mHa': total <= F(1, 625), 'chemical_accuracy_certified': False,
                    'missing': ['physical synthesis accuracy including phase-gradient preparation',
                                'ground-state preparation/selection', 'implemented QPE/QFT failure accounting']},
-        'comparison': low_comparison(name, F(proof['normalization_Ha']), resources['min_toffoli']['controlled_walk_toffoli_upper'])}
+        'comparison': low_comparison(name, F(proof['normalization_Ha']), resources)}
     if not result['budget']['fits_1_6_mHa']:
         raise ValueError('combined budget failed')
     out.write_text(json.dumps(result, indent=2)+'\n')

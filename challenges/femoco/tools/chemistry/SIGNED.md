@@ -1,11 +1,19 @@
-# Signed correction and a verified combined logical walk
+# Signed correction and a combined logical walk
 
 The signed double factorization reduces the correction's LCU normalization by
 **6.60x for Reiher and 3.16x for Li** relative to the explicit sparse correction.
-The base and correction now share one emitted hierarchical walk. Its exact
-table and compositional operator checks pass for both full instances. The new
-resource estimates include this complete controlled logical walk and its QPE
-query count. They **do not beat Low et al.**
+The base and correction share one emitted hierarchical program. Its layout, every
+lookup record and its coefficient errors are checked exactly for both full
+instances; that the layout block-encodes the Hamiltonian is an identity argued
+below, not something the checker derives. The resource bounds cover this whole
+controlled logical walk and its QPE query count. They are **far above Low et
+al.'s published estimate**: 28.7x / 37.8x in total Toffolis, and 43x / 69x on the
+challenge's own score for one step, Toffolis x qubits.
+
+These circuits are not the challenge's circuits. The challenge tracks use the
+published factors at the authors' own error standard; this experiment changes the
+Hamiltonian to meet a proven bound, and its costs are not comparable with any
+row of the ledger.
 
 This is maintainer research tooling, not a judged circuit submission. The
 combined program is executable at the logical primitive level; it has not been
@@ -47,8 +55,8 @@ circuit or storage reduction. The improvement comes from the second
 factorization, smaller normalization, shared preparation and the lookup backend.
 
 The operator bound also bounds the ground-energy difference on the stated sector
-by the min-max principle, without assuming a ground state or gap. This proves
-proximity of the **new corrected** Hamiltonian to the target. It neither proves
+by the min-max principle, without assuming a ground state or gap. This bounds
+the distance of the **new corrected** Hamiltonian from the target. It neither bounds
 ground-energy accuracy of the original published factors nor computes a ground
 energy. The remaining approximately 0.423/0.421 mHa is unspent systematic-error
 margin, not a certificate for a synthesis scheme that has not been implemented.
@@ -96,8 +104,9 @@ the same checks.
 
 Low-rank truncation alone failed the initial screening: for Reiher, retaining
 512/742 residual eigenvectors left approximately 4.25/0.459 Ha entrywise bounds;
-for Li, 512/1463 left approximately 12.4/0.00329 Ha. These are screening floats,
-not certificates. Keeping the first-factor generators in the entry basis also
+for Li, 512/1463 left approximately 12.4/0.00329 Ha. These figures come from
+exploratory float64 runs that are not in the repository; they are context, not
+results, and nothing here depends on them. Keeping the first-factor generators in the entry basis also
 gave poor square normalization (about 2787/1783 Ha before truncation). The
 successful mechanism is the **second factorization**, not a very low first rank.
 
@@ -142,30 +151,47 @@ The second term follows from ||B||, ||Bhat|| <= 1, including noncommuting terms.
 Each summand is rounded upward to a rational with denominator 2^128 before
 summation; this avoids enormous denominator products without losing rigor.
 
-### Verification scope
+### What is checked, and what is assumed
 
-The independent check binds the certified reference precision as well as the
-angle words, verifies every emitted own/alternate lookup record and exact
-histogram, tracks lookup scratch cleanup and gate adjoints, checks both SELECT
-controls, row signs and both reflection registers, and reduces the operator
-words by the identity above. It checks 111,488/325,888 alias buckets; the
-algebraic identity covers 17,013,132/53,578,024 ordered operator pairs. This is
-exact compositional reasoning for all system inputs and both controls, not
-sampled statistical lanes.
+`combined.py` contains both the compiler and the checker, and they share the code
+that reads the certified inputs into rows (`assemble`). The checker is therefore
+not an independent verification of the walk, and the reports say so
+(`independent_verification: false`). What it establishes exactly, for both full
+instances:
 
-An additional exact-rational small Fock-space interpreter executes the emitted
-words and the individual reflection matrix entries. It uses noncommuting orbital
+- **Layout.** The program body is the one layout the compiler emits, with every
+  lookup and comparison uncomputed and the two SELECT conditions, the inner
+  reflection, the row sign and the walk reflection in place.
+- **Lookup records.** Every emitted own and alternate record names the row index,
+  kind and sign, or the network, coefficient sign and identity flag, of the
+  target rows: 111,488 / 325,888 alias buckets over 1,710 / 2,514 rows.
+- **Coefficients.** The histograms are those of the emitted tables, and the
+  encoding error above is rational arithmetic on them.
+- **Row signs against the numerical certificate.** The scalar offset computed from
+  the rows must equal the offset `signed_df.py` certified plus the base squares'
+  masses, so a sign error in `assemble` is rejected.
+- **Bindings.** Certified rotation precision, angle words and input hashes.
+
+What is assumed: the identity `<+|V(2|+><+|-I)V|+> = 2B^2-I` for the layout, which
+is the argument above and is not derived row by row; and the logical primitives
+(QROAM and erasure with phase fixup, comparisons, Fredkin, Givens, spin swaps,
+SELECT, reflections). Nothing is lowered to gates, and the Reiher gate-word
+certificate of the rigorous tracks does not apply to these programs.
+
+The identity is exercised, not proved, by an exact-rational small Fock-space
+execution (`execute_projected`) on two-orbital instances with noncommuting
 projectors, a negative square, mixed coefficient signs, an identity term and a
-one-body row. It matches the independently constructed fermionic Hamiltonian
-exactly and checks control-off identity. Mutation tests reject wrong signs,
-angle precision, adjoints, SELECT controls, reflection widths, lookup words,
-networks and missing cleanup.
+one-body row; the result equals a separately built fermionic Hamiltonian. That
+execution reads every lookup word and, from the body, the condition of each
+SELECT, of the inner reflection and of the row sign. It assumes the primitives,
+the uniform preparation and the final walk reflection.
 
-**Trusted boundary:** Python, FLINT/Arb, the Hamiltonian inequalities, parsers,
-and logical primitive contracts for QROAM/erasure with phase fixup, comparisons,
-Fredkin, Givens, spin swaps, SELECT and reflections. This is not a new BDD proof
-of a flattened gate stream or a machine-checked theorem. The old Reiher gate-word
-certificate does not automatically apply to these new circuits.
+The tests hold one mutant per check of the checker, named by the message that
+must reject it, recompute both encoding errors by counting every draw of the
+emitted words, and recompute the resource bounds from the formulas below.
+
+**Trusted base:** Python, FLINT/Arb, the Hamiltonian inequalities, the parsers,
+the identity and primitives above. This is not a machine-checked theorem.
 
 ## Complete logical cost and comparison with Low
 
@@ -179,9 +205,12 @@ the system, live table outputs, phase-gradient register, controls and reused
 lookup workspace. QPE registers and state-preparation workspace are separate.
 The report sweeps power-of-two lookup blocks and records a space/time frontier.
 
-These are **conservative primitive-expansion upper bounds**, not measured
-flattened gate counts. The clean lookup implementation and measurement erasure
-contract are inherited from the repository's logical resource model.
+These are **upper bounds from a per-primitive expansion**, not measured flattened
+gate counts. The lookup and erasure costs follow Berry et al., Appendices B and
+C; a Givens rotation is charged 2*beta Toffolis. The qubit bound takes the largest
+single lookup workspace, which assumes each lookup's junk register is measured
+out before the next lookup; holding them together would need more (about 13,757
+for Reiher at the minimum-Toffoli setting).
 
 | Cost at minimum-Toffoli setting | Reiher | Li |
 | --- | ---: | ---: |
@@ -218,8 +247,21 @@ normalization. We cannot transfer Low's effective normalization to the indefinit
 signed correction. A valid spectral-amplification construction and its energy
 bounds would have to be established for this new Hamiltonian.
 
+Toffolis alone understate the gap, because this construction also needs about
+eleven to thirteen times the qubits. On the challenge's score:
+
+| Toffolis x qubits | Reiher | Li |
+| --- | ---: | ---: |
+| Low published logical qubits | 1,132 | 1,454 |
+| Our logical qubits at the minimum-Toffoli setting, upper bound | 12,825 | 19,375 |
+| Low published step, Toffolis x qubits | 11,549,796 | 21,270,566 |
+| Our step at the minimum-product setting, upper bound | 495,359,571 | 1,473,962,225 |
+| **Ratio for one step** | **42.89x** | **69.30x** |
+| **Ratio including the query counts above** | **182.1x** | **321.0x** |
+
 The concrete cost reduction still needed is therefore about 28.7x/37.8x in the
-query-weighted estimate, if everything else is held fixed. Even the rotation
+query-weighted Toffoli estimate, and about 182x/321x in Toffolis x qubits, if
+everything else is held fixed. Even the rotation
 charge alone exceeds the current-normalization break-even step cost. Lookup
 tuning alone cannot meet that benchmark within this rotation schedule and cost
 model. Reducing normalization, changing rotation organization/representation, or
@@ -255,16 +297,25 @@ for instance in reiher li; do
     --out "/tmp/verified-$instance.json"
 done
 python3 -m unittest discover -s tests -v
-python3 challenge.py check --signed
 ```
 
-The numerical run needs several GB of RAM for Li. Large arrays and emitted
-programs are reproducible local artifacts rather than source-controlled blobs.
-Different BLAS versions may propose different eigenvectors and hence artifact
-hashes; acceptance always depends on the recomputed interval residual, not on
-the solver's status. `--verify-only` reads the emitted program and rotation file,
-checks them against the certified source data, and does not regenerate them.
-Rebuilding the numerical certificate is a separate preceding step.
+The whole pipeline takes a few minutes and a few GB of RAM on a laptop.
+
+**Checking the committed reports.** The committed certificates name their inputs
+by SHA-256 (`artifacts` in each combined report): the base payload, the signed
+factors, the emitted program and the rotation words. Those four files per
+instance are too large for the repository and are published as assets of the
+[`femoco-research-signed-walk-v1` release](https://github.com/teddyjfpender/quantum-autoresearch-challenge/releases/tag/femoco-research-signed-walk-v1). Download them into a
+directory and run the `--verify-only` command above with `--artifacts` pointing
+at it: it refuses any file whose hash differs, re-runs every check and writes a
+report that must equal the committed one in every field except the recorded
+library versions.
+
+**Regenerating from Zenodo** gives a new, equally valid certificate, not the same
+bytes: a different BLAS proposes slightly different eigenvectors, so the factor
+files and their hashes differ. Acceptance never depends on the solver, only on
+the recomputed interval residual. Two independent runs (the original and the one
+committed here) agree on every figure in this document.
 
 References: Low et al., [PRX 15, 041016](https://doi.org/10.1103/pb2g-j9cw),
 especially Table V; Berry et al., [arXiv:1902.02134](https://arxiv.org/abs/1902.02134),
