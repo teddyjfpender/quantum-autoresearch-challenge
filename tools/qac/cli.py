@@ -318,6 +318,9 @@ def cmd_run(args) -> int:
     checked = manifest.load(challenge, directory)
     env = build_env(challenge, checked)
     extra = args.extra[1:] if args.extra[:1] == ["--"] else args.extra
+    coverage = challenge.tracks[checked["track"]].get("validation", {}).get("coverage")
+    if coverage and not any(arg == "--coverage" or arg.startswith("--coverage=") for arg in extra):
+        extra = [*extra, "--coverage", coverage]
     command = [*challenge.contract["benchmarkCommand"], *extra]
     print(f"{checked['track']}/{checked['id']} ({checked['architecture']}), knobs {checked['build']}", flush=True)
     status = subprocess.run(command, cwd=challenge.dir, env=env, check=False).returncode

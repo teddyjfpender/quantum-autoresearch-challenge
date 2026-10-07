@@ -33,6 +33,18 @@
    "name": "Li",
    "headline": "76 orbitals, 152 spin orbitals",
    "summary": "The active space of Li et al. 2019."
+  },
+  {
+   "id": "reiher-rigorous",
+   "name": "Reiher rigorous",
+   "headline": "54 orbitals; exact coefficient error",
+   "summary": "Staging: exact coefficient 1-norm rule on the stored Hamiltonian. Promotion candidates await authenticated judge recording."
+  },
+  {
+   "id": "li-rigorous",
+   "name": "Li rigorous",
+   "headline": "76 orbitals; exact coefficient error",
+   "summary": "Staging: exact coefficient 1-norm rule on the stored Hamiltonian. Promotion candidates await authenticated judge recording."
   }
  ],
  "levels": [
@@ -47,7 +59,7 @@
    "description": "One point within an architecture: its levers, widths and schedules."
   }
  ],
- "standard": "Spectrum-amplified sum-of-squares encoding with the estimated rounding class of Low et al. 2025. One standard for both tracks.",
+ "standard": "Spectrum-amplified sum-of-squares encoding. Original Reiher/Li tracks use Low et al. 2025's estimated class; separate rigorous staging tracks enforce exact 0.1 mHa coefficient rounding on the stored Hamiltonian and add deterministic term-pair and alias-boundary checks.",
  "rules": [
   "Only the circuit builders under src/walk may change.",
   "Every sampled lane must apply exactly the declared operator, restore every ancilla and leave no phase behind.",

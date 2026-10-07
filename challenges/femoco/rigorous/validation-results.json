@@ -1,0 +1,347 @@
+{
+  "schema": "femoco-rigorous-local-results-v1",
+  "authenticated_ledger_result": false,
+  "catalogue_sha256": "83c93520090ed6154c1957076d5ff175795919aec87bf52ad3ca79f1a85d7891",
+  "deterministic_coverage_requested": "terms",
+  "results": [
+    {
+      "id": "reiher-low2025-rigorous",
+      "track": "reiher-rigorous",
+      "source": "reiher/est-low-r",
+      "status": "passed",
+      "spec": "reiher-sa-v1",
+      "toffoli": 10020.0,
+      "qubits": 1080,
+      "samples": 524288,
+      "rounding_error": 8.777912216501546e-05,
+      "rounding_error_exact": "16421034338257849581439123672219434685306308519/187072209578355573530071658587684226515959365500928",
+      "digests": {
+        "family": "ff9bbca76a908eff62138a0eae5f9e3b60e5d3bc0f671ff4d059e52d5f881445",
+        "lanemap": "ab39b32b4c3598bfb41180167c7bce355c97b9652f05b6c75036b9ad985dc1f1",
+        "ops": "843370b264eefc20b77c3bbf83aff32566f5a919db6d3d717484528a4c8f0084",
+        "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
+      },
+      "validation": {
+        "boundary_cases": 304740,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 2242548,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 816534
+      },
+      "product": 10821600.0,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    },
+    {
+      "id": "reiher-fewest-toffoli-rigorous",
+      "track": "reiher-rigorous",
+      "source": "reiher/pf-r1c-m8",
+      "status": "passed",
+      "spec": "reiher-sa-v1",
+      "toffoli": 9486.315567016602,
+      "qubits": 572,
+      "samples": 524288,
+      "rounding_error": 8.777912216501546e-05,
+      "rounding_error_exact": "16421034338257849581439123672219434685306308519/187072209578355573530071658587684226515959365500928",
+      "digests": {
+        "family": "5ba48f73243d3b7ee1b2ae05675568021519da2d584df5bedcf359fd4d870015",
+        "lanemap": "7102ea419d786b641d19e7ffe4bee74fe5274a4004c82517a8684b7fdd8ecb75",
+        "ops": "5620cebcfe1bfb27705ed44e479b385fe2bd0a695a533608c85b1064998cb55d",
+        "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
+      },
+      "validation": {
+        "boundary_cases": 304740,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 2242548,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 816534
+      },
+      "product": 5426172.504333496,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    },
+    {
+      "id": "reiher-best-product-rigorous",
+      "track": "reiher-rigorous",
+      "source": "reiher/sparse-high-alias-r1",
+      "status": "passed",
+      "spec": "reiher-sa-v1",
+      "toffoli": 12253.41548538208,
+      "qubits": 346,
+      "samples": 524288,
+      "rounding_error": 8.777912216501546e-05,
+      "rounding_error_exact": "16421034338257849581439123672219434685306308519/187072209578355573530071658587684226515959365500928",
+      "digests": {
+        "family": "5ba48f73243d3b7ee1b2ae05675568021519da2d584df5bedcf359fd4d870015",
+        "lanemap": "7102ea419d786b641d19e7ffe4bee74fe5274a4004c82517a8684b7fdd8ecb75",
+        "ops": "8168c984f50ac08f45b8f830d4d7627a19ae5d8a71b27a77c6d5f6d70cdf7cd1",
+        "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
+      },
+      "validation": {
+        "boundary_cases": 304740,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 2242548,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 816534
+      },
+      "product": 4239681.7579422,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    },
+    {
+      "id": "reiher-fewest-qubits-rigorous",
+      "track": "reiher-rigorous",
+      "source": "reiher/rc-r5q-m8",
+      "status": "passed",
+      "spec": "reiher-sa-v1",
+      "toffoli": 18513.76823234558,
+      "qubits": 286,
+      "samples": 524288,
+      "rounding_error": 8.777912216501546e-05,
+      "rounding_error_exact": "16421034338257849581439123672219434685306308519/187072209578355573530071658587684226515959365500928",
+      "digests": {
+        "family": "5ba48f73243d3b7ee1b2ae05675568021519da2d584df5bedcf359fd4d870015",
+        "lanemap": "ab39b32b4c3598bfb41180167c7bce355c97b9652f05b6c75036b9ad985dc1f1",
+        "ops": "9b9beeb88c991b5067dc043ec7c3ade608a243010afeadf10690236e1b3e9a89",
+        "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
+      },
+      "validation": {
+        "boundary_cases": 304740,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 2242548,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 816534
+      },
+      "product": 5294937.714450836,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    },
+    {
+      "id": "li-low2025-rigorous",
+      "track": "li-rigorous",
+      "source": "li/low2025-reference",
+      "status": "passed",
+      "spec": "li-sa-v1",
+      "toffoli": 14788.0,
+      "qubits": 1393,
+      "samples": 524288,
+      "rounding_error": 9.768478871035536e-05,
+      "rounding_error_exact": "9580896198978951607429642621279659591816787898436195/98079714615416886934934209737619787751599303819750539264",
+      "digests": {
+        "family": "765b645e27195cf9c613b8e4cc566a8b0cefcf1f100e96c2e8840c0d2ff45b7c",
+        "lanemap": "546b2255877833fb7a68ee22fa082c0d730b250bb030828567a424eff631574c",
+        "ops": "f96ca67a3dd6fa75d242852a3d9db9ea29b57f50390e477c1de57b5e2f538486",
+        "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
+      },
+      "validation": {
+        "boundary_cases": 710048,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 8954090,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 3766997
+      },
+      "product": 20599684.0,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    },
+    {
+      "id": "li-fewest-toffoli-rigorous",
+      "track": "li-rigorous",
+      "source": "li/kl-l3q618p-m9",
+      "status": "passed",
+      "spec": "li-sa-v1",
+      "toffoli": 13442.52501487732,
+      "qubits": 1201,
+      "samples": 524288,
+      "rounding_error": 9.768478871035536e-05,
+      "rounding_error_exact": "9580896198978951607429642621279659591816787898436195/98079714615416886934934209737619787751599303819750539264",
+      "digests": {
+        "family": "c0241ce20bdf8f9e48bd1f3bf6e7eb090e66510947ac9580af3e490dffde833e",
+        "lanemap": "3a7f9da4e9a8d0cf2168c720346c508e0134437b02d9d9135f4fb94e4d66cee6",
+        "ops": "176c4e8283b82b9460215e7af55b1029f8d8f3a5c5a5517f2d803978bb2c144d",
+        "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
+      },
+      "validation": {
+        "boundary_cases": 710048,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 8954090,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 3766997
+      },
+      "product": 16144472.54286766,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    },
+    {
+      "id": "li-best-product-rigorous",
+      "track": "li-rigorous",
+      "source": "li/kl-aligned-inner-m8",
+      "status": "passed",
+      "spec": "li-sa-v1",
+      "toffoli": 19088.36775970459,
+      "qubits": 578,
+      "samples": 524288,
+      "rounding_error": 9.768478871035536e-05,
+      "rounding_error_exact": "9580896198978951607429642621279659591816787898436195/98079714615416886934934209737619787751599303819750539264",
+      "digests": {
+        "family": "c0241ce20bdf8f9e48bd1f3bf6e7eb090e66510947ac9580af3e490dffde833e",
+        "lanemap": "e1995492749c82e472d209a305c8e0cb01100aa2bf0fe8c5ec7800a5de47b04b",
+        "ops": "66c93f67efba965543a19e986e73ba5055ce620545e4c0a99b8e8ba071d66cfe",
+        "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
+      },
+      "validation": {
+        "boundary_cases": 710048,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 8954090,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 3766997
+      },
+      "product": 11033076.565109253,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    },
+    {
+      "id": "li-fewest-qubits-rigorous",
+      "track": "li-rigorous",
+      "source": "li/rc-l7-m8",
+      "status": "passed",
+      "spec": "li-sa-v1",
+      "toffoli": 27586.0763835907,
+      "qubits": 412,
+      "samples": 524288,
+      "rounding_error": 9.768478871035536e-05,
+      "rounding_error_exact": "9580896198978951607429642621279659591816787898436195/98079714615416886934934209737619787751599303819750539264",
+      "digests": {
+        "family": "c0241ce20bdf8f9e48bd1f3bf6e7eb090e66510947ac9580af3e490dffde833e",
+        "lanemap": "e1995492749c82e472d209a305c8e0cb01100aa2bf0fe8c5ec7800a5de47b04b",
+        "ops": "d2036b9f77a968b1e61363e372fa9b95a24bfd597dbf2d6ad0fc3eada37f0683",
+        "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
+      },
+      "validation": {
+        "boundary_cases": 710048,
+        "certified": false,
+        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
+        "lanes": 8954090,
+        "measurement_outcomes": "sampled, not exhaustive",
+        "mode": "Terms",
+        "protocol": "femoco-deterministic-v1",
+        "resource_counts": "independent sampled run; deterministic coverage does not change the score",
+        "status": "passed",
+        "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
+        "term_pair_cases": 3766997
+      },
+      "product": 11365463.470039368,
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096,
+        "engine": "reference"
+      }
+    }
+  ],
+  "date": "2026-10-07",
+  "implementation_tree": "214be89b1108b66fcdd0e972b93761d1926104dd",
+  "environment": {
+    "rust": "1.93.0",
+    "release_lto": false,
+    "rayon_threads": 6,
+    "seed": "Local artifact-digest Fiat-Shamir lanes; no secret judge seed."
+  },
+  "checks": {
+    "python_tests": {
+      "status": "passed",
+      "count": 44
+    },
+    "rust_suite": {
+      "status": "passed",
+      "release_lto": false
+    },
+    "standard_release_coverage_tests": {
+      "status": "passed",
+      "count": 5
+    },
+    "standard_release_byte_identity_pins": {
+      "status": "passed",
+      "count": 266
+    },
+    "format": "passed",
+    "clippy_all_targets": "passed",
+    "signed_contract": "passed"
+  },
+  "symbolic_attempts": [
+    {
+      "id": "reiher-fewest-toffoli-rigorous",
+      "status": "inconclusive",
+      "reason": "600-second wall timeout; no checker report was produced.",
+      "wall_budget_seconds": 600,
+      "solver_timeout_ms": 120000,
+      "input_sha256": "c8866f2f61e741bedeeb6f069b38f4a819b884706fbaf9a3334235e89575fd1f",
+      "lowered_ops": 1722303,
+      "independent_measurements": 2206,
+      "full_quantum_equivalence_certified": false
+    }
+  ],
+  "full_quantum_equivalence_certified": false
+}

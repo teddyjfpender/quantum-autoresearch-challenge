@@ -5,8 +5,13 @@
    "id": "femoco",
    "path": "challenges/femoco",
    "title": "FeMoco walk step",
-   "summary": "The cheapest controlled qubitized walk step for the FeMoco Hamiltonian, under one literature acceptance standard.",
-   "tracks": ["reiher", "li"]
+   "summary": "Controlled FeMoco walk-step circuits under separate estimated and rigorous coefficient-error tracks.",
+   "tracks": [
+    "reiher",
+    "li",
+    "reiher-rigorous",
+    "li-rigorous"
+   ]
   }
  ]
 }

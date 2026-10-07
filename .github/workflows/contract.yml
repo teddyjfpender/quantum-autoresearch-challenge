@@ -27,7 +27,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Tooling tests
-        run: python3 -m unittest discover -s tests -v
+        run: |
+          python3 -m pip install -r challenges/femoco/tools/verification/requirements.txt
+          python3 -m unittest discover -s tests -v
       - name: Contract check
         run: python3 challenge.py check --signed
       - name: Compile tooling

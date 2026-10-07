@@ -2,9 +2,9 @@
  "schema": "qac-benchmark-v1",
  "name": "femoco",
  "title": "FeMoco walk step",
- "description": "Build the cheapest controlled qubitized walk step for the FeMoco Hamiltonian in the spectrum-amplified encoding, under the error model of Low et al. 2025.",
+ "description": "Controlled FeMoco spectrum-amplified walk circuits under separate estimated and rigorous coefficient-rounding tracks.",
  "status": "staging",
- "contractEpoch": "femoco-sa-est-v1",
+ "contractEpoch": "femoco-sa-rigorous-v2",
  "category": "rust",
  "direction": "-",
  "metric": {
@@ -36,6 +36,9 @@
     "submission": "reiher/est-low-r",
     "target": "low2025-reiher",
     "note": "The construction of Low et al. 2025, the research frontier the challenge starts from, built with its published parameters and validated by this evaluator."
+   },
+   "standard": {
+    "roundingClass": "estimated-low2025"
    }
   },
   {
@@ -47,13 +50,56 @@
     "submission": "li/low2025-reference",
     "target": "low2025-li",
     "note": "The construction of Low et al. 2025, the research frontier the challenge starts from, built with its published parameters and validated by this evaluator."
+   },
+   "standard": {
+    "roundingClass": "estimated-low2025"
+   }
+  },
+  {
+   "name": "reiher-rigorous",
+   "title": "Reiher active space \u2014 rigorous coefficient error (54 orbitals)",
+   "spec": "reiher-sa-v1",
+   "status": "staging",
+   "description": "Same stored Hamiltonian and rotation angles as reiher; exact coefficient 1-norm error at most 0.1 mHa. Separate frontier; local promotions await authenticated judge recording.",
+   "standard": {
+    "roundingClass": "rigorous-one-norm",
+    "budgetHa": "1/10000"
+   },
+   "validation": {
+    "coverage": "terms"
+   },
+   "baseline": {
+    "pending": true,
+    "catalogue": "rigorous/promotions.json",
+    "candidate": "reiher-low2025-rigorous",
+    "note": "Rebuilt Low layout at rigorous coefficient precision. No estimated row is relabelled as a rigorous result."
+   }
+  },
+  {
+   "name": "li-rigorous",
+   "title": "Li active space \u2014 rigorous coefficient error (76 orbitals)",
+   "spec": "li-sa-v1",
+   "status": "staging",
+   "description": "Same stored Hamiltonian and rotation angles as li; exact coefficient 1-norm error at most 0.1 mHa. Separate frontier; local promotions await authenticated judge recording.",
+   "standard": {
+    "roundingClass": "rigorous-one-norm",
+    "budgetHa": "1/10000"
+   },
+   "validation": {
+    "coverage": "terms"
+   },
+   "baseline": {
+    "pending": true,
+    "catalogue": "rigorous/promotions.json",
+    "candidate": "li-low2025-rigorous",
+    "note": "Rebuilt Low layout at rigorous coefficient precision. No estimated row is relabelled as a rigorous result."
    }
   }
  ],
  "standard": {
   "encoding": "sos-sa",
-  "roundingClass": "estimated-low2025",
-  "summary": "One acceptance standard for both tracks: the spectrum-amplified sum-of-squares encoding with Low et al. 2025's estimated rounding class. Every sampled lane must apply exactly the operator the lane map declares.",
+  "roundingClass": "track-specific",
+  "summary": "Estimated tracks retain Low et al.'s estimated coefficient rule. Rigorous tracks use the exact 0.1 mHa coefficient 1-norm rule on the stored Hamiltonian and additionally require deterministic term-pair and alias-boundary coverage. Neither rule is a proof of all-input quantum equivalence or a new bound on the original chemistry/rotation approximation.",
   "document": "spec/SPEC-SA.md"
  },
  "editablePaths": [
@@ -71,7 +117,9 @@
   "Cargo.lock",
   "rust-toolchain",
   "benchmark.sh",
-  "setup.sh"
+  "setup.sh",
+  "rigorous",
+  "tools/verification"
  ],
  "architectures": "architectures.json",
  "targets": "targets.json",

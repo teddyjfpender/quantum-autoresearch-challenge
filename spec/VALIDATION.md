@@ -62,7 +62,18 @@ FeMoco runs two stages, set in its `benchmark.json`:
 The reference engine is the original, straightforward evaluator. The sliced engine is a faster
 implementation of the same checks; its design, its equivalence evidence and its limits are in
 `challenges/femoco/spec/FAST-EVALUATOR.md`. Both must pass. Every lane must satisfy every
-check; there is no tolerance.
+check; no failed lane is allowed. Gaussian quantum comparisons use the tolerances specified
+by that tracker.
+
+The staging `reiher-rigorous` and `li-rigorous` tracks add deterministic coverage of every
+reachable selected-term pair and alias comparator boundaries at the full stage. It has a
+separate lane set and does not change sampled resource counts. The optional exhaustive
+mode covers every finite control/uniform/second-pass input within its cap. Measurement
+outcomes remain sampled in both modes. Independent SMT tooling checks universally quantified
+restoration, cleanup, measurement-independence and semantic trace-reduction obligations;
+only UNSAT proves an obligation. Timeouts remain inconclusive, and controller proofs are
+distinct from full quantum equivalence. See
+[the verification guide](../challenges/femoco/tools/verification/README.md).
 
 ## What a row shows
 
@@ -86,3 +97,9 @@ A spec, an acceptance rule, the score or the evaluator's behaviour changes only 
 reviewed pull request that starts a new contract epoch (`contractEpoch` in `benchmark.json`).
 Rows of an earlier epoch are kept and marked by their `verifier_sha256`; they are never edited.
 A confirmed soundness bug is handled the same way, with affected rows re-validated.
+
+The `femoco-sa-rigorous-v2` epoch adds separate rigorous tracks and these optional verifier
+capabilities. Historical estimated rows retain their original verifier digest. A staging
+track may declare a pending baseline linked to its local promotion catalogue while it waits
+for fresh authenticated submissions. Local promotion evidence never becomes a signed row
+through a maintainer edit, and pending baselines are forbidden for live tracks.
