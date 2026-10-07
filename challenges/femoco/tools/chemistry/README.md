@@ -1,5 +1,11 @@
 # Validated FeMoco energy bounds
 
+The newer [signed correction and combined-walk experiment](SIGNED.md) reduces
+correction normalization by 6.60x/3.16x, verifies the emitted hierarchical logical
+walk, and reports its complete logical step and QPE costs. It fits the conditional
+error budget but remains 28.7x/37.8x above Low's published cost under the paper's
+query convention. Its primitive contracts and full-algorithm limitations are explicit.
+
 The follow-up [explicit correction experiment](CORRECTED.md) constructs new
 Hamiltonians with certified target errors below 0.267/0.261 mHa, rebuilds the
 higher-precision base circuits and measures sparse compression's limited benefit.

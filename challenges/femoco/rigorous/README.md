@@ -85,5 +85,26 @@ constructs new approximations with certified Hamiltonian errors below 0.267 mHa
 26/28-bit rotation precisions. Sparse correction retains over 99.3% of the packed
 residual entries; separate analytical correction-block resource bounds quantify
 the cost of that construction. The combined block encoding and complete
-ground-energy algorithm remain unimplemented, and no new full circuit-equivalence
-certificate is asserted.
+ground-energy algorithm were not implemented by that experiment, and it asserts
+no new full circuit-equivalence certificate.
+
+## Signed correction and combined logical walk
+
+The [signed correction follow-up](../tools/chemistry/SIGNED.md) replaces the large
+sparse table with 1,386/2,153 signed factors. Correction normalization falls from
+213.689/71.160 Ha to 32.396/22.505 Ha. The new numerical certificates
+([Reiher](signed-reiher.json), [Li](signed-li.json)) bound the explicit combined
+Hamiltonian errors below 0.161357/0.150233 mHa.
+
+The emitted combined programs have exact table-histogram and compositional
+operator-word checks ([Reiher](combined-reiher.json), [Li](combined-li.json)),
+including signs, scalar offsets, control conditions, reflection widths and
+cleanup. They are hierarchical logical programs, not flattened gate streams
+with new BDD certificates. The documented primitive contracts remain trusted.
+
+Full controlled-walk resource upper bounds are 68,863/119,339 Toffolis and
+12,825/19,375 logical qubits. Including normalization and phase-estimation queries,
+the paper-convention estimates remain 28.7x/37.8x above Low's. The conditional
+budgets fit below 1.179 mHa; physical synthesis, state preparation/selection and
+implemented QPE accounting are still outstanding. Both combined reports keep
+`chemical_accuracy_certified: false`.
