@@ -252,7 +252,9 @@ def verify(doc, timeout_ms=120000):
         "all_obligations_proved": all(x["status"] == "proved" for x in checks.values()) and
                                   (reduction is None or reduction["status"] == "proved"),
         "full_quantum_equivalence_certified": False,
-        "remaining_obligation": "Combine a proved controller/measurement/semantic reduction with "
+        "remaining_obligation": "This SMT audit covers the controller only. The system gate word is "
+                                "compared by exact.py (tools/verification/README.md). Otherwise: "
+                                "combine a proved controller/measurement/semantic reduction with "
                                 "digest-matched exhaustive term-pair checks. Gaussian term checks "
                                 "remain numerical, not exact algebraic quantum equivalence.",
     }

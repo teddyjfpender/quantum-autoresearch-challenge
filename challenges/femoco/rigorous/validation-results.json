@@ -3,12 +3,26 @@
   "authenticated_ledger_result": false,
   "catalogue_sha256": "83c93520090ed6154c1957076d5ff175795919aec87bf52ad3ca79f1a85d7891",
   "deterministic_coverage_requested": "terms",
+  "environment": {
+    "date": "2026-10-07",
+    "source_commit": "88a3ac4cd865537c0b00bbf7afc05f04dcbc678a",
+    "source_clean": true,
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+    "python": "3.14.6",
+    "dd": "0.6.0",
+    "platform": "Darwin arm64",
+    "rayon_threads": 4
+  },
   "results": [
     {
       "id": "reiher-low2025-rigorous",
       "track": "reiher-rigorous",
       "source": "reiher/est-low-r",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "reiher-sa-v1",
       "toffoli": 10020.0,
       "qubits": 1080,
@@ -22,30 +36,30 @@
         "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
       },
       "validation": {
-        "boundary_cases": 304740,
+        "boundary_cases": 568008,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 2242548,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 4523712,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 816534
+        "term_pair_cases": 1693848
       },
       "product": 10821600.0,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
-      }
+      "full_stage_seconds": 38.4
     },
     {
       "id": "reiher-fewest-toffoli-rigorous",
       "track": "reiher-rigorous",
       "source": "reiher/pf-r1c-m8",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "reiher-sa-v1",
       "toffoli": 9486.315567016602,
       "qubits": 572,
@@ -59,23 +73,24 @@
         "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
       },
       "validation": {
-        "boundary_cases": 304740,
+        "boundary_cases": 568008,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 2242548,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 4523712,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 816534
+        "term_pair_cases": 1693848
       },
       "product": 5426172.504333496,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
+      "full_stage_seconds": 33.8,
+      "exact": {
+        "report": "exact-reiher-fewest-toffoli.json",
+        "certified": true,
+        "checker_sha256": "9df83518e5407c57a9cf73c58550b6bcace0d43a52ab8979c9a2020ff352c1fa"
       }
     },
     {
@@ -83,6 +98,10 @@
       "track": "reiher-rigorous",
       "source": "reiher/sparse-high-alias-r1",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "reiher-sa-v1",
       "toffoli": 12253.41548538208,
       "qubits": 346,
@@ -96,30 +115,30 @@
         "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
       },
       "validation": {
-        "boundary_cases": 304740,
+        "boundary_cases": 568008,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 2242548,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 4523712,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 816534
+        "term_pair_cases": 1693848
       },
       "product": 4239681.7579422,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
-      }
+      "full_stage_seconds": 39.0
     },
     {
       "id": "reiher-fewest-qubits-rigorous",
       "track": "reiher-rigorous",
       "source": "reiher/rc-r5q-m8",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "reiher-sa-v1",
       "toffoli": 18513.76823234558,
       "qubits": 286,
@@ -133,30 +152,30 @@
         "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
       },
       "validation": {
-        "boundary_cases": 304740,
+        "boundary_cases": 568008,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 2242548,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 4523712,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 816534
+        "term_pair_cases": 1693848
       },
       "product": 5294937.714450836,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
-      }
+      "full_stage_seconds": 48.6
     },
     {
       "id": "li-low2025-rigorous",
       "track": "li-rigorous",
       "source": "li/low2025-reference",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "li-sa-v1",
       "toffoli": 14788.0,
       "qubits": 1393,
@@ -170,30 +189,30 @@
         "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
       },
       "validation": {
-        "boundary_cases": 710048,
+        "boundary_cases": 1303360,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 8954090,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 17940384,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 3766997
+        "term_pair_cases": 7666832
       },
       "product": 20599684.0,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
-      }
+      "full_stage_seconds": 401.4
     },
     {
       "id": "li-fewest-toffoli-rigorous",
       "track": "li-rigorous",
       "source": "li/kl-l3q618p-m9",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "li-sa-v1",
       "toffoli": 13442.52501487732,
       "qubits": 1201,
@@ -207,30 +226,30 @@
         "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
       },
       "validation": {
-        "boundary_cases": 710048,
+        "boundary_cases": 1303360,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 8954090,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 17940384,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 3766997
+        "term_pair_cases": 7666832
       },
       "product": 16144472.54286766,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
-      }
+      "full_stage_seconds": 316.3
     },
     {
       "id": "li-best-product-rigorous",
       "track": "li-rigorous",
       "source": "li/kl-aligned-inner-m8",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "li-sa-v1",
       "toffoli": 19088.36775970459,
       "qubits": 578,
@@ -244,30 +263,30 @@
         "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
       },
       "validation": {
-        "boundary_cases": 710048,
+        "boundary_cases": 1303360,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 8954090,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 17940384,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 3766997
+        "term_pair_cases": 7666832
       },
       "product": 11033076.565109253,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
-      }
+      "full_stage_seconds": 365.1
     },
     {
       "id": "li-fewest-qubits-rigorous",
       "track": "li-rigorous",
       "source": "li/rc-l7-m8",
       "status": "passed",
+      "reference_screen": {
+        "status": "passed",
+        "samples": 4096
+      },
       "spec": "li-sa-v1",
       "toffoli": 27586.0763835907,
       "qubits": 412,
@@ -281,67 +300,20 @@
         "spec": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82"
       },
       "validation": {
-        "boundary_cases": 710048,
+        "boundary_cases": 1303360,
         "certified": false,
-        "input_coverage": "all reachable term-pair representatives and alias comparator boundaries",
-        "lanes": 8954090,
-        "measurement_outcomes": "sampled, not exhaustive",
+        "input_coverage": "one alias-cell representative of every reachable term pair under both controls and every outer and inner spin value, plus alias comparator boundaries",
+        "lanes": 17940384,
+        "measurement_outcomes": "one fixed stream per batch keyed by the circuit digest; not exhaustive",
         "mode": "Terms",
-        "protocol": "femoco-deterministic-v1",
+        "protocol": "femoco-deterministic-v2",
         "resource_counts": "independent sampled run; deterministic coverage does not change the score",
         "status": "passed",
         "system_equivalence": "reference Gaussian tolerances, not exact symbolic quantum equivalence",
-        "term_pair_cases": 3766997
+        "term_pair_cases": 7666832
       },
       "product": 11365463.470039368,
-      "reference_screen": {
-        "status": "passed",
-        "samples": 4096,
-        "engine": "reference"
-      }
+      "full_stage_seconds": 399.5
     }
-  ],
-  "date": "2026-10-07",
-  "implementation_tree": "214be89b1108b66fcdd0e972b93761d1926104dd",
-  "environment": {
-    "rust": "1.93.0",
-    "release_lto": false,
-    "rayon_threads": 6,
-    "seed": "Local artifact-digest Fiat-Shamir lanes; no secret judge seed."
-  },
-  "checks": {
-    "python_tests": {
-      "status": "passed",
-      "count": 44
-    },
-    "rust_suite": {
-      "status": "passed",
-      "release_lto": false
-    },
-    "standard_release_coverage_tests": {
-      "status": "passed",
-      "count": 5
-    },
-    "standard_release_byte_identity_pins": {
-      "status": "passed",
-      "count": 266
-    },
-    "format": "passed",
-    "clippy_all_targets": "passed",
-    "signed_contract": "passed"
-  },
-  "symbolic_attempts": [
-    {
-      "id": "reiher-fewest-toffoli-rigorous",
-      "status": "inconclusive",
-      "reason": "600-second wall timeout; no checker report was produced.",
-      "wall_budget_seconds": 600,
-      "solver_timeout_ms": 120000,
-      "input_sha256": "c8866f2f61e741bedeeb6f069b38f4a819b884706fbaf9a3334235e89575fd1f",
-      "lowered_ops": 1722303,
-      "independent_measurements": 2206,
-      "full_quantum_equivalence_certified": false
-    }
-  ],
-  "full_quantum_equivalence_certified": false
+  ]
 }

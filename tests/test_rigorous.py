@@ -74,5 +74,66 @@ class RigorousTest(unittest.TestCase):
             manifest.validate(self.challenge, c["track"], c["id"], build_manifest, self.challenge.architectures())
 
 
+class EvidenceTest(unittest.TestCase):
+    """rigorous/ holds generated evidence. It must be the output of the current promotion
+    catalogue and the current symbolic checker, and the README must quote it faithfully."""
+
+    def setUp(self):
+        self.dir = Challenge("femoco").dir
+        self.results = json.loads((self.dir / "rigorous/validation-results.json").read_text())
+        self.by_id = {r["id"]: r for r in self.results["results"]}
+
+    def sha(self, relative):
+        return hashlib.sha256((self.dir / relative).read_bytes()).hexdigest()
+
+    def test_results_are_for_the_current_catalogue_and_every_candidate_passed(self):
+        catalogue = json.loads((self.dir / "rigorous/promotions.json").read_text())
+        self.assertEqual(self.results["catalogue_sha256"], self.sha("rigorous/promotions.json"))
+        self.assertEqual(set(self.by_id), {c["id"] for c in catalogue["candidates"]})
+        self.assertIs(self.results["authenticated_ledger_result"], False)
+        self.assertIs(self.results["environment"]["source_clean"], True)
+        for r in self.by_id.values():
+            with self.subTest(candidate=r["id"]):
+                self.assertEqual(r["status"], "passed")
+                self.assertEqual(r["reference_screen"]["status"], "passed")
+                v = r["validation"]
+                self.assertEqual(v["protocol"], "femoco-deterministic-v2")
+                self.assertEqual((v["mode"], v["status"], v["certified"]), ("Terms", "passed", False))
+                self.assertEqual(v["lanes"], 2 * (v["term_pair_cases"] + v["boundary_cases"]))
+                self.assertLessEqual(r["rounding_error"], 1e-4)
+
+    def test_certificates_are_from_the_current_checker_and_bound_to_their_candidates(self):
+        exact = self.sha("tools/verification/exact.py")
+        reports = sorted((self.dir / "rigorous").glob("exact-*.json"))
+        claimed = {r["exact"]["report"]: r for r in self.by_id.values() if "exact" in r}
+        self.assertEqual({p.name for p in reports}, set(claimed))
+        self.assertTrue(reports, "at least one symbolic certificate is kept")
+        for path in reports:
+            with self.subTest(report=path.name):
+                report, result = json.loads(path.read_text()), claimed[path.name]
+                self.assertEqual(report["schema"], "femoco-exact-report-v2")
+                self.assertEqual(report["checker_sha256"], exact, "exact.py changed: run the checker again")
+                self.assertEqual(result["exact"]["checker_sha256"], exact)
+                self.assertIs(report["certified"], True)
+                self.assertIs(report["circuit_files_checked"], True)
+                parts = report["partitions"]
+                self.assertEqual([p["partition"] for p in parts], list(range(1 << report["partition_bits"])))
+                self.assertTrue(all(p["status"] == "proved" for p in parts))
+                self.assertEqual(report["digests"], result["digests"])
+                self.assertEqual(report["digests"]["spec"], self.sha(f"specs/{result['spec']}/sa.bin"))
+
+    def test_readme_table_quotes_the_results(self):
+        text = (self.dir / "rigorous/README.md").read_text()
+        rows = [line for line in text.splitlines() if line.startswith(("| Reiher |", "| Li |"))]
+        self.assertEqual(len(rows), len(self.by_id))
+        quoted = set()
+        for line in rows:
+            cells = [c.strip().replace(",", "") for c in line.strip("|").split("|")]
+            quoted.add((float(cells[2]), int(cells[3]), int(cells[4]), int(cells[5])))
+        actual = {(round(r["toffoli"], 3), r["qubits"], round(r["product"]), r["validation"]["lanes"])
+                  for r in self.by_id.values()}
+        self.assertEqual(quoted, actual)
+
+
 if __name__ == "__main__":
     unittest.main()

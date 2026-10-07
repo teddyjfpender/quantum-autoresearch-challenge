@@ -1,63 +1,63 @@
 # Rigorous frontier promotion evidence
 
 Eight candidates rebuild the strongest estimated-track choices and each Low-layout reference
-under the existing rigorous coefficient specs. They use 19/19 keep bits on Reiher and 20/21
-on Li. The source manifests and exact build knobs are pinned in
-[promotions.json](promotions.json). These are local maintainer checks; the staging tracks
-await fresh authenticated circuit submissions before they have recorded baselines or a
-rigorous leaderboard.
+under the rigorous coefficient specs. They use 19/19 keep bits on Reiher and 20/21 on Li. The
+source manifests and exact build knobs are pinned in [promotions.json](promotions.json).
+These are local maintainer checks, not ledger rows: the staging tracks have no recorded
+baseline or leaderboard until circuits are submitted and judged.
 
 Each candidate passed 4,096 reference-engine lanes, 524,288 sliced-engine lanes and every
-deterministic term-pair/boundary case below. The exact coefficient 1-norm errors are
-0.087779 mHa (Reiher) and 0.097685 mHa (Li), against a 0.1 mHa limit on the stored Hamiltonian.
-Resource counts are sampled means; deterministic coverage does not change them.
+deterministic lane below. The exact coefficient 1-norm errors are 0.087779 mHa (Reiher) and
+0.097685 mHa (Li), against a 0.1 mHa limit on the stored Hamiltonian. Resource counts are
+sampled means; deterministic coverage does not change them.
 
 | Molecule | Promoted source role | Toffolis / step | Peak qubits | Toffolis x qubits | Deterministic lanes |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Reiher | baseline | 10,020.000 | 1,080 | 10,821,600 | 2,242,548 |
-| Reiher | fewest-toffoli | 9,486.316 | 572 | 5,426,173 | 2,242,548 |
-| Reiher | best-product | 12,253.415 | 346 | 4,239,682 | 2,242,548 |
-| Reiher | fewest-qubits | 18,513.768 | 286 | 5,294,938 | 2,242,548 |
-| Li | baseline | 14,788.000 | 1,393 | 20,599,684 | 8,954,090 |
-| Li | fewest-toffoli | 13,442.525 | 1,201 | 16,144,473 | 8,954,090 |
-| Li | best-product | 19,088.368 | 578 | 11,033,077 | 8,954,090 |
-| Li | fewest-qubits | 27,586.076 | 412 | 11,365,463 | 8,954,090 |
+| Reiher | baseline | 10,020.000 | 1,080 | 10,821,600 | 4,523,712 |
+| Reiher | fewest-toffoli | 9,486.316 | 572 | 5,426,173 | 4,523,712 |
+| Reiher | best-product | 12,253.415 | 346 | 4,239,682 | 4,523,712 |
+| Reiher | fewest-qubits | 18,513.768 | 286 | 5,294,938 | 4,523,712 |
+| Li | baseline | 14,788.000 | 1,393 | 20,599,684 | 17,940,384 |
+| Li | fewest-toffoli | 13,442.525 | 1,201 | 16,144,473 | 17,940,384 |
+| Li | best-product | 19,088.368 | 578 | 11,033,077 | 17,940,384 |
+| Li | fewest-qubits | 27,586.076 | 412 | 11,365,463 | 17,940,384 |
 
-[validation-results.json](validation-results.json) retains exact errors, artifact digests,
-coverage counts, the implementation tree and verification settings. The signed ledger is
-unchanged. A clean trusted release build and the standard-profile coverage tests passed;
-all 266 historical byte-identity pins, formatting, clippy and the signed contract passed.
-The full Rust suite passed with LTO disabled, and 44 Python tests passed. Parallel thin-LTO
-linking in the local environment failed; clean serial release builds and pin checks passed.
-The release profile in the repository is unchanged.
+The deterministic lanes are one representative of every reachable term pair under both
+controls and every value of the outer and inner spin bits, plus the alias comparator
+boundaries: 1,693,848 term-pair and 568,008 boundary cases on Reiher, 7,666,832 and 1,303,360
+on Li, each under both controls. On the machine that produced this evidence (four threads)
+the full stage with coverage took 34 to 49 seconds per Reiher candidate and 5 to 7 minutes
+per Li candidate.
 
-## Completed exact symbolic proof
+[validation-results.json](validation-results.json) holds the exact errors, artifact digests,
+coverage counts, timings, and the commit and toolchain that produced them. Every field of it
+and of the certificate below is written by
+[`tools/repro/promote_rigorous.py`](../tools/repro/promote_rigorous.py), from a clean
+checkout; the repository's tests check that the files match the current promotion catalogue
+and checker and that the table above quotes them.
 
-The promoted **Reiher low-Toffoli circuit** now has a completed exact symbolic quantum proof:
-[exact-reiher-fewest-toffoli.json](exact-reiher-fewest-toffoli.json). All 256 exhaustive
-partitions passed. The proof covers all `2^80` control/uniform/second-pass inputs and all
-2,206 independent HMR outcome bits across 1,722,303 lowered operations. Its ops, lane-map,
-family and payload digests match the candidate in the validation table above.
+## Symbolic check of the Reiher low-Toffoli circuit
 
-The checker proves restoration, every reset, final clean ancillas, the nested reflection
-interface, exact system rotations and Pauli operations, and the scalar phase including all
-measurement corrections. It uses canonical Boolean functions and exact integer-angle gate
-identities against the independently decoded payload. No numerical quantum comparison or
-sampled representative is needed for this certificate. All partitions ran with
-`dd==0.6.0` (CUDD 3.0.0), `--partition-bits 8 --jobs 4`; the report binds the input and checker
-source by SHA-256 and retains each partition's result and timing.
+[exact-reiher-fewest-toffoli.json](exact-reiher-fewest-toffoli.json) is a certificate from the
+symbolic gate-word checker for the Reiher fewest-Toffoli candidate. All 256 partitions were
+proved, covering all `2^80` control/uniform/second-pass inputs and all 2,206 independent
+measurement-outcome bits over 1,722,303 lowered operations. Its ops, lane-map, family and
+payload digests are those of the candidate in the table, and the checker recomputed the first
+three from the circuit files.
 
-The earlier monolithic SMT timeout is retained in `validation-results.json` as the original
-validation snapshot; it is superseded for this candidate by the completed BDD/algebra proof.
-The other seven candidates retain their deterministic/numerical evidence and do not yet have
-a completed full symbolic certificate. The proof is local audit evidence, not a ledger entry.
+What the certificate shows: in the evaluator's lowered-op model, for every such input and
+outcome, the circuit restores its control, uniform register and ancillas, every reset is
+clean, and the system gate word equals the reference word built from the pinned `sa.bin`,
+with the expected scalar phase including every measurement correction. No numerical
+tolerance or sampled lane enters.
 
-For this follow-up, all 58 Python tests, five Rust coverage tests, formatting, targeted trusted
-evaluator clippy and the signed contract check passed. New tests include exact cyclotomic
-Fock-matrix checks and rejection of angle, sign, spin, pivot, cleanup and measurement mutants.
-The trusted evaluator built with the standard release profile; the coverage tests used LTO
-disabled after the local thin-LTO linker again failed with an undefined `main` symbol.
+What it rests on: the evaluator's lowering and export, a small set of gate identities
+(tested on adjacent modes only), the spin-swap gate taken as an opaque inverse pair, the
+reflection as an interface, the checker's own transcription of the spec, and CUDD. It is
+not a machine-checked proof, and it says nothing about coefficient magnitudes beyond the
+rounding rule above, the original chemistry approximation, or rotation synthesis. The full
+statement is in the [verification guide](../tools/verification/README.md#trust-base).
 
-See the [verification guide](../tools/verification/README.md) for the algebra, trust boundary,
-supported structures and reproduction commands. The certificate concerns the declared logical
-gates and pinned finite-precision spec. No new DFTHC or physical rotation-error bound is claimed.
+The other seven candidates have the deterministic and sampled evidence above and no
+symbolic certificate. The run used `dd` 0.6.0 with CUDD, `--partition-bits 8 --jobs 4`, and
+took under six minutes.

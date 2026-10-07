@@ -65,14 +65,20 @@ implementation of the same checks; its design, its equivalence evidence and its 
 check; no failed lane is allowed. Gaussian quantum comparisons use the tolerances specified
 by that tracker.
 
-The staging `reiher-rigorous` and `li-rigorous` tracks add deterministic coverage of every
-reachable selected-term pair and alias comparator boundaries at the full stage. It has a
-separate lane set and does not change sampled resource counts. The optional exhaustive
-mode covers every finite control/uniform/second-pass input within its cap. Measurement
-outcomes remain sampled in both modes. Independent SMT tooling checks universally quantified
-restoration, cleanup, measurement-independence and semantic trace-reduction obligations;
-only UNSAT proves an obligation. Timeouts remain inconclusive, and controller proofs are
-distinct from full quantum equivalence. See
+The staging `reiher-rigorous` and `li-rigorous` tracks add deterministic coverage at the full
+stage: one representative of every reachable selected-term pair, under both controls and
+every value of the outer and inner spin bits, plus the alias comparator boundaries. It has a
+separate lane set and does not change sampled resource counts. The optional exhaustive mode
+covers every finite control/uniform/second-pass input within its cap. Neither mode exhausts
+measurement outcomes: each batch draws one outcome stream, keyed in a judged run by the
+server seed. The judge requires this coverage on those tracks and nothing more.
+
+Two further tools are audit evidence only and are not part of the judge. SMT tooling checks
+restoration, cleanup, measurement-independence and trace-reduction obligations of the
+classical controller; only UNSAT proves an obligation, and a timeout is inconclusive. A
+symbolic checker compares the circuit's system gate word with the spec's reference word for
+every input and measurement outcome, in the evaluator's lowered-op model and on a stated
+trust base; it is not a machine-checked proof. See
 [the verification guide](../challenges/femoco/tools/verification/README.md).
 
 ## What a row shows
