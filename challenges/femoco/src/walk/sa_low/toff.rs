@@ -1631,7 +1631,7 @@ fn copy(
     let asplit = split_for(tw.hot_erase, idx.len(), e);
     if let Some(h) = hot {
         if h.rec.is_some() {
-            onehot::erase_classes(b, &bsel, &r.hi, h);
+            onehot::erase_classes_with(b, &bsel, &r.hi, h, tw.factor_erase);
         } else {
             onehot::erase_keep(b, t, &idx, e, h, asplit, tw.in_range, emb.is_some());
         }

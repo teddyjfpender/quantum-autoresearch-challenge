@@ -435,6 +435,9 @@ pub struct Tweaks {
     /// applied and the re-read measured into the erasure pass. Not with `R`, `l`, `p`, `D`, `j`.
     /// Not in `all`.
     pub hot_keep_release: bool,
+    /// `.c`: erase a rectangular four-group class layout by measuring its class and group
+    /// flags, correcting their phase directly from the row index.
+    pub factor_erase: bool,
 }
 
 impl Tweaks {
@@ -501,6 +504,7 @@ impl Tweaks {
         item_fold: false,
         index_host: false,
         hot_keep_release: false,
+        factor_erase: false,
     };
 
     /// Parses a letter string (`"imch"`, `"all"`, `"none"`).
@@ -631,6 +635,7 @@ impl Tweaks {
             rank_park: if all { 0 } else { rank_park },
             pad_offset: !all && has('+'),
             pad_runs: !all && ext.contains('p'),
+            factor_erase: !all && ext.contains('c'),
             graft: !all && ext.contains('g'),
             erase_pairs: !all && ext.contains('e'),
             maj_drop: if all {

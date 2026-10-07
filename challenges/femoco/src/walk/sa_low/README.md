@@ -473,6 +473,7 @@ added (`tests/sa_digests.rs`).
 | `-` | `item_fold` | folded, `i_0`-refined item one-hot | `H`, `V` | 6.14 |
 | `+` | `pad_offset` | donor-padded inner tables, item-constant offset | `H`, `x`, `t` | 6.14 |
 | `.e` | `erase_pairs` | item one-hot erasure pairs sibling leaves | `H`, two-group item one-hot | 6.14 |
+| `.c` | `factor_erase` | measured class and group flags corrected from row-index bits | `C`, four-by-four initial-row classes with one grafted tail row | 6.8 |
 | `~` | `hot_keep_release` | inner keep released through the item one-hot | `H`, `m`, `_`, and `S` or `t`; not `R`, `l`, `p`, `D`, `j` | 6.14 |
 | `G` | `paired_lookup` | inner read by the paired unary lookup | not `p`, `j` | 6.15 |
 | `M` | `slot_host` | slot hosting | (implies `G`) | 6.15 |
@@ -768,8 +769,22 @@ onto the host slots while the one-hot is live, and its flag is erased by measure
 Clifford fixup after the host class expands (recomputed by one Toffoli at the erasure). The
 one-hot loses that class's slots.
 
+**`.c`: factored class erasure** (with the four-group `C` and `.g` layout of Li).
+After collapsing the slots, the first sixteen rows have four class flags from the high
+two row bits and three group flags from the low two. They are gated by the indicator
+for these initial rows; row 15 is one-body, while rows 0-14 are square.
+X-measure the seven flags. The phase for four outcomes `m0..m3` is the algebraic normal
+form `m0 + (m0 xor m1)x + (m0 xor m2)y + (m0 xor m1 xor m2 xor m3)xy`, multiplied
+by the initial-row indicator. The constant and linear terms use Z/CZ; the quadratic
+term uses one outcome-conditioned CCZ. The group flags use the same form with `m0=0`.
+The three grafted subrows of the final one-body row then collapse through the existing
+measured splits. This replaces the twelve Toffoli initial-row unfold of `erase_classes` with two CCZs
+executed only when their independent outcome parities are set: 22 expected Toffolis
+saved per walk step on the Li four-group point, with no change to the peak qubits.
+
 Tests: `tests_c1::{folded_*, early_flags_mutants_are_rejected, class_inplace_*, unsplit_class_*,
-class_pack_*, graft_*}`; `tests_rot::{class_slots, pack_options}` (ignored; slot counts).
+class_pack_*, graft_*, factored_*}`; `onehot::tests_factor_erase` (all 17 row values and a
+cubic-phase mutant); `tests_rot::{class_slots, pack_options}` (ignored; slot counts).
 
 ### 6.9 The angle register: `a`, `U`, `.h<k>`, `s`, `P`
 
