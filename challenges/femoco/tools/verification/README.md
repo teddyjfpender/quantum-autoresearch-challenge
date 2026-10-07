@@ -17,6 +17,7 @@ The contract epoch is `femoco-sa-rigorous-v2`.
 | Symbolic controller | Every control, uniform, second-pass and independent HMR assignment | UNSAT miter for restoration, every reset, final ancillas and the inner register at Reflect | Does not compare the quantum operator to the spec |
 | Symbolic measurement reduction | Same full domain | System-event parameters and scalar phase match the zero-HMR execution | Sufficient trace equality; some equivalent rewrites can fail it |
 | Symbolic semantic reduction | Every pair of inputs naming the same terms | Independent exact alias decoder plus UNSAT trace/phase miter | Must be combined with digest-matched term checks |
+| Exact symbolic quantum proof | Every control, uniform, second-pass and independent HMR assignment | Canonical Boolean functions plus exact integer-angle/Pauli identities against the pinned payload | Supported untapered spin-swap chain words; unsupported words remain unproved |
 
 `terms` chooses a preimage of each nonzero-count alias item, all semantically relevant spin
 values, both controls, and every ordered first/second item pair. It omits identity-spin
@@ -57,7 +58,7 @@ a trace-miter counterexample can mean the circuit uses an equivalent different t
 `unknown`, timeout, unsupported opcode and checker failure never count as a proof. Full
 FeMoco programs contain millions of gates; monolithic SMT runs can be expensive or
 inconclusive. Reports retain the solver version, checker hash and each obligation's status.
-They always retain `full_quantum_equivalence_certified=false`.
+The SMT-only reports always retain `full_quantum_equivalence_certified=false`.
 The checker exits successfully only when every attempted obligation is proved; a semantic
 counterexample cannot be hidden by a passing controller result. Counterexamples include
 control/uniform/second-pass values and a complete sparse assignment of measurement outcomes.
@@ -68,6 +69,64 @@ That justifies reducing the remaining system comparison to exhaustive term repre
 The Gaussian comparisons still use numerical tolerances; exact algebraic quantum equivalence
 would be a further verification layer. Symbolic reports are independent audit evidence;
 the judge does not accept a submitter-supplied certificate or require an SMT success.
+
+## Exact quantum proof
+
+`exact.py` supplies that further layer for the supported circuit structure. It reads the
+evaluator export and independently parses `sa.bin`, requiring the payload hash to match the
+export. Re-export with the current evaluator: the new `rotation_widths` field must explicitly
+be `null`. Tapered rotation schedules and unsupported system opcodes are rejected.
+
+```sh
+target/release/eval_circuit --root /path/to/circuit --samples 4096 --engine reference \
+  --export-symbolic /path/to/circuit/symbolic-input.json
+python3 tools/verification/exact.py /path/to/circuit/symbolic-input.json \
+  --payload specs/reiher-sa-v1/sa.bin --partition-bits 8 --jobs 4 \
+  --out /path/to/circuit/exact-report.json
+```
+
+This checker uses CUDD through pinned `dd==0.6.0`, with a separate Boolean decision diagram
+manager per worker. All controller wires, classical bits and the scalar phase are exact
+Boolean functions; the phase is in Z/8. Each HMR occurrence gets its own independent free
+outcome. Every reset, the inner register at reflection, final ancillas, control and uniform
+register are checked. Conditional HMR branches preserve the interpreter's measurement and
+phase semantics. Measurement conditions depend only on classical history, so their branch
+normalizations carry no information about the quantum input.
+
+The selected outer and inner items are independently decoded from the alias tables, using
+all sigma bits. The reference uses the payload's integer angles and coefficient signs to
+construct each `M_a` and `M_b` adjoint. It checks each system sandwich, including its spin
+selection, pivot Pauli and scalar sign, using these exact identities:
+
+- Conjugating a fermionic Givens rotation by Z on exactly one endpoint negates its angle.
+- `G(theta + pi) = Z_p Z_q G(theta)` and rotations on the same pair add their angles.
+- Moving Z across X adds a minus sign; angles are reduced modulo `2^beta`.
+- The spin-swap layer and its adjoint transport the pivot Majorana to the selected spin.
+- A chain's vector sign change preserves a square and negates a single Majorana. Any
+  resulting one-body sign is explicitly included in the global phase obligation.
+
+On branches with no active pivot (control off or a square identity item), the entire
+system word must reduce to identity, including any padding rotations. Every residual
+scalar sign is retained. No sine, cosine, numerical tolerance, sampled lane or assumed
+builder annotation enters the proof. The two independently variable inner inputs establish
+all matrix elements of the nested reflection composition in the evaluator's contract.
+
+`--partition-bits 8` splits the domain into all 256 assignments of the high outer bucket
+bits. The remaining inputs and **all** measurement outcomes stay symbolic in each part.
+All parts must pass. Checkpoints and `--partition N` diagnostic runs always retain
+`full_quantum_equivalence_certified=false`; only completion of the entire partition domain
+sets it to true. Unknown words, a failed obligation, process failure or resource exhaustion
+never certify equivalence. A failed gate-word comparison is an unproved sufficient condition,
+not necessarily a counterexample to quantum equivalence. Boolean failures include a witness
+to the stated obligation; omitted variables in a BDD witness are don't-cares.
+
+The proof's trusted base is the evaluator parser/compiler and export, the independent payload
+decoder and small algebraic checker, CUDD's Boolean canonicalization, and the stated gate
+identities. It is not a Lean/Coq proof or a proof of CUDD's implementation. It certifies the
+declared logical operations and pinned finite-precision Hamiltonian, not a new bound on the
+original chemistry approximation or physical rotation synthesis. Reports bind the input,
+checker source, circuit, lane map, family and payload by SHA-256. They remain local audit
+evidence; they neither write the ledger nor replace judge validation.
 
 ## Rigorous promotions
 

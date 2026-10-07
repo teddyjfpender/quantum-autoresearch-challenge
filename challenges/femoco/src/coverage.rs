@@ -209,7 +209,8 @@ pub fn check(
             "layout":{"system":layout.system,"uniform":layout.uniform,
                 "num_qubits":compiled.num_qubits,"num_bits":compiled.num_bits},
             "inner":{"lo":inner.lo,"width":inner.width},
-            "beta":spec.beta, "b":spec.b, "registers":compiled.registers, "ops":compiled.ops,
+            "beta":spec.beta, "b":spec.b, "rotation_widths":spec.widths,
+            "registers":compiled.registers, "ops":compiled.ops,
             "outer":table(&map.outer), "inner_tables":map.inner.iter().map(table).collect::<Vec<_>>(),
         });
         std::fs::write(path, serde_json::to_vec(&doc).map_err(|e| e.to_string())?)

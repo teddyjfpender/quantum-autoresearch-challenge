@@ -31,9 +31,33 @@ The full Rust suite passed with LTO disabled, and 44 Python tests passed. Parall
 linking in the local environment failed; clean serial release builds and pin checks passed.
 The release profile in the repository is unchanged.
 
-The full Reiher low-Toffoli symbolic attempt exceeded a 600-second wall budget and is
-**inconclusive**. The small exact SMT regressions prove correct measured uncomputation and
-reject phase, cleanup, controller, measurement-dependent trace and alias-route mutants.
-Neither the numerical term checks nor this proof attempt certify full quantum equivalence.
-See the [verification guide](../tools/verification/README.md) for the input domains, proof
-obligations, limits and reproduction commands. No new DFTHC or rotation-error bound is claimed.
+## Completed exact symbolic proof
+
+The promoted **Reiher low-Toffoli circuit** now has a completed exact symbolic quantum proof:
+[exact-reiher-fewest-toffoli.json](exact-reiher-fewest-toffoli.json). All 256 exhaustive
+partitions passed. The proof covers all `2^80` control/uniform/second-pass inputs and all
+2,206 independent HMR outcome bits across 1,722,303 lowered operations. Its ops, lane-map,
+family and payload digests match the candidate in the validation table above.
+
+The checker proves restoration, every reset, final clean ancillas, the nested reflection
+interface, exact system rotations and Pauli operations, and the scalar phase including all
+measurement corrections. It uses canonical Boolean functions and exact integer-angle gate
+identities against the independently decoded payload. No numerical quantum comparison or
+sampled representative is needed for this certificate. All partitions ran with
+`dd==0.6.0` (CUDD 3.0.0), `--partition-bits 8 --jobs 4`; the report binds the input and checker
+source by SHA-256 and retains each partition's result and timing.
+
+The earlier monolithic SMT timeout is retained in `validation-results.json` as the original
+validation snapshot; it is superseded for this candidate by the completed BDD/algebra proof.
+The other seven candidates retain their deterministic/numerical evidence and do not yet have
+a completed full symbolic certificate. The proof is local audit evidence, not a ledger entry.
+
+For this follow-up, all 58 Python tests, five Rust coverage tests, formatting, targeted trusted
+evaluator clippy and the signed contract check passed. New tests include exact cyclotomic
+Fock-matrix checks and rejection of angle, sign, spin, pivot, cleanup and measurement mutants.
+The trusted evaluator built with the standard release profile; the coverage tests used LTO
+disabled after the local thin-LTO linker again failed with an undefined `main` symbol.
+
+See the [verification guide](../tools/verification/README.md) for the algebra, trust boundary,
+supported structures and reproduction commands. The certificate concerns the declared logical
+gates and pinned finite-precision spec. No new DFTHC or physical rotation-error bound is claimed.
