@@ -1,0 +1,396 @@
+{
+  "schema": "femoco-corrected-compression-v1",
+  "instance": "li",
+  "hypothesis": "sparse residual correction might retain the compact DFTHC resource advantage",
+  "cheapest_refutation": "count retained entries under a certified weighted entrywise error bound",
+  "target": {
+    "integrals_sha256": "e5a48af746fd075026dec9e8f5df2d363802a121e8c53af9a0b984bde695e1bd",
+    "factors_sha256": "08ef2a444720feacf4692f5d0a8528a413d8ee0af7a382463e0c9b33aabcbc55",
+    "core_policy": "zero",
+    "electron_number": 113,
+    "spatial_orbitals": 76,
+    "scope": "exact FCIDUMP decimals, fixed electron sector; not complete experimental chemistry"
+  },
+  "arithmetic": {
+    "python_flint": "0.8.0",
+    "flint": "3.3.1",
+    "numpy": "2.3.5",
+    "python": "3.12.14",
+    "precision_bits": 128,
+    "proposal_reproducibility": "eigenpair bytes can vary with BLAS; every proposal is re-certified"
+  },
+  "checker_sha256": {
+    "bounds.py": "a93f51396e9c063a18c81451032977ba0593c34757b562d4131ce5a4be0388ff",
+    "certify.py": "9b90c750490ee273c035c8ae87fc2fb7c70c6cceece301fa8e3fd177b50017ad",
+    "corrected.py": "c5637fc9041b919e7029543c6418807029b685d59d478ca9dbac605d1bfcdc96",
+    "fetch.py": "63a3dbe757ca6b5675828b0742ec846f02b34e70d26874de9de5b2ff5ee0b27c",
+    "inputs.py": "e35896e8b039c1de67070dea7f35a7f92a8b82a3aed85cc7c0e49c20e64abe9d"
+  },
+  "base_payload_sha256": "63dc4e431b18982404bfbc15ca2ec96a93471ab684403b6ed45bda498c6a16f8",
+  "base_normalization_Ha": "3645348901122035841220290055864465/20282409603651670423947251286016",
+  "rotation_and_preprocessing": {
+    "upper_Ha": "8013504976832961747688258453597536252211/178405961588244985132285746181186892047843328",
+    "upper_mHa_display": 0.04491724887158123,
+    "one_body_upper_Ha": "216571481855462266841518673370073588723/178405961588244985132285746181186892047843328",
+    "squares_upper_Ha": "121827085593429476822808492506355385013/2787593149816327892691964784081045188247552",
+    "scalar_upper_Ha": "2074952754417357941872646243/21778071482940061661655974875633165533184",
+    "rotation_bits": 28
+  },
+  "compression": {
+    "triangle_entries": 4282201,
+    "nonzero_baseline_entries": 4282183,
+    "nonzero_compressed_entries": 4252735,
+    "proposed_dropped_entries": 29466,
+    "fraction_entries_removed_display": 0.006881040847919073,
+    "coefficient_fraction_bits": 36,
+    "drop_budget_Ha": "1/5000",
+    "quantization_budget_Ha": "1/20000",
+    "unquantized_correction_l1_upper_Ha": "94587820517263028511660941077914621833/1329227995784915872903807060280344576",
+    "baseline_quantization_error_upper_Ha": "86867094403496508262861593178296958845/5575186299632655785383929568162090376495104",
+    "dropped_error_upper_Ha": "69686666151704933201695423504020468727/348449143727040986586495598010130648530944",
+    "retained_quantization_error_upper_Ha": "10783731897392823101984267979466667661/696898287454081973172991196020261297061888",
+    "compressed_correction_error_upper_Ha": "150157064200802689505375114987507605115/696898287454081973172991196020261297061888",
+    "acceptance": "outward rational Arb endpoints; floating sorting only proposes the mask"
+  },
+  "scenarios": {
+    "baseline": {
+      "encoding": {
+        "terms": 4282183,
+        "padded_buckets": 8388608,
+        "address_bits": 23,
+        "keep_bits": 22,
+        "normalization_Ha": "4890075707055/68719476736",
+        "normalization_Ha_display": 71.15996714936045,
+        "alias_error_upper_Ha": "10465126896386567277/1208925819614629174706176",
+        "alias_error_budget_Ha": "1/20000",
+        "integer_histogram_verified": true,
+        "table_content_sha256": "050c4c6ccc36d8841c9688e3a11ebb9a65574a8788c0bb853db9d245706271a5"
+      },
+      "resource_model": {
+        "scope": "analytical constructive upper bounds for correction block encoding only; not emitted or symbolically verified",
+        "gate_model": "unitary Clifford+Toffoli, exact H uniform draws; reversible lookup without measurement savings",
+        "unary": {
+          "blocks_per_lookup": 1,
+          "toffoli_upper_bound": 50778258,
+          "logical_qubits_upper_bound_including_system": 1284,
+          "toffoli_qubit_product_upper": 65199283272
+        },
+        "shared_block_sweep": [
+          {
+            "blocks_per_lookup": 1,
+            "toffoli_upper_bound": 50778258,
+            "logical_qubits_upper_bound_including_system": 1284,
+            "toffoli_qubit_product_upper": 65199283272
+          },
+          {
+            "blocks_per_lookup": 2,
+            "toffoli_upper_bound": 25392586,
+            "logical_qubits_upper_bound_including_system": 1589,
+            "toffoli_qubit_product_upper": 40348819154
+          },
+          {
+            "blocks_per_lookup": 4,
+            "toffoli_upper_bound": 12703834,
+            "logical_qubits_upper_bound_including_system": 2199,
+            "toffoli_qubit_product_upper": 27935730966
+          },
+          {
+            "blocks_per_lookup": 8,
+            "toffoli_upper_bound": 6367630,
+            "logical_qubits_upper_bound_including_system": 3419,
+            "toffoli_qubit_product_upper": 21770926970
+          },
+          {
+            "blocks_per_lookup": 16,
+            "toffoli_upper_bound": 3215878,
+            "logical_qubits_upper_bound_including_system": 5859,
+            "toffoli_qubit_product_upper": 18841829202
+          },
+          {
+            "blocks_per_lookup": 32,
+            "toffoli_upper_bound": 1672686,
+            "logical_qubits_upper_bound_including_system": 10739,
+            "toffoli_qubit_product_upper": 17962974954
+          },
+          {
+            "blocks_per_lookup": 64,
+            "toffoli_upper_bound": 966466,
+            "logical_qubits_upper_bound_including_system": 20499,
+            "toffoli_qubit_product_upper": 19811586534
+          },
+          {
+            "blocks_per_lookup": 128,
+            "toffoli_upper_bound": 744110,
+            "logical_qubits_upper_bound_including_system": 40019,
+            "toffoli_qubit_product_upper": 29778538090
+          },
+          {
+            "blocks_per_lookup": 256,
+            "toffoli_upper_bound": 894434,
+            "logical_qubits_upper_bound_including_system": 79059,
+            "toffoli_qubit_product_upper": 70713057606
+          },
+          {
+            "blocks_per_lookup": 512,
+            "toffoli_upper_bound": 1492602,
+            "logical_qubits_upper_bound_including_system": 157139,
+            "toffoli_qubit_product_upper": 234545985678
+          },
+          {
+            "blocks_per_lookup": 1024,
+            "toffoli_upper_bound": 2837706,
+            "logical_qubits_upper_bound_including_system": 313299,
+            "toffoli_qubit_product_upper": 889050452094
+          },
+          {
+            "blocks_per_lookup": 2048,
+            "toffoli_upper_bound": 5602286,
+            "logical_qubits_upper_bound_including_system": 625619,
+            "toffoli_qubit_product_upper": 3504896565034
+          },
+          {
+            "blocks_per_lookup": 4096,
+            "toffoli_upper_bound": 11168642,
+            "logical_qubits_upper_bound_including_system": 1250259,
+            "toffoli_qubit_product_upper": 13963695178278
+          }
+        ],
+        "best_shared_product": {
+          "blocks_per_lookup": 32,
+          "toffoli_upper_bound": 1672686,
+          "logical_qubits_upper_bound_including_system": 10739,
+          "toffoli_qubit_product_upper": 17962974954
+        },
+        "best_independent_product": {
+          "blocks_alias_row_dictionary": [
+            64,
+            128,
+            8
+          ],
+          "toffoli_upper_bound": 712646,
+          "logical_qubits_upper_bound_including_system": 4188,
+          "toffoli_qubit_product_upper": 2984561448
+        },
+        "independently_minimized_toffoli": {
+          "blocks_alias_row_dictionary": [
+            512,
+            512,
+            8
+          ],
+          "toffoli_upper_bound": 274362,
+          "logical_qubits_upper_bound_including_system": 24540
+        },
+        "excludes": [
+          "DFTHC base block",
+          "outer combination and its coefficient precision",
+          "qubitization reflection/control",
+          "state preparation and QPE",
+          "physical error correction and gate synthesis"
+        ]
+      },
+      "artifact_sha256": "870a18e0c5ebdb3204648b895e43029173383ea571bcef0581b561d706298d19",
+      "explicit_hamiltonian_error_upper_Ha": "10793251997744850012099829435303038935251/178405961588244985132285746181186892047843328",
+      "explicit_hamiltonian_error_upper_mHa_display": 0.06049826979804249,
+      "conditional_encoded_budget": {
+        "rotation_preprocessing_Ha": "8013504976832961747688258453597536252211/178405961588244985132285746181186892047843328",
+        "correction_Ha": "86867094403496508262861593178296958845/5575186299632655785383929568162090376495104",
+        "correction_alias_Ha": "10465126896386567277/1208925819614629174706176",
+        "base_nested_coefficients_reserved_Ha": "1/5000",
+        "outer_combination_reserved_Ha": "1/100000",
+        "phase_estimation_reserved_Ha": "1/1000",
+        "hamiltonian_total_upper_Ha": "155634012724151861349244279231553096319856559/557518629963265578538392956816209037649510400000",
+        "total_with_QPE_Ha": "713152642687417439887637236047762133969366959/557518629963265578538392956816209037649510400000",
+        "total_with_QPE_mHa_display": 1.2791548198746407,
+        "budget_fits_1_6_mHa": true,
+        "chemical_accuracy_certified": false,
+        "missing": [
+          "compiled/proved correction and combined block encoding",
+          "outer-combination rounding certificate",
+          "physical gate synthesis",
+          "ground-state preparation/selection",
+          "implemented QPE failure accounting"
+        ]
+      },
+      "conditional_qpe_plan": {
+        "energy_error_Ha": "1/1000",
+        "failure_probability": "1/100",
+        "normalization_Ha": "5088644502227761707705381541478545/20282409603651670423947251286016",
+        "phase_register_qubits": 27,
+        "controlled_walk_uses": 134217727,
+        "tail_bins": 51,
+        "conditional_on": "exact eigenstate and exact controlled walk/QFT",
+        "includes_state_preparation_or_gate_synthesis": false
+      }
+    },
+    "compressed": {
+      "encoding": {
+        "terms": 4252735,
+        "padded_buckets": 8388608,
+        "address_bits": 23,
+        "keep_bits": 22,
+        "normalization_Ha": "4890061963779/68719476736",
+        "normalization_Ha_display": 71.15976715837314,
+        "alias_error_upper_Ha": "10395980138819279523/1208925819614629174706176",
+        "alias_error_budget_Ha": "1/20000",
+        "integer_histogram_verified": true,
+        "table_content_sha256": "6911daa61c5a2d9297a88baf4b286eecd068134b372eddc6eee85cb6213ba70e"
+      },
+      "resource_model": {
+        "scope": "analytical constructive upper bounds for correction block encoding only; not emitted or symbolically verified",
+        "gate_model": "unitary Clifford+Toffoli, exact H uniform draws; reversible lookup without measurement savings",
+        "unary": {
+          "blocks_per_lookup": 1,
+          "toffoli_upper_bound": 50660466,
+          "logical_qubits_upper_bound_including_system": 1284,
+          "toffoli_qubit_product_upper": 65048038344
+        },
+        "shared_block_sweep": [
+          {
+            "blocks_per_lookup": 1,
+            "toffoli_upper_bound": 50660466,
+            "logical_qubits_upper_bound_including_system": 1284,
+            "toffoli_qubit_product_upper": 65048038344
+          },
+          {
+            "blocks_per_lookup": 2,
+            "toffoli_upper_bound": 25333690,
+            "logical_qubits_upper_bound_including_system": 1589,
+            "toffoli_qubit_product_upper": 40255233410
+          },
+          {
+            "blocks_per_lookup": 4,
+            "toffoli_upper_bound": 12674386,
+            "logical_qubits_upper_bound_including_system": 2199,
+            "toffoli_qubit_product_upper": 27870974814
+          },
+          {
+            "blocks_per_lookup": 8,
+            "toffoli_upper_bound": 6352906,
+            "logical_qubits_upper_bound_including_system": 3419,
+            "toffoli_qubit_product_upper": 21720585614
+          },
+          {
+            "blocks_per_lookup": 16,
+            "toffoli_upper_bound": 3208514,
+            "logical_qubits_upper_bound_including_system": 5859,
+            "toffoli_qubit_product_upper": 18798683526
+          },
+          {
+            "blocks_per_lookup": 32,
+            "toffoli_upper_bound": 1669002,
+            "logical_qubits_upper_bound_including_system": 10739,
+            "toffoli_qubit_product_upper": 17923412478
+          },
+          {
+            "blocks_per_lookup": 64,
+            "toffoli_upper_bound": 964622,
+            "logical_qubits_upper_bound_including_system": 20499,
+            "toffoli_qubit_product_upper": 19773786378
+          },
+          {
+            "blocks_per_lookup": 128,
+            "toffoli_upper_bound": 743190,
+            "logical_qubits_upper_bound_including_system": 40019,
+            "toffoli_qubit_product_upper": 29741720610
+          },
+          {
+            "blocks_per_lookup": 256,
+            "toffoli_upper_bound": 893974,
+            "logical_qubits_upper_bound_including_system": 79059,
+            "toffoli_qubit_product_upper": 70676690466
+          },
+          {
+            "blocks_per_lookup": 512,
+            "toffoli_upper_bound": 1492374,
+            "logical_qubits_upper_bound_including_system": 157139,
+            "toffoli_qubit_product_upper": 234510157986
+          },
+          {
+            "blocks_per_lookup": 1024,
+            "toffoli_upper_bound": 2837594,
+            "logical_qubits_upper_bound_including_system": 313299,
+            "toffoli_qubit_product_upper": 889015362606
+          },
+          {
+            "blocks_per_lookup": 2048,
+            "toffoli_upper_bound": 5602230,
+            "logical_qubits_upper_bound_including_system": 625619,
+            "toffoli_qubit_product_upper": 3504861530370
+          },
+          {
+            "blocks_per_lookup": 4096,
+            "toffoli_upper_bound": 11168614,
+            "logical_qubits_upper_bound_including_system": 1250259,
+            "toffoli_qubit_product_upper": 13963660171026
+          }
+        ],
+        "best_shared_product": {
+          "blocks_per_lookup": 32,
+          "toffoli_upper_bound": 1669002,
+          "logical_qubits_upper_bound_including_system": 10739,
+          "toffoli_qubit_product_upper": 17923412478
+        },
+        "best_independent_product": {
+          "blocks_alias_row_dictionary": [
+            64,
+            128,
+            8
+          ],
+          "toffoli_upper_bound": 711726,
+          "logical_qubits_upper_bound_including_system": 4188,
+          "toffoli_qubit_product_upper": 2980708488
+        },
+        "independently_minimized_toffoli": {
+          "blocks_alias_row_dictionary": [
+            512,
+            512,
+            8
+          ],
+          "toffoli_upper_bound": 274134,
+          "logical_qubits_upper_bound_including_system": 24540
+        },
+        "excludes": [
+          "DFTHC base block",
+          "outer combination and its coefficient precision",
+          "qubitization reflection/control",
+          "state preparation and QPE",
+          "physical error correction and gate synthesis"
+        ]
+      },
+      "artifact_sha256": "219b7f5457336ab16823aa3a6cc48363ff800573add8dbbb502d86db2bab546e",
+      "explicit_hamiltonian_error_upper_Ha": "46453713412238450261064287890399483161651/178405961588244985132285746181186892047843328",
+      "explicit_hamiltonian_error_upper_mHa_display": 0.2603820690670196,
+      "conditional_encoded_budget": {
+        "rotation_preprocessing_Ha": "8013504976832961747688258453597536252211/178405961588244985132285746181186892047843328",
+        "correction_Ha": "150157064200802689505375114987507605115/696898287454081973172991196020261297061888",
+        "correction_alias_Ha": "10395980138819279523/1208925819614629174706176",
+        "base_nested_coefficients_reserved_Ha": "1/5000",
+        "outer_combination_reserved_Ha": "1/100000",
+        "phase_estimation_reserved_Ha": "1/1000",
+        "hamiltonian_total_upper_Ha": "267041066330935097215549261621314791765756559/557518629963265578538392956816209037649510400000",
+        "total_with_QPE_Ha": "824559696294200675753942218437523829415266959/557518629963265578538392956816209037649510400000",
+        "total_with_QPE_mHa_display": 1.4789814222863373,
+        "budget_fits_1_6_mHa": true,
+        "chemical_accuracy_certified": false,
+        "missing": [
+          "compiled/proved correction and combined block encoding",
+          "outer-combination rounding certificate",
+          "physical gate synthesis",
+          "ground-state preparation/selection",
+          "implemented QPE failure accounting"
+        ]
+      },
+      "conditional_qpe_plan": {
+        "energy_error_Ha": "1/1000",
+        "failure_probability": "1/100",
+        "normalization_Ha": "5088640445928640006029994422534289/20282409603651670423947251286016",
+        "phase_register_qubits": 27,
+        "controlled_walk_uses": 134217727,
+        "tail_bins": 51,
+        "conditional_on": "exact eigenstate and exact controlled walk/QFT",
+        "includes_state_preparation_or_gate_synthesis": false
+      }
+    }
+  },
+  "conclusion_scope": "certified Hamiltonian approximations; correction resource estimates are analytical, not measured full walks"
+}
