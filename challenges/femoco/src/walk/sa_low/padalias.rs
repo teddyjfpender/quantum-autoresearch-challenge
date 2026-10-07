@@ -36,7 +36,7 @@ pub fn sparse_li_table(q: usize) -> Table {
                 .map(|i| u32::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
                 .collect()
         };
-        let out: Vec<Table> = include_str!("li_sparse7_alias.txt")
+        let out: Vec<Table> = include_str!("li_sparse7_alias.md")
             .lines()
             .filter(|line| !line.starts_with('#'))
             .enumerate()

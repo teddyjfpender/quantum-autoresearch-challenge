@@ -1032,7 +1032,7 @@ the top three donor padding rows, while matching alt bit 5 to the top donor on i
 `C_step` changes from 17,755.5 to 17,727.5 and `Q_peak` remains 471. Other table shapes use
 the ordinary `+` arrangement.
 
-**`.b`: sparse high keep bit** (with `+`; `li_sparse7_alias.txt`). The Li 8-bit inner
+**`.b`: sparse high keep bit** (with `+`; `li_sparse7_alias.md`). The Li 8-bit inner
 alias tables are chosen from exact floor/ceiling lane counts so keep bit 7 occurs only on
 rows 3, 4, 5, 18, 25, 31, 33, and 38. The top three padding rows still share a donor,
 so `+` retains its item-constant offset. The witness text is embedded in the builder; it

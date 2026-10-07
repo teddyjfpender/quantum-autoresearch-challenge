@@ -15,7 +15,7 @@
   "authors": ["teddyjfpender"],
   "model": "GPT-6",
   "harness": "Codex",
-  "claimed": {"toffoli": 17675.580, "qubits": 471},
+  "claimed": {"toffoli": 17675.392, "qubits": 471},
   "parents": ["kl-l4factored-m8"],
   "discussion": "https://github.com/teddyjfpender/quantum-autoresearch-challenge/discussions/4"
 }
