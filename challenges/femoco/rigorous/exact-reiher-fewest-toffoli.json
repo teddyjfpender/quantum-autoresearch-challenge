@@ -1,0 +1,2588 @@
+{
+  "schema": "femoco-exact-report-v2",
+  "claim": "For every input and measurement outcome in input_domain, in the evaluator's lowered-op model: registers are restored and the system gate word equals the reference word of the pinned spec with the expected scalar phase. Rests on the trust base in tools/verification/README.md; not a machine-checked proof.",
+  "spec": "reiher-sa-v1",
+  "digests": {
+    "family": "5ba48f73243d3b7ee1b2ae05675568021519da2d584df5bedcf359fd4d870015",
+    "lanemap": "7102ea419d786b641d19e7ffe4bee74fe5274a4004c82517a8684b7fdd8ecb75",
+    "ops": "5620cebcfe1bfb27705ed44e479b385fe2bd0a695a533608c85b1064998cb55d",
+    "spec": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02"
+  },
+  "input_sha256": "dc8fd7d139f0b6c895d70b9e14035eeb65486aea57fa5bf6ea9aea773e59cebd",
+  "checker_sha256": "9df83518e5407c57a9cf73c58550b6bcace0d43a52ab8979c9a2020ff352c1fa",
+  "backend": "dd.cudd 0.6.0",
+  "partition_bits": 8,
+  "partition_domain": "most significant outer alias bucket bits",
+  "lowered_operations": 1722303,
+  "input_domain": {
+    "controls": 2,
+    "uniform_bits": 54,
+    "second_pass_bits": 25,
+    "independent_measurement_bits": 2206
+  },
+  "partitions": [
+    {
+      "partition": 0,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.222,
+      "seconds": 2.641
+    },
+    {
+      "partition": 1,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.322,
+      "seconds": 2.743
+    },
+    {
+      "partition": 2,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.284,
+      "seconds": 2.726
+    },
+    {
+      "partition": 3,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.31,
+      "seconds": 2.734
+    },
+    {
+      "partition": 4,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.12,
+      "seconds": 2.333
+    },
+    {
+      "partition": 5,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.095,
+      "seconds": 2.263
+    },
+    {
+      "partition": 6,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.115,
+      "seconds": 2.295
+    },
+    {
+      "partition": 7,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.075,
+      "seconds": 2.238
+    },
+    {
+      "partition": 8,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.124,
+      "seconds": 2.301
+    },
+    {
+      "partition": 9,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.094,
+      "seconds": 2.28
+    },
+    {
+      "partition": 10,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.087,
+      "seconds": 2.286
+    },
+    {
+      "partition": 11,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.121,
+      "seconds": 2.338
+    },
+    {
+      "partition": 12,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.121,
+      "seconds": 2.313
+    },
+    {
+      "partition": 13,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.128,
+      "seconds": 2.351
+    },
+    {
+      "partition": 14,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.042,
+      "seconds": 2.273
+    },
+    {
+      "partition": 15,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.129,
+      "seconds": 2.412
+    },
+    {
+      "partition": 16,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.139,
+      "seconds": 2.325
+    },
+    {
+      "partition": 17,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.175,
+      "seconds": 2.374
+    },
+    {
+      "partition": 18,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.147,
+      "seconds": 2.444
+    },
+    {
+      "partition": 19,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.136,
+      "seconds": 2.3
+    },
+    {
+      "partition": 20,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.297,
+      "seconds": 2.508
+    },
+    {
+      "partition": 21,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.275,
+      "seconds": 2.44
+    },
+    {
+      "partition": 22,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.292,
+      "seconds": 2.466
+    },
+    {
+      "partition": 23,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.232,
+      "seconds": 2.391
+    },
+    {
+      "partition": 24,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.28,
+      "seconds": 2.56
+    },
+    {
+      "partition": 25,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.18,
+      "seconds": 2.341
+    },
+    {
+      "partition": 26,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.244,
+      "seconds": 2.424
+    },
+    {
+      "partition": 27,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.349,
+      "seconds": 4.872
+    },
+    {
+      "partition": 28,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.988,
+      "seconds": 4.613
+    },
+    {
+      "partition": 29,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.661,
+      "seconds": 5.271
+    },
+    {
+      "partition": 30,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.68,
+      "seconds": 5.321
+    },
+    {
+      "partition": 31,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.449,
+      "seconds": 5.899
+    },
+    {
+      "partition": 32,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.963,
+      "seconds": 9.388
+    },
+    {
+      "partition": 33,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.859,
+      "seconds": 6.322
+    },
+    {
+      "partition": 34,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.762,
+      "seconds": 6.405
+    },
+    {
+      "partition": 35,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.103,
+      "seconds": 6.577
+    },
+    {
+      "partition": 36,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.721,
+      "seconds": 5.655
+    },
+    {
+      "partition": 37,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.992,
+      "seconds": 4.633
+    },
+    {
+      "partition": 38,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.277,
+      "seconds": 4.919
+    },
+    {
+      "partition": 39,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.905,
+      "seconds": 4.865
+    },
+    {
+      "partition": 40,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.776,
+      "seconds": 6.45
+    },
+    {
+      "partition": 41,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.975,
+      "seconds": 5.677
+    },
+    {
+      "partition": 42,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.941,
+      "seconds": 5.999
+    },
+    {
+      "partition": 43,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.682,
+      "seconds": 5.73
+    },
+    {
+      "partition": 44,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.471,
+      "seconds": 7.198
+    },
+    {
+      "partition": 45,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.538,
+      "seconds": 5.975
+    },
+    {
+      "partition": 46,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.074,
+      "seconds": 6.644
+    },
+    {
+      "partition": 47,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.223,
+      "seconds": 6.96
+    },
+    {
+      "partition": 48,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.216,
+      "seconds": 8.519
+    },
+    {
+      "partition": 49,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.545,
+      "seconds": 5.228
+    },
+    {
+      "partition": 50,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.78,
+      "seconds": 5.532
+    },
+    {
+      "partition": 51,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.426,
+      "seconds": 5.135
+    },
+    {
+      "partition": 52,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.424,
+      "seconds": 7.239
+    },
+    {
+      "partition": 53,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.22,
+      "seconds": 4.935
+    },
+    {
+      "partition": 54,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.702,
+      "seconds": 7.497
+    },
+    {
+      "partition": 55,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.915,
+      "seconds": 6.012
+    },
+    {
+      "partition": 56,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.061,
+      "seconds": 8.364
+    },
+    {
+      "partition": 57,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.679,
+      "seconds": 5.45
+    },
+    {
+      "partition": 58,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.956,
+      "seconds": 7.876
+    },
+    {
+      "partition": 59,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.937,
+      "seconds": 6.795
+    },
+    {
+      "partition": 60,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.391,
+      "seconds": 7.43
+    },
+    {
+      "partition": 61,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.255,
+      "seconds": 8.627
+    },
+    {
+      "partition": 62,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.669,
+      "seconds": 9.136
+    },
+    {
+      "partition": 63,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.656,
+      "seconds": 7.733
+    },
+    {
+      "partition": 64,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.055,
+      "seconds": 4.975
+    },
+    {
+      "partition": 65,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.081,
+      "seconds": 10.186
+    },
+    {
+      "partition": 66,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.377,
+      "seconds": 5.738
+    },
+    {
+      "partition": 67,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.114,
+      "seconds": 5.918
+    },
+    {
+      "partition": 68,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.143,
+      "seconds": 7.161
+    },
+    {
+      "partition": 69,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.63,
+      "seconds": 5.069
+    },
+    {
+      "partition": 70,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.444,
+      "seconds": 5.527
+    },
+    {
+      "partition": 71,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.005,
+      "seconds": 6.065
+    },
+    {
+      "partition": 72,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.931,
+      "seconds": 5.146
+    },
+    {
+      "partition": 73,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.634,
+      "seconds": 6.835
+    },
+    {
+      "partition": 74,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.968,
+      "seconds": 7.316
+    },
+    {
+      "partition": 75,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.06,
+      "seconds": 6.243
+    },
+    {
+      "partition": 76,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.741,
+      "seconds": 5.283
+    },
+    {
+      "partition": 77,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.883,
+      "seconds": 7.042
+    },
+    {
+      "partition": 78,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.175,
+      "seconds": 5.12
+    },
+    {
+      "partition": 79,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.154,
+      "seconds": 7.348
+    },
+    {
+      "partition": 80,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.06,
+      "seconds": 5.06
+    },
+    {
+      "partition": 81,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.64,
+      "seconds": 7.88
+    },
+    {
+      "partition": 82,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.863,
+      "seconds": 5.944
+    },
+    {
+      "partition": 83,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.003,
+      "seconds": 4.493
+    },
+    {
+      "partition": 84,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.033,
+      "seconds": 6.11
+    },
+    {
+      "partition": 85,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.275,
+      "seconds": 5.506
+    },
+    {
+      "partition": 86,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.08,
+      "seconds": 6.507
+    },
+    {
+      "partition": 87,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.96,
+      "seconds": 7.13
+    },
+    {
+      "partition": 88,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.222,
+      "seconds": 4.619
+    },
+    {
+      "partition": 89,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.535,
+      "seconds": 6.518
+    },
+    {
+      "partition": 90,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.028,
+      "seconds": 5.856
+    },
+    {
+      "partition": 91,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.912,
+      "seconds": 6.377
+    },
+    {
+      "partition": 92,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.338,
+      "seconds": 6.866
+    },
+    {
+      "partition": 93,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.87,
+      "seconds": 5.748
+    },
+    {
+      "partition": 94,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.733,
+      "seconds": 6.101
+    },
+    {
+      "partition": 95,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.404,
+      "seconds": 6.883
+    },
+    {
+      "partition": 96,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.99,
+      "seconds": 6.698
+    },
+    {
+      "partition": 97,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.357,
+      "seconds": 6.09
+    },
+    {
+      "partition": 98,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.367,
+      "seconds": 9.02
+    },
+    {
+      "partition": 99,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.815,
+      "seconds": 9.664
+    },
+    {
+      "partition": 100,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.365,
+      "seconds": 14.052
+    },
+    {
+      "partition": 101,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.364,
+      "seconds": 5.792
+    },
+    {
+      "partition": 102,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.68,
+      "seconds": 13.328
+    },
+    {
+      "partition": 103,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.265,
+      "seconds": 9.08
+    },
+    {
+      "partition": 104,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.109,
+      "seconds": 5.784
+    },
+    {
+      "partition": 105,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.926,
+      "seconds": 13.651
+    },
+    {
+      "partition": 106,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.197,
+      "seconds": 9.139
+    },
+    {
+      "partition": 107,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.47,
+      "seconds": 11.544
+    },
+    {
+      "partition": 108,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.843,
+      "seconds": 6.778
+    },
+    {
+      "partition": 109,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.874,
+      "seconds": 8.823
+    },
+    {
+      "partition": 110,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.923,
+      "seconds": 6.357
+    },
+    {
+      "partition": 111,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.795,
+      "seconds": 15.518
+    },
+    {
+      "partition": 112,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.577,
+      "seconds": 7.434
+    },
+    {
+      "partition": 113,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.536,
+      "seconds": 8.341
+    },
+    {
+      "partition": 114,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.566,
+      "seconds": 8.326
+    },
+    {
+      "partition": 115,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.295,
+      "seconds": 8.078
+    },
+    {
+      "partition": 116,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.06,
+      "seconds": 6.956
+    },
+    {
+      "partition": 117,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.638,
+      "seconds": 6.086
+    },
+    {
+      "partition": 118,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.057,
+      "seconds": 8.839
+    },
+    {
+      "partition": 119,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.443,
+      "seconds": 8.279
+    },
+    {
+      "partition": 120,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.533,
+      "seconds": 7.397
+    },
+    {
+      "partition": 121,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.024,
+      "seconds": 7.303
+    },
+    {
+      "partition": 122,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.002,
+      "seconds": 9.177
+    },
+    {
+      "partition": 123,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.647,
+      "seconds": 7.545
+    },
+    {
+      "partition": 124,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.835,
+      "seconds": 12.522
+    },
+    {
+      "partition": 125,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.324,
+      "seconds": 9.408
+    },
+    {
+      "partition": 126,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.556,
+      "seconds": 9.681
+    },
+    {
+      "partition": 127,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.291,
+      "seconds": 8.213
+    },
+    {
+      "partition": 128,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.698,
+      "seconds": 7.078
+    },
+    {
+      "partition": 129,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.681,
+      "seconds": 17.857
+    },
+    {
+      "partition": 130,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.086,
+      "seconds": 6.915
+    },
+    {
+      "partition": 131,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.777,
+      "seconds": 6.729
+    },
+    {
+      "partition": 132,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.057,
+      "seconds": 8.279
+    },
+    {
+      "partition": 133,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.467,
+      "seconds": 6.835
+    },
+    {
+      "partition": 134,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.764,
+      "seconds": 7.855
+    },
+    {
+      "partition": 135,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.904,
+      "seconds": 7.186
+    },
+    {
+      "partition": 136,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.505,
+      "seconds": 6.941
+    },
+    {
+      "partition": 137,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.85,
+      "seconds": 7.952
+    },
+    {
+      "partition": 138,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.091,
+      "seconds": 8.47
+    },
+    {
+      "partition": 139,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.915,
+      "seconds": 5.331
+    },
+    {
+      "partition": 140,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.488,
+      "seconds": 7.349
+    },
+    {
+      "partition": 141,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.498,
+      "seconds": 6.74
+    },
+    {
+      "partition": 142,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.059,
+      "seconds": 5.493
+    },
+    {
+      "partition": 143,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.868,
+      "seconds": 5.282
+    },
+    {
+      "partition": 144,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.108,
+      "seconds": 6.68
+    },
+    {
+      "partition": 145,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.044,
+      "seconds": 11.631
+    },
+    {
+      "partition": 146,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.681,
+      "seconds": 9.406
+    },
+    {
+      "partition": 147,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.981,
+      "seconds": 9.616
+    },
+    {
+      "partition": 148,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.67,
+      "seconds": 9.492
+    },
+    {
+      "partition": 149,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.133,
+      "seconds": 9.768
+    },
+    {
+      "partition": 150,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.165,
+      "seconds": 9.719
+    },
+    {
+      "partition": 151,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.883,
+      "seconds": 12.375
+    },
+    {
+      "partition": 152,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.669,
+      "seconds": 5.669
+    },
+    {
+      "partition": 153,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.312,
+      "seconds": 6.715
+    },
+    {
+      "partition": 154,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 4.977,
+      "seconds": 11.652
+    },
+    {
+      "partition": 155,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.019,
+      "seconds": 7.121
+    },
+    {
+      "partition": 156,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.386,
+      "seconds": 9.117
+    },
+    {
+      "partition": 157,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.011,
+      "seconds": 8.24
+    },
+    {
+      "partition": 158,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.321,
+      "seconds": 10.032
+    },
+    {
+      "partition": 159,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.276,
+      "seconds": 5.695
+    },
+    {
+      "partition": 160,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 6.013,
+      "seconds": 12.176
+    },
+    {
+      "partition": 161,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 5.857,
+      "seconds": 7.162
+    },
+    {
+      "partition": 162,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.498,
+      "seconds": 3.914
+    },
+    {
+      "partition": 163,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.72,
+      "seconds": 4.006
+    },
+    {
+      "partition": 164,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.688,
+      "seconds": 2.881
+    },
+    {
+      "partition": 165,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.543,
+      "seconds": 2.725
+    },
+    {
+      "partition": 166,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.537,
+      "seconds": 2.729
+    },
+    {
+      "partition": 167,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.686,
+      "seconds": 2.926
+    },
+    {
+      "partition": 168,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.683,
+      "seconds": 2.984
+    },
+    {
+      "partition": 169,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.754,
+      "seconds": 3.189
+    },
+    {
+      "partition": 170,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 3.178,
+      "seconds": 3.577
+    },
+    {
+      "partition": 171,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.575,
+      "seconds": 2.761
+    },
+    {
+      "partition": 172,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.42,
+      "seconds": 2.657
+    },
+    {
+      "partition": 173,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.35,
+      "seconds": 2.535
+    },
+    {
+      "partition": 174,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.37,
+      "seconds": 2.553
+    },
+    {
+      "partition": 175,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.346,
+      "seconds": 2.536
+    },
+    {
+      "partition": 176,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.274,
+      "seconds": 2.46
+    },
+    {
+      "partition": 177,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.268,
+      "seconds": 2.457
+    },
+    {
+      "partition": 178,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.212,
+      "seconds": 2.396
+    },
+    {
+      "partition": 179,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.275,
+      "seconds": 2.469
+    },
+    {
+      "partition": 180,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.244,
+      "seconds": 2.432
+    },
+    {
+      "partition": 181,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.242,
+      "seconds": 2.431
+    },
+    {
+      "partition": 182,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.277,
+      "seconds": 2.459
+    },
+    {
+      "partition": 183,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.419,
+      "seconds": 2.835
+    },
+    {
+      "partition": 184,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.236,
+      "seconds": 2.429
+    },
+    {
+      "partition": 185,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.271,
+      "seconds": 2.457
+    },
+    {
+      "partition": 186,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.267,
+      "seconds": 2.453
+    },
+    {
+      "partition": 187,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.228,
+      "seconds": 2.415
+    },
+    {
+      "partition": 188,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.706,
+      "seconds": 2.895
+    },
+    {
+      "partition": 189,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.922,
+      "seconds": 3.154
+    },
+    {
+      "partition": 190,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.557,
+      "seconds": 2.735
+    },
+    {
+      "partition": 191,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.511,
+      "seconds": 2.689
+    },
+    {
+      "partition": 192,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.462,
+      "seconds": 2.64
+    },
+    {
+      "partition": 193,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.409,
+      "seconds": 2.583
+    },
+    {
+      "partition": 194,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.415,
+      "seconds": 2.592
+    },
+    {
+      "partition": 195,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.437,
+      "seconds": 2.72
+    },
+    {
+      "partition": 196,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.822,
+      "seconds": 3.101
+    },
+    {
+      "partition": 197,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.789,
+      "seconds": 3.434
+    },
+    {
+      "partition": 198,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.706,
+      "seconds": 2.881
+    },
+    {
+      "partition": 199,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.935,
+      "seconds": 3.24
+    },
+    {
+      "partition": 200,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.829,
+      "seconds": 3.053
+    },
+    {
+      "partition": 201,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.74,
+      "seconds": 2.913
+    },
+    {
+      "partition": 202,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.673,
+      "seconds": 2.846
+    },
+    {
+      "partition": 203,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.651,
+      "seconds": 2.826
+    },
+    {
+      "partition": 204,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.495,
+      "seconds": 2.671
+    },
+    {
+      "partition": 205,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.469,
+      "seconds": 2.644
+    },
+    {
+      "partition": 206,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.419,
+      "seconds": 2.591
+    },
+    {
+      "partition": 207,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.514,
+      "seconds": 3.15
+    },
+    {
+      "partition": 208,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.304,
+      "seconds": 2.489
+    },
+    {
+      "partition": 209,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.337,
+      "seconds": 2.521
+    },
+    {
+      "partition": 210,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.316,
+      "seconds": 2.498
+    },
+    {
+      "partition": 211,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.274,
+      "seconds": 2.46
+    },
+    {
+      "partition": 212,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.458,
+      "seconds": 2.641
+    },
+    {
+      "partition": 213,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.49,
+      "seconds": 2.672
+    },
+    {
+      "partition": 214,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.779,
+      "seconds": 3.063
+    },
+    {
+      "partition": 215,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.687,
+      "seconds": 2.869
+    },
+    {
+      "partition": 216,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.457,
+      "seconds": 2.636
+    },
+    {
+      "partition": 217,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.39,
+      "seconds": 2.567
+    },
+    {
+      "partition": 218,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.45,
+      "seconds": 2.633
+    },
+    {
+      "partition": 219,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.477,
+      "seconds": 2.658
+    },
+    {
+      "partition": 220,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.441,
+      "seconds": 2.671
+    },
+    {
+      "partition": 221,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.352,
+      "seconds": 2.533
+    },
+    {
+      "partition": 222,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.352,
+      "seconds": 2.525
+    },
+    {
+      "partition": 223,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.428,
+      "seconds": 2.605
+    },
+    {
+      "partition": 224,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.591,
+      "seconds": 2.768
+    },
+    {
+      "partition": 225,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.546,
+      "seconds": 2.724
+    },
+    {
+      "partition": 226,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.569,
+      "seconds": 2.746
+    },
+    {
+      "partition": 227,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.669,
+      "seconds": 2.951
+    },
+    {
+      "partition": 228,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.302,
+      "seconds": 2.478
+    },
+    {
+      "partition": 229,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.307,
+      "seconds": 2.482
+    },
+    {
+      "partition": 230,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.244,
+      "seconds": 2.42
+    },
+    {
+      "partition": 231,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.251,
+      "seconds": 2.429
+    },
+    {
+      "partition": 232,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.76,
+      "seconds": 2.935
+    },
+    {
+      "partition": 233,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.803,
+      "seconds": 2.979
+    },
+    {
+      "partition": 234,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.651,
+      "seconds": 2.816
+    },
+    {
+      "partition": 235,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.621,
+      "seconds": 2.895
+    },
+    {
+      "partition": 236,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.365,
+      "seconds": 2.529
+    },
+    {
+      "partition": 237,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.353,
+      "seconds": 2.526
+    },
+    {
+      "partition": 238,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.313,
+      "seconds": 2.478
+    },
+    {
+      "partition": 239,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.521,
+      "seconds": 2.744
+    },
+    {
+      "partition": 240,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.365,
+      "seconds": 2.536
+    },
+    {
+      "partition": 241,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.506,
+      "seconds": 2.718
+    },
+    {
+      "partition": 242,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.313,
+      "seconds": 2.492
+    },
+    {
+      "partition": 243,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.32,
+      "seconds": 2.504
+    },
+    {
+      "partition": 244,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.46,
+      "seconds": 2.631
+    },
+    {
+      "partition": 245,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.527,
+      "seconds": 2.695
+    },
+    {
+      "partition": 246,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.577,
+      "seconds": 2.856
+    },
+    {
+      "partition": 247,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.491,
+      "seconds": 2.657
+    },
+    {
+      "partition": 248,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.535,
+      "seconds": 2.816
+    },
+    {
+      "partition": 249,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.451,
+      "seconds": 2.62
+    },
+    {
+      "partition": 250,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.409,
+      "seconds": 2.578
+    },
+    {
+      "partition": 251,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.44,
+      "seconds": 2.614
+    },
+    {
+      "partition": 252,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.378,
+      "seconds": 2.549
+    },
+    {
+      "partition": 253,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.406,
+      "seconds": 2.58
+    },
+    {
+      "partition": 254,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.368,
+      "seconds": 2.531
+    },
+    {
+      "partition": 255,
+      "status": "proved",
+      "network_forms": [
+        "payload",
+        "payload"
+      ],
+      "controller_seconds": 2.206,
+      "seconds": 4.173
+    }
+  ],
+  "certified": true,
+  "wall_seconds": 337.8,
+  "circuit_files_checked": true
+}

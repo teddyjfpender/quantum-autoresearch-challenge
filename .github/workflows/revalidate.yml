@@ -91,8 +91,12 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/challenges/femoco/taxonomy" "$root/taxonomy"
           seed="$(python3 challenge.py seed --root "$root")"
           contract=challenges/femoco/benchmark.json
+          # Tracks with deterministic coverage run it at the full stage, as the judge does.
+          coverage="$(jq -r --arg track "${SUBMISSION%%/*}" '.tracks[] | select(.name == $track) | .validation.coverage // empty' "$contract")"
+          extra=()
+          if [[ -n "$coverage" ]]; then extra=(--coverage "$coverage"); fi
           "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$(jq -r '.validation.screen.samples' "$contract")" \
             --engine "$(jq -r '.validation.screen.engine' "$contract")" --server-seed "$seed"
           "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$(jq -r '.validation.full.samples' "$contract")" \
-            --engine "$FULL_ENGINE" --server-seed "$seed"
+            --engine "$FULL_ENGINE" --server-seed "$seed" "${extra[@]}"
           python3 challenge.py compare-row femoco --submission "$SUBMISSION" --score "$root/score.json" --seed "$seed" | tee -a "$GITHUB_STEP_SUMMARY"

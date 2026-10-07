@@ -62,7 +62,24 @@ FeMoco runs two stages, set in its `benchmark.json`:
 The reference engine is the original, straightforward evaluator. The sliced engine is a faster
 implementation of the same checks; its design, its equivalence evidence and its limits are in
 `challenges/femoco/spec/FAST-EVALUATOR.md`. Both must pass. Every lane must satisfy every
-check; there is no tolerance.
+check; no failed lane is allowed. Gaussian quantum comparisons use the tolerances specified
+by that tracker.
+
+The staging `reiher-rigorous` and `li-rigorous` tracks add deterministic coverage at the full
+stage: one representative of every reachable selected-term pair, under both controls and
+every value of the outer and inner spin bits, plus the alias comparator boundaries. It has a
+separate lane set and does not change sampled resource counts. The optional exhaustive mode
+covers every finite control/uniform/second-pass input within its cap. Neither mode exhausts
+measurement outcomes: each batch draws one outcome stream, keyed in a judged run by the
+server seed. The judge requires this coverage on those tracks and nothing more.
+
+Two further tools are audit evidence only and are not part of the judge. SMT tooling checks
+restoration, cleanup, measurement-independence and trace-reduction obligations of the
+classical controller; only UNSAT proves an obligation, and a timeout is inconclusive. A
+symbolic checker compares the circuit's system gate word with the spec's reference word for
+every input and measurement outcome, in the evaluator's lowered-op model and on a stated
+trust base; it is not a machine-checked proof. See
+[the verification guide](../challenges/femoco/tools/verification/README.md).
 
 ## What a row shows
 
@@ -76,9 +93,31 @@ check; there is no tolerance.
 - **Not an audit of the sliced engine.** A row's `engine` column says which engines passed it.
   Headline rows are re-validated on the reference engine at full size before the challenge
   leaves `staging` ([ROADMAP.md](ROADMAP.md)).
+- **Not a symbolic certificate.** A row rests on sampled lanes. The circuit a challenge
+  publishes as its final result on a track must also carry a complete symbolic certificate,
+  published with the statement of what it proves ([final candidates](#final-candidates)).
 - **Not a statement about hardware cost.** Only the counted metrics are compared.
 - **Not novelty.** The declared architecture is checked against the registry's rules by a
   maintainer when it is new, not against the literature.
+
+## Final candidates
+
+A ledger row is enough for a circuit to stand on the board. It is not enough for the circuit a
+challenge names as its final result on a track: the one quoted in a paper, a release note or
+the site's headline once the challenge is live. That circuit must have, in the repository:
+
+1. **A complete symbolic certificate**: every partition of the whole input and
+   measurement-outcome domain proved, issued by the challenge's symbolic checker at the
+   committed version, and bound by SHA-256 to the circuit's files and the pinned spec. A
+   partial run, a timeout or an unsupported structure is not a certificate.
+2. **The proved part, stated beside it**: what the certificate shows, in which model, and what
+   it rests on. A result is never described as proved beyond that statement.
+3. **Its ledger row and reference-engine re-validation**, as for any headline row.
+
+If the checker does not support the candidate's structure, the checker is extended and
+re-tested, or another circuit is the final candidate. For FeMoco the checker, the form of the
+certificate and its trust base are in
+[the verification guide](../challenges/femoco/tools/verification/README.md).
 
 ## Changing the contract
 
@@ -86,3 +125,9 @@ A spec, an acceptance rule, the score or the evaluator's behaviour changes only 
 reviewed pull request that starts a new contract epoch (`contractEpoch` in `benchmark.json`).
 Rows of an earlier epoch are kept and marked by their `verifier_sha256`; they are never edited.
 A confirmed soundness bug is handled the same way, with affected rows re-validated.
+
+The `femoco-sa-rigorous-v2` epoch adds separate rigorous tracks and these optional verifier
+capabilities. Historical estimated rows retain their original verifier digest. A staging
+track may declare a pending baseline linked to its local promotion catalogue while it waits
+for fresh authenticated submissions. Local promotion evidence never becomes a signed row
+through a maintainer edit, and pending baselines are forbidden for live tracks.

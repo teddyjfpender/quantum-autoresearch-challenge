@@ -236,6 +236,9 @@ impl SaNestedMap {
 }
 
 impl LaneMap for SaNestedMap {
+    fn as_sa_nested(&self) -> Option<&Self> {
+        Some(self)
+    }
     fn family(&self) -> &str {
         FAMILY
     }

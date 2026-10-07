@@ -83,6 +83,9 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
             }),
         }
     });
+    if let Some(v) = &ev.validation {
+        out["metrics"]["validation"] = v.clone();
+    }
     // sos-sa runs only (spec/SPEC-SA.md section 6): the spectrum-amplified scoring view.
     if ev.facts.encoding == crate::spec::sa::ENCODING {
         out["metrics"]["spectral_amplification"] = conventions::sa_view(

@@ -30,6 +30,11 @@
 //! same code, and `score.json` does not record the engine. `--dump-verdicts FILE` writes one byte
 //! per sampled lane, in sample order (`validate::VERDICT_PASS`, a failure category index, or
 //! `validate::VERDICT_UNCHECKED`), for the equivalence harness (tools/fastsim/equivalence.sh).
+//!
+//! Deterministic input coverage: `--coverage terms|exhaustive` adds a separate lane set after
+//! the sampled run, without changing resource tallies. `--export-symbolic FILE` writes the
+//! trusted lowered controller and alias tables for independent SMT audit. Neither option
+//! certifies exact quantum equivalence; see tools/verification/README.md for the domains.
 use femoco_walk::circuit::read_ops;
 use femoco_walk::fiat_shamir::{self, quicknet, AuditBeacon, Digests};
 use femoco_walk::score::{self, append_results_row, score_json, Inputs, ResultsRow};
@@ -46,6 +51,8 @@ const FREEZE_FORMAT: &str = "femoco-audit-freeze-v1";
 const AUDIT_PROTOCOL: &str = "femoco-fresh-seed-v1";
 
 struct Args {
+    coverage: Option<femoco_walk::coverage::Mode>,
+    export_symbolic: Option<PathBuf>,
     samples: usize,
     samples_given: bool,
     note: String,
@@ -62,6 +69,8 @@ struct Args {
 
 fn args() -> Result<Args, String> {
     let mut a = Args {
+        coverage: None,
+        export_symbolic: None,
         samples: score::DEFAULT_SAMPLES,
         samples_given: false,
         note: String::new(),
@@ -88,6 +97,14 @@ fn args() -> Result<Args, String> {
                 .ok_or(format!("{key} needs a value"))
         };
         match key.as_str() {
+            "--coverage" => {
+                a.coverage = Some(match val()?.as_str() {
+                    "terms" => femoco_walk::coverage::Mode::Terms,
+                    "exhaustive" => femoco_walk::coverage::Mode::Exhaustive,
+                    other => return Err(format!("--coverage: unknown mode {other}")),
+                })
+            }
+            "--export-symbolic" => a.export_symbolic = Some(val()?.into()),
             "--samples" => {
                 a.samples = val()?.parse().map_err(|e| format!("--samples: {e}"))?;
                 a.samples_given = true;
@@ -402,7 +419,17 @@ fn run(
         std::fs::write(path, &probe.verdicts)
             .map_err(|e| format!("--dump-verdicts {}: {e}", path.display()))?;
     }
-    Ok((ev?, circuit))
+    let mut ev = ev?;
+    if a.coverage.is_some() || a.export_symbolic.is_some() {
+        ev.validation = femoco_walk::coverage::check(
+            &inputs,
+            engine,
+            a.coverage,
+            a.export_symbolic.as_deref(),
+            a.server_seed.as_ref(),
+        )?;
+    }
+    Ok((ev, circuit))
 }
 
 /// `metrics.audit` of an audited run's `score.json`.
@@ -450,6 +477,9 @@ fn main() {
     };
     // A stale score.json must never survive a failed run.
     let _ = std::fs::remove_file(a.root.join("score.json"));
+    if let Some(path) = &a.export_symbolic {
+        let _ = std::fs::remove_file(path);
+    }
     let audit = if a.fail.is_some() {
         None
     } else {

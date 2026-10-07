@@ -1,18 +1,24 @@
 # Task for an optimisation agent: FeMoco walk step
 
 Lower the score of a track, **Toffolis per walk step x peak logical qubits**, with a circuit
-the trusted evaluator accepts. Each track's baseline is the construction of Low et al. 2025 as
-this evaluator counts it (`reiher` 9,600 x 1,040, `li` 13,906 x 1,347). General rules are in
+the trusted evaluator accepts. The original tracks' baselines are the construction of Low et al.
+2025 as this evaluator counts it (`reiher` 9,600 x 1,040, `li` 13,906 x 1,347). Rigorous staging
+tracks have separately rebuilt baseline candidates awaiting judge recording. General rules are in
 [AGENTS.md](../../AGENTS.md); this file is
 the FeMoco-specific part.
 
 ## Fixed
 
-- **Tracks.** `reiher` (spec `reiher-sa-est-v1`) and `li` (spec `li-sa-est-v1`).
+- **Tracks.** `reiher` (`reiher-sa-est-v1`) and `li` (`li-sa-est-v1`), plus the separate staging
+  tracks `reiher-rigorous` (`reiher-sa-v1`) and `li-rigorous` (`li-sa-v1`).
 - **Standard.** The spectrum-amplified encoding with Low et al. 2025's estimated rounding
   class ([spec/SPEC-SA.md](spec/SPEC-SA.md), section 14). The evaluator enforces it from the
   spec: the lane map's table resolutions and rotation bits must meet their precision, and every
   sampled lane must apply the declared operator exactly.
+  The rigorous tracks replace the coefficient rule with the exact 0.1 mHa 1-norm rule on
+  the stored Hamiltonian and require deterministic term-pair/boundary coverage. The payload
+  and rotation words are unchanged. See [tools/verification/README.md](tools/verification/README.md)
+  for the proof scopes and the reproducible catalogue of promoted frontier circuits.
 - **What is counted.** Toffolis: executed `CCX` and `CCZ` plus the charge of each Givens
   rotation, averaged over lanes. Qubits: the high-water mark of live qubits
   ([spec/DESIGN.md](spec/DESIGN.md), section 8).
@@ -107,3 +113,5 @@ One pull request: your `src/walk/` changes, `submissions/<track>/<id>/submission
 4,096 lanes with the reference engine and 524,288 with the sliced engine, under a seed derived
 from the ledger key, and a bot records it if it earns a standing
 ([spec/SUBMISSIONS.md](../../spec/SUBMISSIONS.md), [spec/SCORING.md](../../spec/SCORING.md)).
+Rigorous tracks additionally run deterministic term-pair and alias-boundary coverage;
+`challenge.py run` adds that track's coverage flag automatically.

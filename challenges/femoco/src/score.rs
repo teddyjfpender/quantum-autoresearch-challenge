@@ -73,6 +73,9 @@ pub struct Inputs<'a> {
 /// A passing evaluation.
 #[derive(Clone, Debug)]
 pub struct Evaluation {
+    /// Optional deterministic coverage, separate from sampled resource counts. Never a
+    /// claim of exact quantum equivalence; see `coverage` and tools/verification/README.md.
+    pub validation: Option<serde_json::Value>,
     pub family: FamilyOut,
     pub facts: CircuitFacts,
     pub verdicts: Vec<AxisVerdict>,
@@ -409,6 +412,7 @@ pub fn evaluate_with(
         0
     };
     Ok(Evaluation {
+        validation: None,
         family: fam,
         verdicts,
         lambda: lm.lambda_decl(),
@@ -453,7 +457,7 @@ pub fn spin_swap_toffoli(system_qubits: usize) -> f64 {
 ///   reported, and acceptance is Low et al.'s estimated procedure (`LaneMap::rounding_estimate`).
 ///
 /// The rule and class come from the trusted spec, never from the lane map.
-fn check_lanemap(
+pub(crate) fn check_lanemap(
     lm: &dyn LaneMap,
     spec: &dyn EncodingSpec,
 ) -> Result<(Exact, Option<RoundingRule>, Option<Estimate>), String> {

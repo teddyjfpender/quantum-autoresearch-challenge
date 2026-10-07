@@ -36,5 +36,7 @@ standard, a trusted evaluator and a starting board. None is open yet.
 
 1. FeMoco: move from `staging` to `live` once the gates in `data/site/activation.json` are met.
 2. Reference-engine re-validation of the headline rows of each track.
-3. The first of the planned challenges, chosen by how soon its evaluator can be made the
+3. A complete symbolic certificate, with its statement of what is proved, for the final
+   candidate of each track ([VALIDATION.md](VALIDATION.md#final-candidates)).
+4. The first of the planned challenges, chosen by how soon its evaluator can be made the
    arbiter.

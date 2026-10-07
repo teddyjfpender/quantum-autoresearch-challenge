@@ -4168,6 +4168,32 @@
      "scorePublished": 21270566
     }
    ]
+  },
+  {
+   "track": "reiher-rigorous",
+   "title": "Reiher active space — rigorous coefficient error (54 orbitals)",
+   "spec": "reiher-sa-v1",
+   "circuits": 0,
+   "best": null,
+   "baseline": null,
+   "belowBaseline": null,
+   "architectures": [],
+   "front": [],
+   "history": [],
+   "targets": []
+  },
+  {
+   "track": "li-rigorous",
+   "title": "Li active space — rigorous coefficient error (76 orbitals)",
+   "spec": "li-sa-v1",
+   "circuits": 0,
+   "best": null,
+   "baseline": null,
+   "belowBaseline": null,
+   "architectures": [],
+   "front": [],
+   "history": [],
+   "targets": []
   }
  ]
 }

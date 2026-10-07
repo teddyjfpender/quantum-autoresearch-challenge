@@ -15,13 +15,16 @@ circuit.
 | --- | --- | --- |
 | `reiher` | 54 orbitals, 108 spin orbitals (Reiher et al. 2017) | `reiher-sa-est-v1` |
 | `li` | 76 orbitals, 152 spin orbitals (Li et al. 2019) | `li-sa-est-v1` |
+| `reiher-rigorous` (staging) | Same 54-orbital stored Hamiltonian; exact coefficient rule | `reiher-sa-v1` |
+| `li-rigorous` (staging) | Same 76-orbital stored Hamiltonian; exact coefficient rule | `li-sa-v1` |
 
-## One acceptance standard
+## Acceptance standards
 
-Both tracks use the spectrum-amplified sum-of-squares encoding of Low et al. 2025 with their
-estimated rounding class: the coefficient and rotation precision their paper assumes. There are
-no other encodings or error rules here, so every circuit of a track answers the same question
-and can be compared with every other. The standard is defined in
+The original `reiher` and `li` tracks use the spectrum-amplified sum-of-squares encoding of
+Low et al. 2025 with their estimated rounding class. The rigorous tracks enforce the existing
+exact 0.1 mHa coefficient 1-norm rule on the stored Hamiltonian and add deterministic
+selected-term-pair and alias-boundary checks. Their scores and baselines are separate.
+The encoding is defined in
 [spec/SPEC-SA.md](spec/SPEC-SA.md).
 
 A circuit is valid when, on every sampled lane, it applies exactly the term the lane map
@@ -29,9 +32,14 @@ declares, with the right sign, restores its control, selection and ancilla qubit
 phase behind, and is the identity when the control is off. Skipping uncomputation or leaking
 phase makes a run fail; it never makes it cheaper.
 
+The promotion catalogue and exhaustive/symbolic obligations are described in
+[tools/verification/README.md](tools/verification/README.md). Controller proofs do not by
+themselves prove the entire quantum operator. The new tracks have pending baselines until
+fresh judge runs create their ledger rows.
+
 ## Reference numbers
 
-The baseline of each track is the construction the challenge starts from: the walk step of Low
+The baseline of each original estimated track is the construction the challenge starts from: the walk step of Low
 et al. 2025, the research frontier for FeMoco, built with its published parameters and validated
 by this evaluator. Everything on the board is measured against it.
 
@@ -77,7 +85,7 @@ contract.
 | Path | Trust | What it is |
 | --- | --- | --- |
 | [`src/walk/`](src/walk/) | **editable** | Circuit builders. [`sa_low/README.md`](src/walk/sa_low/README.md) is the lever reference. |
-| `src/` (the rest) | trusted | Op format, simulators, lane maps, scoring, the two binaries. |
+| `src/` (the rest) | trusted | Op format, simulators, lane maps, scoring, build/evaluation binaries. |
 | [`specs/`](specs/) | trusted | The pinned Hamiltonian specs and their certificates. |
 | [`tests/`](tests/) | trusted | Harness tests and the byte-identity pins of recorded circuits. |
 | [`spec/`](spec/) | | Design contract, the encoding spec, conventions, the fast evaluator. |
@@ -89,6 +97,7 @@ contract.
 
 These are logical resource counts for one walk step under a stated error model. They are not
 a claim of quantum advantage, and they say nothing about physical qubits, runtime or the
-classical tractability of FeMoco. Validation is by sampling: it bounds the fraction of failing
-lanes and is not a proof ([validation](../../spec/VALIDATION.md)). References are in
+classical tractability of FeMoco. Sampled validation bounds the fraction of failing lanes.
+Deterministic coverage and symbolic obligations have the separate scopes described above
+([validation](../../spec/VALIDATION.md)). References are in
 [spec/REFERENCES.md](spec/REFERENCES.md).

@@ -17,6 +17,11 @@ FeMoco that is the walk step of Low et al. 2025, the research frontier for the m
 baseline is an ordinary ledger row, so "how far below the baseline" compares like with like.
 The paper's own figures are kept in `targets.json` with their conventions.
 
+A new staging track can instead name a pending baseline candidate in its promotion
+catalogue until a fresh judge run records it. It has no recorded baseline score or
+"below baseline" percentage during that interval. Pending baselines cannot be used on live
+tracks; the rigorous FeMoco tracks do not inherit estimated-track rows.
+
 ## What gets recorded
 
 A validated circuit is recorded in the ledger when at least one of these holds. Each is named in

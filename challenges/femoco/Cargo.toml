@@ -17,6 +17,11 @@ path = "src/bin/build_circuit.rs"
 required-features = ["walk"]
 
 [[bin]]
+name = "build_rigorous"
+path = "src/bin/build_rigorous.rs"
+required-features = ["walk"]
+
+[[bin]]
 name = "eval_circuit"
 path = "src/bin/eval_circuit.rs"
 

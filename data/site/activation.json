@@ -39,6 +39,11 @@
    "evidence": "spec/ROADMAP.md"
   },
   {
+   "name": "Symbolic certificate, with its statement of what is proved, for the final candidate of each track",
+   "status": "pending",
+   "evidence": "spec/VALIDATION.md (final candidates); one candidate certified so far: challenges/femoco/rigorous/exact-reiher-fewest-toffoli.json"
+  },
+  {
    "name": "Independent audit of the sliced engine",
    "status": "pending",
    "evidence": "challenges/femoco/spec/FAST-EVALUATOR.md"
