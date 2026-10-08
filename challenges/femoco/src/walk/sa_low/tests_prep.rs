@@ -108,6 +108,14 @@ fn joint_alias_is_exact_estimated_class_and_mutant_fails() {
         ..base
     };
     let mut map = lane_map(s, p).unwrap();
+    let parent = lane_map(
+        s,
+        Params {
+            tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cb"),
+            ..p
+        },
+    )
+    .unwrap();
     let RoundingClass::EstimatedLow2025(params) = &s.rounding_class else {
         panic!("Li estimated spec needs its estimated class");
     };
@@ -115,6 +123,11 @@ fn joint_alias_is_exact_estimated_class_and_mutant_fails() {
     let high_rows = [3, 4, 5, 18, 24, 25, 31, 33, 34, 38];
     for (q, t) in map.inner.iter().skip(s.n).enumerate() {
         assert_eq!(t.counts(s.b + 1).iter().sum::<u64>(), 1 << 14);
+        assert_eq!(
+            t.counts(s.b + 1),
+            parent.inner[s.n + q].counts(s.b + 1),
+            "table {q} changed item counts"
+        );
         assert_eq!(&t.alt[61..64], &[t.alt[63]; 3], "table {q}");
         assert!(
             t.keep
@@ -127,6 +140,10 @@ fn joint_alias_is_exact_estimated_class_and_mutant_fails() {
             assert_eq!((t.alt[row] ^ t.alt[63]) & 32, 0, "table {q}, row {row}");
         }
     }
+    assert_eq!(
+        map.rounding_error(s).unwrap(),
+        parent.rounding_error(s).unwrap()
+    );
     let t = &mut map.inner[s.n];
     t.alt[0] = (t.alt[0] + 1) % (s.b as u32 + 1);
     assert!(map.rounding_estimate(s, params).is_err());
