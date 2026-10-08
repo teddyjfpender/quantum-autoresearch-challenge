@@ -21,8 +21,8 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 270,
- "ledgerHead": "d423993c89e24c61aca72c3ce76168c06fedea29bb4729a7da0d348d9dc080e8",
+ "ledgerRows": 271,
+ "ledgerHead": "892297887bd56246daa9eca90f15b44c307e74498943cb16367fad0ff66f40d9",
  "tracks": [
   {
    "track": "reiher",
@@ -2206,31 +2206,31 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 125,
+   "circuits": 126,
    "best": {
-    "unixTime": 1791370986,
+    "unixTime": 1791455459,
     "track": "li",
     "architecture": "onehot-split",
-    "toffoli": 17675.509,
+    "toffoli": 17651.583,
     "qubits": 471,
-    "toffoliTimesQubits": 8325164.739,
-    "score": 8325164.739,
+    "toffoliTimesQubits": 8313895.593,
+    "score": 8313895.593,
     "samples": 524288,
     "engine": "reference-4096+sliced-524288",
-    "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
+    "opsSha256": "e6a10f8fd32ef5b4d7710edb83f122533e617c8bc064775d30a11f12b80c4111",
     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-    "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
-    "pr": 5,
+    "commit": "22dc64ef8c3b630dca6d33a1dba500edf56d9876",
+    "pr": 12,
     "author": "teddyjfpender",
     "model": "GPT-6",
     "harness": "Codex",
-    "submission": "li/kl-aligned-inner-m8",
+    "submission": "li/kl-joint-alias-m8",
     "kind": "submission",
     "standing": [
      "architecture-elite",
      "front"
     ],
-    "note": "Sparse high keep bit in folded inner alias read"
+    "note": "Joint sparse keep and aligned alt inner alias"
    },
    "baseline": {
     "unixTime": 1791233859,
@@ -2256,38 +2256,38 @@
     ],
     "note": "Low et al. 2025 construction on the Li active space"
    },
-   "belowBaseline": 0.55555,
+   "belowBaseline": 0.556152,
    "architectures": [
     {
      "id": "onehot-split",
      "name": "Split one-hot with paired corrections",
      "parent": "onehot",
-     "circuits": 74,
+     "circuits": 75,
      "firstUnixTime": 1790414311,
      "elite": {
-      "unixTime": 1791370986,
+      "unixTime": 1791455459,
       "track": "li",
       "architecture": "onehot-split",
-      "toffoli": 17675.509,
+      "toffoli": 17651.583,
       "qubits": 471,
-      "toffoliTimesQubits": 8325164.739,
-      "score": 8325164.739,
+      "toffoliTimesQubits": 8313895.593,
+      "score": 8313895.593,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
+      "opsSha256": "e6a10f8fd32ef5b4d7710edb83f122533e617c8bc064775d30a11f12b80c4111",
       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-      "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
-      "pr": 5,
+      "commit": "22dc64ef8c3b630dca6d33a1dba500edf56d9876",
+      "pr": 12,
       "author": "teddyjfpender",
       "model": "GPT-6",
       "harness": "Codex",
-      "submission": "li/kl-aligned-inner-m8",
+      "submission": "li/kl-joint-alias-m8",
       "kind": "submission",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "Sparse high keep bit in folded inner alias read"
+      "note": "Joint sparse keep and aligned alt inner alias"
      },
      "fewestQubits": {
       "unixTime": 1790971147,
@@ -2708,6 +2708,31 @@
         "front"
        ],
        "note": "Sparse high keep bit in folded inner alias read"
+      },
+      {
+       "unixTime": 1791455459,
+       "track": "li",
+       "architecture": "onehot-split",
+       "toffoli": 17651.583,
+       "qubits": 471,
+       "toffoliTimesQubits": 8313895.593,
+       "score": 8313895.593,
+       "samples": 524288,
+       "engine": "reference-4096+sliced-524288",
+       "opsSha256": "e6a10f8fd32ef5b4d7710edb83f122533e617c8bc064775d30a11f12b80c4111",
+       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+       "commit": "22dc64ef8c3b630dca6d33a1dba500edf56d9876",
+       "pr": 12,
+       "author": "teddyjfpender",
+       "model": "GPT-6",
+       "harness": "Codex",
+       "submission": "li/kl-joint-alias-m8",
+       "kind": "submission",
+       "standing": [
+        "architecture-elite",
+        "front"
+       ],
+       "note": "Joint sparse keep and aligned alt inner alias"
       }
      ]
     },
@@ -3444,29 +3469,29 @@
      "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q50_1, keep 9+9, blocks 3/3"
     },
     {
-     "unixTime": 1791370986,
+     "unixTime": 1791455459,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 17675.509,
+     "toffoli": 17651.583,
      "qubits": 471,
-     "toffoliTimesQubits": 8325164.739,
-     "score": 8325164.739,
+     "toffoliTimesQubits": 8313895.593,
+     "score": 8313895.593,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "7649e2172c2e645070004f438503cbdce65e3e022d7fd26109b68c8697d279d4",
+     "opsSha256": "e6a10f8fd32ef5b4d7710edb83f122533e617c8bc064775d30a11f12b80c4111",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "fb83357d3bc0bce7a1d9ac93652607c8ee5bc26f",
-     "pr": 5,
+     "commit": "22dc64ef8c3b630dca6d33a1dba500edf56d9876",
+     "pr": 12,
      "author": "teddyjfpender",
      "model": "GPT-6",
      "harness": "Codex",
-     "submission": "li/kl-aligned-inner-m8",
+     "submission": "li/kl-joint-alias-m8",
      "kind": "submission",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "Sparse high keep bit in folded inner alias read"
+     "note": "Joint sparse keep and aligned alt inner alias"
     },
     {
      "unixTime": 1790963522,
@@ -4152,6 +4177,31 @@
       "front"
      ],
      "note": "Sparse high keep bit in folded inner alias read"
+    },
+    {
+     "unixTime": 1791455459,
+     "track": "li",
+     "architecture": "onehot-split",
+     "toffoli": 17651.583,
+     "qubits": 471,
+     "toffoliTimesQubits": 8313895.593,
+     "score": 8313895.593,
+     "samples": 524288,
+     "engine": "reference-4096+sliced-524288",
+     "opsSha256": "e6a10f8fd32ef5b4d7710edb83f122533e617c8bc064775d30a11f12b80c4111",
+     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+     "commit": "22dc64ef8c3b630dca6d33a1dba500edf56d9876",
+     "pr": 12,
+     "author": "teddyjfpender",
+     "model": "GPT-6",
+     "harness": "Codex",
+     "submission": "li/kl-joint-alias-m8",
+     "kind": "submission",
+     "standing": [
+      "architecture-elite",
+      "front"
+     ],
+     "note": "Joint sparse keep and aligned alt inner alias"
     }
    ],
    "targets": [
