@@ -68,6 +68,87 @@ fn sparse_keep_alias_is_exact_estimated_class() {
     }
 }
 
+#[test]
+fn joint_alias_small_table_counts_and_mutant() {
+    use crate::lanemap::df_nested::Table;
+    let table = Table {
+        k: 2,
+        mu: 2,
+        keep: vec![1, 0, 3, 0],
+        alt: vec![1, 2, 0, 1],
+    };
+    let mut enumerated = vec![0; 4];
+    for bucket in 0..4 {
+        for draw in 0..4 {
+            let chosen = if draw < table.keep[bucket] {
+                bucket
+            } else {
+                table.alt[bucket] as usize
+            };
+            enumerated[chosen] += 1;
+        }
+    }
+    assert_eq!(table.counts(4), enumerated);
+    let mut mutant = table.clone();
+    mutant.alt[0] = 2;
+    assert_ne!(mutant.counts(4), enumerated);
+}
+
+#[test]
+#[ignore = "pinned Li estimated class; run in release"]
+fn joint_alias_is_exact_estimated_class_and_mutant_fails() {
+    use crate::spec::rounding::RoundingClass;
+    let boxed = pinned("li-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cbf"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        ..base
+    };
+    let mut map = lane_map(s, p).unwrap();
+    let parent = lane_map(
+        s,
+        Params {
+            tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cb"),
+            ..p
+        },
+    )
+    .unwrap();
+    let RoundingClass::EstimatedLow2025(params) = &s.rounding_class else {
+        panic!("Li estimated spec needs its estimated class");
+    };
+    map.rounding_estimate(s, params).unwrap();
+    let high_rows = [3, 4, 5, 18, 24, 25, 31, 33, 34, 38];
+    for (q, t) in map.inner.iter().skip(s.n).enumerate() {
+        assert_eq!(t.counts(s.b + 1).iter().sum::<u64>(), 1 << 14);
+        assert_eq!(
+            t.counts(s.b + 1),
+            parent.inner[s.n + q].counts(s.b + 1),
+            "table {q} changed item counts"
+        );
+        assert_eq!(&t.alt[61..64], &[t.alt[63]; 3], "table {q}");
+        assert!(
+            t.keep
+                .iter()
+                .enumerate()
+                .all(|(i, &k)| k < 128 || high_rows.contains(&i)),
+            "table {q} has a high keep outside the joint rows"
+        );
+        for row in 18..38 {
+            assert_eq!((t.alt[row] ^ t.alt[63]) & 32, 0, "table {q}, row {row}");
+        }
+    }
+    assert_eq!(
+        map.rounding_error(s).unwrap(),
+        parent.rounding_error(s).unwrap()
+    );
+    let t = &mut map.inner[s.n];
+    t.alt[0] = (t.alt[0] + 1) % (s.b as u32 + 1);
+    assert!(map.rounding_estimate(s, params).is_err());
+}
+
 /// Dumps the alias tables and the weights they round (`PF_OUT` directory) for the pinned specs.
 #[test]
 #[ignore = "pinned specs; run in release"]
