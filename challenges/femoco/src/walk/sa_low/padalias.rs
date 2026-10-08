@@ -322,38 +322,46 @@ const LI_SPARSE_ALIAS: &str = r###"
 #[must_use]
 pub fn sparse_li_table(q: usize) -> Table {
     static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
-    let tables = TABLES.get_or_init(|| {
-        let decode = |s: &str| -> Vec<u32> {
-            assert_eq!(s.len(), 128, "sparse Li alias column has 64 bytes");
-            (0..64)
-                .map(|i| u32::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
-                .collect()
-        };
-        let out: Vec<Table> = LI_SPARSE_ALIAS
-            .lines()
-            .filter(|line| !line.is_empty() && !line.starts_with('#'))
-            .enumerate()
-            .map(|(q, line)| {
-                let mut fields = line.split_whitespace();
-                assert_eq!(fields.next().unwrap().parse::<usize>().unwrap(), q);
-                let keep = decode(fields.next().unwrap());
-                let alt = decode(fields.next().unwrap());
-                assert!(fields.next().is_none());
-                assert!(keep[58..].iter().all(|&k| k == 0));
-                assert!(alt.iter().all(|&a| a < 58));
-                assert!(alt[61..64].iter().all(|&a| a == alt[63]));
-                Table {
-                    k: 6,
-                    mu: 8,
-                    keep,
-                    alt,
-                }
-            })
-            .collect();
-        assert_eq!(out.len(), 285, "Li has 285 square inner tables");
-        out
-    });
-    tables[q].clone()
+    TABLES.get_or_init(|| parse_li_tables(LI_SPARSE_ALIAS))[q].clone()
+}
+
+/// The joint sparse-keep and aligned-alt Li arrangement (`.f`).
+#[must_use]
+pub fn joint_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    TABLES.get_or_init(|| parse_li_tables(super::jointalias::LI_JOINT_ALIAS))[q].clone()
+}
+
+fn parse_li_tables(text: &str) -> Vec<Table> {
+    let decode = |s: &str| -> Vec<u32> {
+        assert_eq!(s.len(), 128, "sparse Li alias column has 64 bytes");
+        (0..64)
+            .map(|i| u32::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
+            .collect()
+    };
+    let out: Vec<Table> = text
+        .lines()
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .enumerate()
+        .map(|(q, line)| {
+            let mut fields = line.split_whitespace();
+            assert_eq!(fields.next().unwrap().parse::<usize>().unwrap(), q);
+            let keep = decode(fields.next().unwrap());
+            let alt = decode(fields.next().unwrap());
+            assert!(fields.next().is_none());
+            assert!(keep[58..].iter().all(|&k| k == 0));
+            assert!(alt.iter().all(|&a| a < 58));
+            assert!(alt[61..64].iter().all(|&a| a == alt[63]));
+            Table {
+                k: 6,
+                mu: 8,
+                keep,
+                alt,
+            }
+        })
+        .collect();
+    assert_eq!(out.len(), 285, "Li has 285 square inner tables");
+    out
 }
 
 /// The table realizing `t`'s counts (`items` inner items) with every padding bucket aliased to

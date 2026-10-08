@@ -1040,6 +1040,16 @@ does not invoke a solver at build time. At Li 8 + 8, 3 + 3, the inner read chang
 845 to 805 Toffolis per copy, static `C_step` from 17,755.5 to 17,675.5, with
 `Q_peak = 471`. This is a table arrangement rather than a new read or erasure gadget.
 
+**`.f`: joint sparse keep and aligned alt** (with `+` and `.b`; `jointalias.rs`).
+An exact Li estimated-class witness retains a shared top padding donor and aligns
+`alt` bit 5 with that donor on all inner rows 18–37. Keep bit 7 occurs only on
+rows 3, 4, 5, 18, 24, 25, 31, 33, 34, and 38. This replaces `.b`'s table
+arrangement behind a default-off extension; all 285 tables have exact floor or
+ceiling item counts at total 16,384 lanes. The folded inner read falls from
+805 to 793 Toffolis per copy. At Li 8 + 8, 3 + 3, static `C_step` falls from
+17,675.5 to 17,651.5 with `Q_peak = 471`. The gadget is unchanged; the pinned
+test checks the estimated class and rejects a changed alternate target.
+
 **`.e`: paired erasure** (with `H` and a two-group item one-hot;
 `itemhot::phase_rooted_paired`). The item one-hot erasure's phase pass pairs sibling leaves of the
 inner iteration: one `CCZ` per pair for the group terms instead of one AND per leaf, the quadratic
