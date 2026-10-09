@@ -23,6 +23,7 @@ pub mod inner;
 pub mod itemfold;
 pub mod itemhot;
 mod jointalias;
+mod globalalias;
 pub mod ledger;
 pub mod narrow;
 pub mod onehot;
@@ -401,6 +402,10 @@ pub struct Tweaks {
     /// `.f` (with `+` and `.b`): exact Li witnesses that align the folded alt bit
     /// while retaining sparse high keep support. Overrides `.b`'s table arrangement.
     pub joint_alias: bool,
+    /// `.i` (with `.f`): exact Li alias witnesses with the low alt bit
+    /// aligned across every square table's folded read. The integer counts
+    /// and the sparse high keep / high alt supports remain unchanged.
+    pub global_alias: bool,
     /// `.p` (with `G` and `n`): padding runs. Every square inner table's padding buckets
     /// are fed in aligned subcubes, each by one donor item (`padalias::arrange_runs`, the same
     /// counts), so the paired read's slot one-hot is a pruned expansion in which each fed
@@ -515,6 +520,7 @@ impl Tweaks {
         align_alias: false,
         sparse_keep_alias: false,
         joint_alias: false,
+        global_alias: false,
         pad_runs: false,
         sparse_high: false,
         graft: false,
@@ -656,6 +662,7 @@ impl Tweaks {
             align_alias: !all && ext.contains('a'),
             sparse_keep_alias: !all && ext.contains('b'),
             joint_alias: !all && ext.contains('f'),
+            global_alias: !all && ext.contains('i'),
             pad_runs: !all && ext.contains('p'),
             sparse_high: !all && ext.contains('d'),
             factor_erase: !all && ext.contains('c'),
@@ -835,6 +842,15 @@ pub fn lane_map(spec: &SaSpec, p: Params) -> Result<SaNestedMap, String> {
         );
         for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
             *t = padalias::joint_li_table(q);
+        }
+    }
+    if p.tw.global_alias {
+        assert!(
+            p.tw.joint_alias && spec.id() == "li-sa-est-v1" && p.inner == (6, 8),
+            "lever .i needs .f, Li estimated inner width (6, 8)"
+        );
+        for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
+            *t = padalias::global_li_table(q);
         }
     }
     // Lever `.p`: every padding subcube fed by one donor (the same counts).

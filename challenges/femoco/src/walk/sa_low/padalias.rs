@@ -332,6 +332,13 @@ pub fn joint_li_table(q: usize) -> Table {
     TABLES.get_or_init(|| parse_li_tables(super::jointalias::LI_JOINT_ALIAS))[q].clone()
 }
 
+/// The exact-count Li witnesses with a globally aligned low alt bit (`.i`).
+#[must_use]
+pub fn global_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    TABLES.get_or_init(|| parse_li_tables(super::globalalias::LI_GLOBAL_ALIAS))[q].clone()
+}
+
 fn parse_li_tables(text: &str) -> Vec<Table> {
     let decode = |s: &str| -> Vec<u32> {
         assert_eq!(s.len(), 128, "sparse Li alias column has 64 bytes");
