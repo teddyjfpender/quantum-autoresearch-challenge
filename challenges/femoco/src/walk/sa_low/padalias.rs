@@ -351,14 +351,14 @@ pub fn joint_global_li_table(q: usize) -> Table {
 #[must_use]
 pub fn parity_li_table(q: usize) -> Table {
     static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
-    TABLES.get_or_init(|| parse_li_tables(include_str!("parityalias.txt")))[q].clone()
+    TABLES.get_or_init(|| parse_li_tables(include_str!("parityalias.md")))[q].clone()
 }
 
 /// The Li floor/ceiling rerounding with sparse keep and aligned alternate bits (`.l`).
 #[must_use]
 pub fn combined_li_table(q: usize) -> Table {
     static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
-    TABLES.get_or_init(|| parse_li_tables(include_str!("combinedalias.txt")))[q].clone()
+    TABLES.get_or_init(|| parse_li_tables(include_str!("combinedalias.md")))[q].clone()
 }
 
 fn parse_li_tables(text: &str) -> Vec<Table> {

@@ -412,7 +412,7 @@ pub struct Tweaks {
     pub joint_global_alias: bool,
     /// `.k` (with `.f`): reround Li's inner targets within the trusted estimated
     /// floor/ceiling class, concentrating odd counts and keep bit 0 on ten shared
-    /// folded read leaves. The exact table witness is in `parityalias.txt`.
+    /// folded read leaves. The exact table witness is in `parityalias.md`.
     pub parity_alias: bool,
     /// `.l` (with `.j` and `.k`): compose sparse keep parity with globally
     /// aligned alternate-index bits, preserving exact floor/ceiling rounding.
