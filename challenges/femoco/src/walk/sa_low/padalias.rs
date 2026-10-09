@@ -695,6 +695,47 @@ pub fn uniform_top(tables: &[Table], items: usize) -> usize {
 mod tests {
     use super::*;
 
+    #[test]
+    fn globally_aligned_li_witnesses_preserve_counts_and_support() {
+        const HIGH_KEEP: [usize; 10] = [3, 4, 5, 18, 24, 25, 31, 33, 34, 38];
+        const GLOBAL_ZERO: [usize; 6] = [6, 7, 8, 9, 13, 30];
+        const JOINT_ZERO: [usize; 7] = [0, 3, 10, 11, 15, 25, 28];
+        for q in 0..285 {
+            let base = joint_li_table(q);
+            for (table, zero_bit, zero_leaves) in [
+                (global_li_table(q), 0, &GLOBAL_ZERO[..]),
+                (joint_global_li_table(q), 0, &GLOBAL_ZERO[..]),
+                (joint_global_li_table(q), 1, &JOINT_ZERO[..]),
+            ] {
+                assert_eq!(table.counts(58), base.counts(58), "table {q}");
+                assert!(table.keep[58..].iter().all(|&k| k == 0));
+                assert!(table.alt[61..64].iter().all(|&a| a == table.alt[63]));
+                for i in 0..58 {
+                    if !HIGH_KEEP.contains(&i) {
+                        assert_eq!(table.keep[i] & 128, 0, "table {q}, row {i}");
+                    }
+                    if table.alt[i] == i as u32 {
+                        assert_eq!(table.keep[i], 0, "table {q}, self row {i}");
+                    }
+                }
+                for i in 18..38 {
+                    assert_eq!((table.alt[i] ^ table.alt[63]) & 32, 0, "table {q}, row {i}");
+                }
+                for &leaf in zero_leaves {
+                    for i in [2 * leaf, 2 * leaf + 1] {
+                        if i < 61 {
+                            assert_eq!(
+                                (table.alt[i] ^ table.alt[63]) & (1 << zero_bit),
+                                0,
+                                "table {q}, row {i}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn lcg(seed: &mut u64) -> u64 {
         *seed = seed
             .wrapping_mul(6_364_136_223_846_793_005)
