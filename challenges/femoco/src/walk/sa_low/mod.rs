@@ -419,6 +419,9 @@ pub struct Tweaks {
     /// `.l` (with `.j` and `.k`): compose sparse keep parity with globally
     /// aligned alternate-index bits, preserving exact floor/ceiling rounding.
     pub combined_alias: bool,
+    /// `.u` (with `x H V I`): omit both `hi` fields from the outer alias QROAM word and
+    /// reconstruct the selected one from the existing aligned item one-hot.
+    pub outer_hi_from_hot: bool,
     /// `.p` (with `G` and `n`): padding runs. Every square inner table's padding buckets
     /// are fed in aligned subcubes, each by one donor item (`padalias::arrange_runs`, the same
     /// counts), so the paired read's slot one-hot is a pruned expansion in which each fed
@@ -537,6 +540,7 @@ impl Tweaks {
         joint_global_alias: false,
         parity_alias: false,
         combined_alias: false,
+        outer_hi_from_hot: false,
         pad_runs: false,
         sparse_high: false,
         graft: false,
@@ -682,6 +686,7 @@ impl Tweaks {
             joint_global_alias: !all && ext.contains('j'),
             parity_alias: !all && ext.contains('k'),
             combined_alias: !all && ext.contains('l'),
+            outer_hi_from_hot: !all && ext.contains('u'),
             pad_runs: !all && ext.contains('p'),
             sparse_high: !all && ext.contains('d'),
             factor_erase: !all && ext.contains('c'),

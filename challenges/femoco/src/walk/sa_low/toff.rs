@@ -97,6 +97,45 @@ fn undo_measured(b: &mut Builder, lt: Qubit, main: &[Qubit], alt: &[Qubit]) -> V
     bits
 }
 
+/// `.u`: toggle the selected item's `hi` field using the square-item one-hot. On Li, square
+/// items have `hi = floor((item - N) / C) < 16`. One-body items have `hi = R + (item >> 6)`:
+/// the exceptional second row is a single AND into bit 4, then Clifford fan-out.
+fn toggle_outer_hi(
+    b: &mut Builder,
+    hot: &ItemHot,
+    item: &[Qubit],
+    is_ob: Qubit,
+    hi: &[Qubit],
+    n: u64,
+    c: u64,
+    undo: bool,
+) {
+    assert_eq!((n, c, hi.len()), (76, 19, 5), ".u is built for Li");
+    let square = |b: &mut Builder| itemhot::fan(b, hot, hi, &|v| (v - n) / c);
+    let ob_base = |b: &mut Builder| {
+        for &q in &hi[..4] {
+            b.cx(is_ob, q);
+        }
+    };
+    let ob_second = |b: &mut Builder| b.ccx(is_ob, item[6], hi[4]);
+    let ob_fix = |b: &mut Builder| {
+        for &q in &hi[..4] {
+            b.cx(hi[4], q);
+        }
+    };
+    if undo {
+        ob_fix(b);
+        ob_second(b);
+        ob_base(b);
+        square(b);
+    } else {
+        square(b);
+        ob_base(b);
+        ob_second(b);
+        ob_fix(b);
+    }
+}
+
 /// Lever `_`: `index ^= lt AND (chosen ^ unchosen)` with `chosen ^= unchosen` made in place
 /// (CNOTs) and undone; one Toffoli per index bit. Its own inverse.
 pub(super) fn index_swap(
@@ -226,13 +265,22 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
     let buckets = 1u64 << k_o;
     // Word layout: `keep | own (od bits) | alt (d bits)`; the selected register `main` is
     // `copy | own` where `copy` (item layout only) is the bucket index's low `kx` bits.
-    let (d, od) = if t.item_layout {
+    let derive_hi = tw.outer_hi_from_hot;
+    assert!(
+        !derive_hi || (t.item_layout && tw.item_hot && tw.item_align && tw.item_inplace),
+        ".u needs the aligned in-place item one-hot"
+    );
+    let (d, od) = if derive_hi {
+        (t.kx + 2, 2)
+    } else if t.item_layout {
         (t.item_fields().end, t.h + 2)
     } else {
         (t.outer_data_bits(), t.outer_data_bits())
     };
     let words = |i: u64| {
-        if t.item_layout {
+        if derive_hi {
+            t.item_word_no_hi(i)
+        } else if t.item_layout {
             t.item_word(i)
         } else {
             t.outer_word(i)
@@ -258,15 +306,15 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
     } else {
         Vec::new()
     };
-    let main: Vec<Qubit> = [&icopy[..], &own[..]].concat();
+    let main_small: Vec<Qubit> = [&icopy[..], &own[..]].concat();
     let cmp = compare(b, &draw_o, &keep, tw.outer_ladder);
     let lt = cmp.lt;
-    choose_alt(b, lt, &main, &alt);
+    choose_alt(b, lt, &main_small, &alt);
     // Lever `d`: the unchosen slot, turned into `D = own ^ alt` (a function of the bucket alone)
     // by `alt ^= main`, is measured now instead of at the end; the `lt`-dependent half of the
     // chosen slot's phase is then cancelled by a fixup controlled by `lt` (`undrop` below).
     let early_alt: Option<Vec<Bit>> = tw.drop_alt.then(|| {
-        for (&m, &a) in main.iter().zip(&alt) {
+        for (&m, &a) in main_small.iter().zip(&alt) {
             b.cx(m, a);
         }
         alt.iter().map(|&q| b.hmr(q)).collect()
@@ -286,6 +334,16 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
         t.fields()
     };
     let qw = if t.item_layout { t.kx } else { t.q_b };
+    let hi_reg = if derive_hi {
+        b.alloc_n(t.h)
+    } else {
+        Vec::new()
+    };
+    let main: Vec<Qubit> = if derive_hi {
+        [&icopy[..], &hi_reg[..], &own[..]].concat()
+    } else {
+        main_small.clone()
+    };
     let is_ob = main[f.is_ob];
     // Lever `W`: the keep test leaves now; UNPREPARE stands the witness
     // `[item = x_o]` in for it.
@@ -365,6 +423,18 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
         itemhot::write(b, &h, &main[f.q..f.q + qw]);
         h
     });
+    if derive_hi {
+        toggle_outer_hi(
+            b,
+            ih.as_ref().unwrap(),
+            &icopy,
+            is_ob,
+            &hi_reg,
+            t.spec.n as u64,
+            t.spec.c as u64,
+            false,
+        );
+    }
     led.stage(b, "outer: item one-hot write");
 
     b.segment(SEG_SELECT);
@@ -403,6 +473,19 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
 
     b.segment(SEG_UNPREPARE);
     if let Some(h) = &ih {
+        if derive_hi {
+            toggle_outer_hi(
+                b,
+                h,
+                &icopy,
+                is_ob,
+                &hi_reg,
+                t.spec.n as u64,
+                t.spec.c as u64,
+                true,
+            );
+            hi_reg.iter().for_each(|&q| b.free(q));
+        }
         let lim = t.spec.outer_items() as u64;
         itemhot::erase(b, h, &regs.q, lim, split_for(tw.hot_erase, qw, lim));
     }
@@ -447,11 +530,11 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
         let mb = if early_alt.is_some() {
             // main holds alt ^ lt D: its outcomes leave (-1)^(m . alt(i)) (the final fixup's
             // content, as without the lever) times (-1)^(lt (m . D(i))), cancelled here.
-            let mm: Vec<Bit> = main
+            let mm: Vec<Bit> = main_small
                 .iter()
                 .enumerate()
                 .map(|(j, &q)| match early_pos {
-                    Some(m) if j == f.pos_e => m,
+                    Some(m) if j == icopy.len() + od - 1 => m,
                     _ => b.hmr(q),
                 })
                 .collect();
@@ -470,7 +553,7 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
             qroam::phase_fixup_ctl(b, lt, &index_o, buckets, &mm, &d_of, erase_split(buckets));
             mm
         } else {
-            undo_measured(b, lt, &main, &alt)
+            undo_measured(b, lt, &main_small, &alt)
         };
         let keep_word = |i: u64| narrow::low_bits(&words(i), mu);
         let a2 = p.outer_a.min(index_o.len());
@@ -559,7 +642,7 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
         );
     } else {
         assert!(early_alt.is_none(), "lever d needs the measured undo (m)");
-        choose_alt(b, lt, &main, &alt);
+        choose_alt(b, lt, &main_small, &alt);
         uncompare(b, &draw_o, &keep, cmp, tw.gated);
         led.stage(b, "outer^-1: alt swap, keep test, enables");
         qroam::erase_split_by(b, &index_o, read, &words, split);

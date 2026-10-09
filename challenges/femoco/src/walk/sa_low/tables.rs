@@ -405,6 +405,29 @@ impl<'a> SaTables<'a> {
         w
     }
 
+    /// Item-layout outer word with the two `hi` fields derived later from the selected item.
+    /// The retained flags are `is_ob | pos_e` for each alias choice.
+    #[must_use]
+    pub fn item_word_no_hi(&self, i: u64) -> Word {
+        let o = &self.map.outer;
+        let mu = o.mu as usize;
+        let mut w = word(mu + self.kx + 4);
+        let Ok(idx) = usize::try_from(i) else {
+            return w;
+        };
+        if idx >= o.keep.len() {
+            return w;
+        }
+        put(&mut w, 0, mu, u64::from(o.keep[idx]));
+        if idx < self.spec.outer_items() {
+            put(&mut w, mu, 2, self.item_flags(idx) >> self.h);
+        }
+        let alt = o.alt[idx] as usize;
+        put(&mut w, mu + 2, self.kx, alt as u64);
+        put(&mut w, mu + 2 + self.kx, 2, self.item_flags(alt) >> self.h);
+        w
+    }
+
     /// Item layout inner lookup range `N 2^k_i .. (N + R C) 2^k_i`.
     #[must_use]
     pub fn item_range(&self) -> (u64, u64) {
