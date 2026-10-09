@@ -19,11 +19,11 @@
 //! on both spins (their controlled spin swap is not expressible); and uniform superpositions are
 //! the harness's lanes, not prepared.
 pub mod excl;
+mod globalalias;
 pub mod inner;
 pub mod itemfold;
 pub mod itemhot;
 mod jointalias;
-mod globalalias;
 mod jointglobalalias;
 pub mod ledger;
 pub mod narrow;
@@ -414,6 +414,9 @@ pub struct Tweaks {
     /// floor/ceiling class, concentrating odd counts and keep bit 0 on ten shared
     /// folded read leaves. The exact table witness is in `parityalias.txt`.
     pub parity_alias: bool,
+    /// `.l` (with `.j` and `.k`): compose sparse keep parity with globally
+    /// aligned alternate-index bits, preserving exact floor/ceiling rounding.
+    pub combined_alias: bool,
     /// `.p` (with `G` and `n`): padding runs. Every square inner table's padding buckets
     /// are fed in aligned subcubes, each by one donor item (`padalias::arrange_runs`, the same
     /// counts), so the paired read's slot one-hot is a pruned expansion in which each fed
@@ -531,6 +534,7 @@ impl Tweaks {
         global_alias: false,
         joint_global_alias: false,
         parity_alias: false,
+        combined_alias: false,
         pad_runs: false,
         sparse_high: false,
         graft: false,
@@ -675,6 +679,7 @@ impl Tweaks {
             global_alias: !all && ext.contains('i'),
             joint_global_alias: !all && ext.contains('j'),
             parity_alias: !all && ext.contains('k'),
+            combined_alias: !all && ext.contains('l'),
             pad_runs: !all && ext.contains('p'),
             sparse_high: !all && ext.contains('d'),
             factor_erase: !all && ext.contains('c'),
@@ -881,6 +886,18 @@ pub fn lane_map(spec: &SaSpec, p: Params) -> Result<SaNestedMap, String> {
         );
         for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
             *t = padalias::parity_li_table(q);
+        }
+    }
+    if p.tw.combined_alias {
+        assert!(
+            p.tw.joint_global_alias
+                && p.tw.parity_alias
+                && spec.id() == "li-sa-est-v1"
+                && p.inner == (6, 8),
+            "lever .l needs .j and .k on Li estimated inner width (6, 8)"
+        );
+        for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
+            *t = padalias::combined_li_table(q);
         }
     }
     // Lever `.p`: every padding subcube fed by one donor (the same counts).
