@@ -24,6 +24,7 @@ pub mod itemfold;
 pub mod itemhot;
 mod jointalias;
 mod globalalias;
+mod jointglobalalias;
 pub mod ledger;
 pub mod narrow;
 pub mod onehot;
@@ -406,6 +407,9 @@ pub struct Tweaks {
     /// aligned across every square table's folded read. The integer counts
     /// and the sparse high keep / high alt supports remain unchanged.
     pub global_alias: bool,
+    /// `.j` (with `.i`): jointly align low alternate-index bits 0 and 1
+    /// across Li's folded inner read, with exact integer counts.
+    pub joint_global_alias: bool,
     /// `.p` (with `G` and `n`): padding runs. Every square inner table's padding buckets
     /// are fed in aligned subcubes, each by one donor item (`padalias::arrange_runs`, the same
     /// counts), so the paired read's slot one-hot is a pruned expansion in which each fed
@@ -521,6 +525,7 @@ impl Tweaks {
         sparse_keep_alias: false,
         joint_alias: false,
         global_alias: false,
+        joint_global_alias: false,
         pad_runs: false,
         sparse_high: false,
         graft: false,
@@ -663,6 +668,7 @@ impl Tweaks {
             sparse_keep_alias: !all && ext.contains('b'),
             joint_alias: !all && ext.contains('f'),
             global_alias: !all && ext.contains('i'),
+            joint_global_alias: !all && ext.contains('j'),
             pad_runs: !all && ext.contains('p'),
             sparse_high: !all && ext.contains('d'),
             factor_erase: !all && ext.contains('c'),
@@ -851,6 +857,15 @@ pub fn lane_map(spec: &SaSpec, p: Params) -> Result<SaNestedMap, String> {
         );
         for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
             *t = padalias::global_li_table(q);
+        }
+    }
+    if p.tw.joint_global_alias {
+        assert!(
+            p.tw.global_alias && spec.id() == "li-sa-est-v1" && p.inner == (6, 8),
+            "lever .j needs .i, Li estimated inner width (6, 8)"
+        );
+        for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
+            *t = padalias::joint_global_li_table(q);
         }
     }
     // Lever `.p`: every padding subcube fed by one donor (the same counts).
