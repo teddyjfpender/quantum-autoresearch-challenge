@@ -410,6 +410,10 @@ pub struct Tweaks {
     /// `.j` (with `.i`): jointly align low alternate-index bits 0 and 1
     /// across Li's folded inner read, with exact integer counts.
     pub joint_global_alias: bool,
+    /// `.k` (with `.f`): reround Li's inner targets within the trusted estimated
+    /// floor/ceiling class, concentrating odd counts and keep bit 0 on ten shared
+    /// folded read leaves. The exact table witness is in `parityalias.txt`.
+    pub parity_alias: bool,
     /// `.p` (with `G` and `n`): padding runs. Every square inner table's padding buckets
     /// are fed in aligned subcubes, each by one donor item (`padalias::arrange_runs`, the same
     /// counts), so the paired read's slot one-hot is a pruned expansion in which each fed
@@ -526,6 +530,7 @@ impl Tweaks {
         joint_alias: false,
         global_alias: false,
         joint_global_alias: false,
+        parity_alias: false,
         pad_runs: false,
         sparse_high: false,
         graft: false,
@@ -669,6 +674,7 @@ impl Tweaks {
             joint_alias: !all && ext.contains('f'),
             global_alias: !all && ext.contains('i'),
             joint_global_alias: !all && ext.contains('j'),
+            parity_alias: !all && ext.contains('k'),
             pad_runs: !all && ext.contains('p'),
             sparse_high: !all && ext.contains('d'),
             factor_erase: !all && ext.contains('c'),
@@ -866,6 +872,15 @@ pub fn lane_map(spec: &SaSpec, p: Params) -> Result<SaNestedMap, String> {
         );
         for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
             *t = padalias::joint_global_li_table(q);
+        }
+    }
+    if p.tw.parity_alias {
+        assert!(
+            p.tw.joint_alias && spec.id() == "li-sa-est-v1" && p.inner == (6, 8),
+            "lever .k needs .f and the Li estimated spec at inner width (6, 8)"
+        );
+        for (q, t) in inner.iter_mut().skip(spec.n).enumerate() {
+            *t = padalias::parity_li_table(q);
         }
     }
     // Lever `.p`: every padding subcube fed by one donor (the same counts).

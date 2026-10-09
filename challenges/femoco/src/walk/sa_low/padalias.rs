@@ -346,6 +346,13 @@ pub fn joint_global_li_table(q: usize) -> Table {
     TABLES.get_or_init(|| parse_li_tables(super::jointglobalalias::LI_JOINT_GLOBAL_ALIAS))[q].clone()
 }
 
+/// The Li floor/ceiling rerounding with sparse low keep parity (`.k`).
+#[must_use]
+pub fn parity_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    TABLES.get_or_init(|| parse_li_tables(include_str!("parityalias.txt")))[q].clone()
+}
+
 fn parse_li_tables(text: &str) -> Vec<Table> {
     let decode = |s: &str| -> Vec<u32> {
         assert_eq!(s.len(), 128, "sparse Li alias column has 64 bytes");

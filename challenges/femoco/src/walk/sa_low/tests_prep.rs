@@ -149,6 +149,58 @@ fn joint_alias_is_exact_estimated_class_and_mutant_fails() {
     assert!(map.rounding_estimate(s, params).is_err());
 }
 
+#[test]
+#[ignore = "pinned Li estimated class; run in release"]
+fn parity_alias_is_exact_estimated_class_and_mutant_fails() {
+    use crate::spec::rounding::RoundingClass;
+    let boxed = pinned("li-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cbfk"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        ..base
+    };
+    let mut map = lane_map(s, p).unwrap();
+    let parent = lane_map(
+        s,
+        Params {
+            tw: Tweaks::parse("imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cbf"),
+            ..p
+        },
+    )
+    .unwrap();
+    let RoundingClass::EstimatedLow2025(params) = &s.rounding_class else {
+        panic!("Li estimated spec needs its estimated class");
+    };
+    map.rounding_estimate(s, params).unwrap();
+    let low_leaves = [1, 4, 6, 7, 9, 11, 18, 19, 24, 28];
+    let high_leaves = [1, 2, 9, 12, 15, 16, 17, 19, 28];
+    for (q, t) in map.inner.iter().skip(s.n).enumerate() {
+        assert_eq!(t.counts(s.b + 1).iter().sum::<u64>(), 1 << 14);
+        assert_eq!(&t.alt[61..64], &[t.alt[63]; 3], "table {q}");
+        for (i, &k) in t.keep.iter().enumerate() {
+            assert!(k & 1 == 0 || low_leaves.contains(&(i / 2)), "table {q}, row {i}");
+            assert!(k < 128 || high_leaves.contains(&(i / 2)), "table {q}, row {i}");
+        }
+        for row in 18..38 {
+            assert_eq!((t.alt[row] ^ t.alt[63]) & 32, 0, "table {q}, row {row}");
+        }
+    }
+    println!(
+        "Li exact one-norm rounding error: parent {:.9e} Ha, parity {:.9e} Ha",
+        parent.rounding_error(s).unwrap().to_f64(),
+        map.rounding_error(s).unwrap().to_f64()
+    );
+    let t = &mut map.inner[s.n];
+    let i = (0..s.b + 1)
+        .find(|&i| t.keep[i] <= 253 && t.alt[i] as usize != i)
+        .expect("a non-self-aliased bucket");
+    t.keep[i] += 2;
+    assert!(map.rounding_estimate(s, params).is_err());
+}
+
 /// Dumps the alias tables and the weights they round (`PF_OUT` directory) for the pinned specs.
 #[test]
 #[ignore = "pinned specs; run in release"]
