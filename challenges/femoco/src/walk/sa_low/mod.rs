@@ -19,6 +19,7 @@
 //! on both spins (their controlled spin swap is not expressible); and uniform superpositions are
 //! the harness's lanes, not prepared.
 pub mod excl;
+mod combinedalias;
 mod globalalias;
 pub mod inner;
 pub mod itemfold;
@@ -29,6 +30,7 @@ pub mod ledger;
 pub mod narrow;
 pub mod onehot;
 pub mod padalias;
+mod parityalias;
 pub mod paired;
 pub mod pareto;
 pub mod qroam;
@@ -412,7 +414,7 @@ pub struct Tweaks {
     pub joint_global_alias: bool,
     /// `.k` (with `.f`): reround Li's inner targets within the trusted estimated
     /// floor/ceiling class, concentrating odd counts and keep bit 0 on ten shared
-    /// folded read leaves. The exact table witness is in `parityalias.md`.
+    /// folded read leaves. The exact table witness is in `parityalias.rs`.
     pub parity_alias: bool,
     /// `.l` (with `.j` and `.k`): compose sparse keep parity with globally
     /// aligned alternate-index bits, preserving exact floor/ceiling rounding.
