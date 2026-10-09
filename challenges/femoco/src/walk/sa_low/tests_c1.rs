@@ -607,6 +607,31 @@ fn sparse_reiher_exact_and_mutant() {
     assert!(err.contains("floor or the ceiling"), "{err}");
 }
 
+/// Reiher `.u` keeps the selected high address exact; omitting the square
+/// correction makes the trusted operator check reject the circuit.
+#[test]
+#[ignore = "pinned Reiher spec; run in release"]
+fn reiher_outer_hi_decode_mutant_rejected() {
+    let boxed = pinned("reiher-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e.du"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        inner_a: 2,
+        outer_a: 2,
+        ..base
+    };
+    onehot::FAULT.with(|c| c.set(240));
+    let (lanemap, ops, _) = build(s, p);
+    onehot::FAULT.with(|c| c.set(0));
+    assert!(
+        eval(s, p, &lanemap, &ops, 512).is_err(),
+        "the uncancelled square address must fail trusted evaluation"
+    );
+}
+
 /// The outcome-gated keep release of `narrow.rs` in `sa-toff` (levers `k`
 /// outer, `j` inner) and the split one-hot with any group count (a digit `G`), alone and
 /// combined with every lever they touch.

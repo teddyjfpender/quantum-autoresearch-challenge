@@ -9,6 +9,37 @@ fn pinned(id: &str) -> Box<dyn crate::spec::EncodingSpec> {
 }
 
 #[test]
+#[ignore = "pinned Reiher spec; run in release"]
+fn reiher_outer_hi_clifford_decode_and_mutant() {
+    let boxed = pinned("reiher-sa-est-v1");
+    let s: &SaSpec = boxed.as_any().downcast_ref().unwrap();
+    let base = Params::for_spec(s);
+    let p = Params {
+        tw: Tweaks::parse("imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e.du"),
+        outer: (base.outer.0, 8),
+        inner: (base.inner.0, 8),
+        ..base
+    };
+    let map = lane_map(s, p).unwrap();
+    let t = super::tables::SaTables::with_items(s, &map, true);
+    for item in 0..s.outer_items() {
+        let item = item as u64;
+        let is_ob = item < 54;
+        let square_correction = if is_ob {
+            0
+        } else {
+            ((item - 54) / 27) ^ ((item >> 5) & 1)
+        };
+        let decoded = square_correction ^ ((item >> 5) & 1) ^ (u64::from(is_ob) * 10);
+        assert_eq!(decoded, t.item_flags(item as usize) & 15, "item {item}");
+    }
+    // Skipping the square cancellation changes at least one selected network address.
+    let mutant_item = 54;
+    let mutant = ((mutant_item - 54) / 27) ^ ((mutant_item >> 5) & 1);
+    assert_ne!(mutant, t.item_flags(mutant_item as usize) & 15);
+}
+
+#[test]
 #[ignore = "pinned Li tables; run in release"]
 fn aligned_alt_bit_keeps_every_count() {
     let boxed = pinned("li-sa-est-v1");
