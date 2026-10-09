@@ -99,15 +99,48 @@ fn undo_measured(b: &mut Builder, lt: Qubit, main: &[Qubit], alt: &[Qubit]) -> V
 
 /// `.u`: toggle the selected item's `hi` field using the square-item one-hot. On Li, square
 /// items have `hi = floor((item - N) / C) < 16`. One-body items have `hi = R + (item >> 6)`:
-/// the exceptional second row is a single AND into bit 4, then Clifford fan-out.
+/// the exceptional second row is a single AND into bit 4, then Clifford fan-out. On Reiher,
+/// copying item bit five and canceling it in the square fan gives a Clifford-only decoder.
 fn toggle_outer_hi(
     b: &mut Builder,
     hot: &ItemHot,
+    spec: &SaSpec,
     item: &[Qubit],
     is_ob: Qubit,
     hi: &[Qubit],
     undo: bool,
 ) {
+    if spec.id == "reiher-sa-est-v1" {
+        // A one-body item r has hi = 10 + (r >> 5), while a square item
+        // N + r C + c has hi = r. Copy item bit five on both branches;
+        // the square one-hot cancels that bit before supplying its row.
+        assert_eq!((spec.n, spec.r, spec.c, hi.len()), (54, 10, 27, 4));
+        let square = |b: &mut Builder| {
+            itemhot::fan(b, hot, hi, &|v| {
+                ((v - 54) / 27)
+                    ^ if onehot::fault_is(240) {
+                        0 // Test mutant: omit the square cancellation.
+                    } else {
+                        (v >> 5) & 1
+                    }
+            });
+        };
+        let ob_base = |b: &mut Builder| {
+            b.cx(is_ob, hi[1]);
+            b.cx(is_ob, hi[3]);
+        };
+        let ob_second = |b: &mut Builder| b.cx(item[5], hi[0]);
+        if undo {
+            ob_second(b);
+            ob_base(b);
+            square(b);
+        } else {
+            square(b);
+            ob_base(b);
+            ob_second(b);
+        }
+        return;
+    }
     const LI_N: u64 = 76;
     const LI_C: u64 = 19;
     assert_eq!(hi.len(), 5, ".u is built for Li");
@@ -268,9 +301,8 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
     let derive_hi = tw.outer_hi_from_hot;
     assert!(
         !derive_hi
-            || (t.spec.n == 76
-                && t.spec.c == 19
-                && t.h == 5
+            || (((t.spec.n == 76 && t.spec.c == 19 && t.h == 5)
+                || (t.spec.n == 54 && t.spec.c == 27 && t.h == 4))
                 && t.item_layout
                 && tw.item_hot
                 && tw.item_align
@@ -431,7 +463,15 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
         h
     });
     if derive_hi {
-        toggle_outer_hi(b, ih.as_ref().unwrap(), &icopy, is_ob, &hi_reg, false);
+        toggle_outer_hi(
+            b,
+            ih.as_ref().unwrap(),
+            t.spec,
+            &icopy,
+            is_ob,
+            &hi_reg,
+            false,
+        );
     }
     led.stage(b, "outer: item one-hot write");
 
@@ -472,7 +512,7 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
     b.segment(SEG_UNPREPARE);
     if let Some(h) = &ih {
         if derive_hi {
-            toggle_outer_hi(b, h, &icopy, is_ob, &hi_reg, true);
+            toggle_outer_hi(b, h, t.spec, &icopy, is_ob, &hi_reg, true);
             hi_reg.iter().for_each(|&q| b.free(q));
         }
         let lim = t.spec.outer_items() as u64;
