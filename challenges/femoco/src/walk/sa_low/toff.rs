@@ -106,12 +106,12 @@ fn toggle_outer_hi(
     item: &[Qubit],
     is_ob: Qubit,
     hi: &[Qubit],
-    n: u64,
-    c: u64,
     undo: bool,
 ) {
-    assert_eq!((n, c, hi.len()), (76, 19, 5), ".u is built for Li");
-    let square = |b: &mut Builder| itemhot::fan(b, hot, hi, &|v| (v - n) / c);
+    const LI_N: u64 = 76;
+    const LI_C: u64 = 19;
+    assert_eq!(hi.len(), 5, ".u is built for Li");
+    let square = |b: &mut Builder| itemhot::fan(b, hot, hi, &|v| (v - LI_N) / LI_C);
     let ob_base = |b: &mut Builder| {
         for &q in &hi[..4] {
             b.cx(is_ob, q);
@@ -267,7 +267,14 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
     // `copy | own` where `copy` (item layout only) is the bucket index's low `kx` bits.
     let derive_hi = tw.outer_hi_from_hot;
     assert!(
-        !derive_hi || (t.item_layout && tw.item_hot && tw.item_align && tw.item_inplace),
+        !derive_hi
+            || (t.spec.n == 76
+                && t.spec.c == 19
+                && t.h == 5
+                && t.item_layout
+                && tw.item_hot
+                && tw.item_align
+                && tw.item_inplace),
         ".u needs the aligned in-place item one-hot"
     );
     let (d, od) = if derive_hi {
@@ -424,16 +431,7 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
         h
     });
     if derive_hi {
-        toggle_outer_hi(
-            b,
-            ih.as_ref().unwrap(),
-            &icopy,
-            is_ob,
-            &hi_reg,
-            t.spec.n as u64,
-            t.spec.c as u64,
-            false,
-        );
+        toggle_outer_hi(b, ih.as_ref().unwrap(), &icopy, is_ob, &hi_reg, false);
     }
     led.stage(b, "outer: item one-hot write");
 
@@ -474,16 +472,7 @@ pub fn emit(spec: &SaSpec, map: &SaNestedMap, b: &mut Builder, p: Params) -> Led
     b.segment(SEG_UNPREPARE);
     if let Some(h) = &ih {
         if derive_hi {
-            toggle_outer_hi(
-                b,
-                h,
-                &icopy,
-                is_ob,
-                &hi_reg,
-                t.spec.n as u64,
-                t.spec.c as u64,
-                true,
-            );
+            toggle_outer_hi(b, h, &icopy, is_ob, &hi_reg, true);
             hi_reg.iter().for_each(|&q| b.free(q));
         }
         let lim = t.spec.outer_items() as u64;
