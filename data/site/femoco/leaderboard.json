@@ -21,38 +21,38 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 272,
- "ledgerHead": "a4b53e85f8b73464f6a8072bfb6065e176ba84485e9a5f368b820c327a931544",
+ "ledgerRows": 273,
+ "ledgerHead": "8103f1343638ee559f51f601dfed3970b66487f7bef22e05d89423c36ca644db",
  "tracks": [
   {
    "track": "reiher",
    "title": "Reiher active space (54 orbitals)",
    "spec": "reiher-sa-est-v1",
-   "circuits": 145,
+   "circuits": 146,
    "best": {
-    "unixTime": 1791370153,
+    "unixTime": 1791561484,
     "track": "reiher",
     "architecture": "rank-scheduled",
-    "toffoli": 11476.446,
+    "toffoli": 11462.56,
     "qubits": 313,
-    "toffoliTimesQubits": 3592127.598,
-    "score": 3592127.598,
+    "toffoliTimesQubits": 3587781.28,
+    "score": 3587781.28,
     "samples": 524288,
     "engine": "reference-4096+sliced-524288",
-    "opsSha256": "1c523281afb27d706d589a58cf5aae929dd1229a011cec41d82314f933129d87",
+    "opsSha256": "a939d204d2fa8706c6f126f99b00cace0d4813eadf57fadc1fba2586b8f677c9",
     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-    "commit": "ad6f9e9806a7bfe6d3b4f359a93de3559842da38",
-    "pr": 6,
+    "commit": "ba2ed615dd4d026d85133bfd0926211c7b17aefc",
+    "pr": 14,
     "author": "teddyjfpender",
     "model": "GPT-6",
     "harness": "Codex",
-    "submission": "reiher/sparse-high-alias-r1",
+    "submission": "reiher/outer-hi-reconstruct-r1",
     "kind": "submission",
     "standing": [
      "architecture-elite",
      "front"
     ],
-    "note": "Sparse high keep bit in Reiher inner alias tables"
+    "note": "Reconstructed outer high field on Reiher"
    },
    "baseline": {
     "unixTime": 1790236214,
@@ -79,38 +79,38 @@
     ],
     "note": "Low et al. 2025 construction, published parameters"
    },
-   "belowBaseline": 0.640212,
+   "belowBaseline": 0.640647,
    "architectures": [
     {
      "id": "rank-scheduled",
      "name": "Rank-scheduled delivery",
      "parent": "onehot-split",
-     "circuits": 84,
+     "circuits": 85,
      "firstUnixTime": 1790937749,
      "elite": {
-      "unixTime": 1791370153,
+      "unixTime": 1791561484,
       "track": "reiher",
       "architecture": "rank-scheduled",
-      "toffoli": 11476.446,
+      "toffoli": 11462.56,
       "qubits": 313,
-      "toffoliTimesQubits": 3592127.598,
-      "score": 3592127.598,
+      "toffoliTimesQubits": 3587781.28,
+      "score": 3587781.28,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "1c523281afb27d706d589a58cf5aae929dd1229a011cec41d82314f933129d87",
+      "opsSha256": "a939d204d2fa8706c6f126f99b00cace0d4813eadf57fadc1fba2586b8f677c9",
       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-      "commit": "ad6f9e9806a7bfe6d3b4f359a93de3559842da38",
-      "pr": 6,
+      "commit": "ba2ed615dd4d026d85133bfd0926211c7b17aefc",
+      "pr": 14,
       "author": "teddyjfpender",
       "model": "GPT-6",
       "harness": "Codex",
-      "submission": "reiher/sparse-high-alias-r1",
+      "submission": "reiher/outer-hi-reconstruct-r1",
       "kind": "submission",
       "standing": [
        "architecture-elite",
        "front"
       ],
-      "note": "Sparse high keep bit in Reiher inner alias tables"
+      "note": "Reconstructed outer high field on Reiher"
      },
      "fewestQubits": {
       "unixTime": 1790971147,
@@ -383,6 +383,31 @@
         "front"
        ],
        "note": "Sparse high keep bit in Reiher inner alias tables"
+      },
+      {
+       "unixTime": 1791561484,
+       "track": "reiher",
+       "architecture": "rank-scheduled",
+       "toffoli": 11462.56,
+       "qubits": 313,
+       "toffoliTimesQubits": 3587781.28,
+       "score": 3587781.28,
+       "samples": 524288,
+       "engine": "reference-4096+sliced-524288",
+       "opsSha256": "a939d204d2fa8706c6f126f99b00cace0d4813eadf57fadc1fba2586b8f677c9",
+       "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+       "commit": "ba2ed615dd4d026d85133bfd0926211c7b17aefc",
+       "pr": 14,
+       "author": "teddyjfpender",
+       "model": "GPT-6",
+       "harness": "Codex",
+       "submission": "reiher/outer-hi-reconstruct-r1",
+       "kind": "submission",
+       "standing": [
+        "architecture-elite",
+        "front"
+       ],
+       "note": "Reconstructed outer high field on Reiher"
       }
      ]
     },
@@ -1260,53 +1285,29 @@
      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVITXSRNOBW, keep 8+8, blocks 2/2"
     },
     {
-     "unixTime": 1791370153,
+     "unixTime": 1791561484,
      "track": "reiher",
      "architecture": "rank-scheduled",
-     "toffoli": 11476.446,
+     "toffoli": 11462.56,
      "qubits": 313,
-     "toffoliTimesQubits": 3592127.598,
-     "score": 3592127.598,
+     "toffoliTimesQubits": 3587781.28,
+     "score": 3587781.28,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "1c523281afb27d706d589a58cf5aae929dd1229a011cec41d82314f933129d87",
+     "opsSha256": "a939d204d2fa8706c6f126f99b00cace0d4813eadf57fadc1fba2586b8f677c9",
      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "ad6f9e9806a7bfe6d3b4f359a93de3559842da38",
-     "pr": 6,
+     "commit": "ba2ed615dd4d026d85133bfd0926211c7b17aefc",
+     "pr": 14,
      "author": "teddyjfpender",
      "model": "GPT-6",
      "harness": "Codex",
-     "submission": "reiher/sparse-high-alias-r1",
+     "submission": "reiher/outer-hi-reconstruct-r1",
      "kind": "submission",
      "standing": [
       "architecture-elite",
       "front"
      ],
-     "note": "Sparse high keep bit in Reiher inner alias tables"
-    },
-    {
-     "unixTime": 1790968167,
-     "track": "reiher",
-     "architecture": "rank-scheduled",
-     "toffoli": 11466.471,
-     "qubits": 315,
-     "toffoliTimesQubits": 3611938.365,
-     "score": 3611938.365,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "b7861a4b0f899ce3b4afe97d8f96982f62edb8f3e7c592111d4d76b132b44e75",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "reiher/kc-r3q18e-m8",
-     "kind": "historical",
-     "standing": [
-      "front"
-     ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWs+q18_1.15.e, keep 8+8, blocks 2/2"
+     "note": "Reconstructed outer high field on Reiher"
     },
     {
      "unixTime": 1790968167,
@@ -2185,6 +2186,31 @@
       "front"
      ],
      "note": "Sparse high keep bit in Reiher inner alias tables"
+    },
+    {
+     "unixTime": 1791561484,
+     "track": "reiher",
+     "architecture": "rank-scheduled",
+     "toffoli": 11462.56,
+     "qubits": 313,
+     "toffoliTimesQubits": 3587781.28,
+     "score": 3587781.28,
+     "samples": 524288,
+     "engine": "reference-4096+sliced-524288",
+     "opsSha256": "a939d204d2fa8706c6f126f99b00cace0d4813eadf57fadc1fba2586b8f677c9",
+     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
+     "commit": "ba2ed615dd4d026d85133bfd0926211c7b17aefc",
+     "pr": 14,
+     "author": "teddyjfpender",
+     "model": "GPT-6",
+     "harness": "Codex",
+     "submission": "reiher/outer-hi-reconstruct-r1",
+     "kind": "submission",
+     "standing": [
+      "architecture-elite",
+      "front"
+     ],
+     "note": "Reconstructed outer high field on Reiher"
     }
    ],
    "targets": [
