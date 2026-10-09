@@ -332,6 +332,35 @@ pub fn joint_li_table(q: usize) -> Table {
     TABLES.get_or_init(|| parse_li_tables(super::jointalias::LI_JOINT_ALIAS))[q].clone()
 }
 
+/// The exact-count Li witnesses with a globally aligned low alt bit (`.i`).
+#[must_use]
+pub fn global_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    TABLES.get_or_init(|| parse_li_tables(super::globalalias::LI_GLOBAL_ALIAS))[q].clone()
+}
+
+/// The exact-count Li witnesses with jointly aligned low alt bits (`.j`).
+#[must_use]
+pub fn joint_global_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    TABLES.get_or_init(|| parse_li_tables(super::jointglobalalias::LI_JOINT_GLOBAL_ALIAS))[q]
+        .clone()
+}
+
+/// The Li floor/ceiling rerounding with sparse low keep parity (`.k`).
+#[must_use]
+pub fn parity_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    TABLES.get_or_init(|| parse_li_tables(super::parityalias::LI_PARITY_ALIAS))[q].clone()
+}
+
+/// The Li floor/ceiling rerounding with sparse keep and aligned alternate bits (`.l`).
+#[must_use]
+pub fn combined_li_table(q: usize) -> Table {
+    static TABLES: OnceLock<Vec<Table>> = OnceLock::new();
+    TABLES.get_or_init(|| parse_li_tables(super::combinedalias::LI_COMBINED_ALIAS))[q].clone()
+}
+
 fn parse_li_tables(text: &str) -> Vec<Table> {
     let decode = |s: &str| -> Vec<u32> {
         assert_eq!(s.len(), 128, "sparse Li alias column has 64 bytes");
@@ -680,6 +709,81 @@ pub fn uniform_top(tables: &[Table], items: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn globally_aligned_li_witnesses_preserve_counts_and_support() {
+        const HIGH_KEEP: [usize; 10] = [3, 4, 5, 18, 24, 25, 31, 33, 34, 38];
+        const GLOBAL_ZERO: [usize; 6] = [6, 7, 8, 9, 13, 30];
+        const JOINT_ZERO: [usize; 7] = [0, 3, 10, 11, 15, 25, 28];
+        for q in 0..285 {
+            let base = joint_li_table(q);
+            for (table, zero_bit, zero_leaves) in [
+                (global_li_table(q), 0, &GLOBAL_ZERO[..]),
+                (joint_global_li_table(q), 0, &GLOBAL_ZERO[..]),
+                (joint_global_li_table(q), 1, &JOINT_ZERO[..]),
+            ] {
+                assert_eq!(table.counts(58), base.counts(58), "table {q}");
+                assert!(table.keep[58..].iter().all(|&k| k == 0));
+                assert!(table.alt[61..64].iter().all(|&a| a == table.alt[63]));
+                for i in 0..58 {
+                    if !HIGH_KEEP.contains(&i) {
+                        assert_eq!(table.keep[i] & 128, 0, "table {q}, row {i}");
+                    }
+                    if table.alt[i] == i as u32 {
+                        assert_eq!(table.keep[i], 0, "table {q}, self row {i}");
+                    }
+                }
+                for i in 18..38 {
+                    assert_eq!((table.alt[i] ^ table.alt[63]) & 32, 0, "table {q}, row {i}");
+                }
+                for &leaf in zero_leaves {
+                    for i in [2 * leaf, 2 * leaf + 1] {
+                        if i < 61 {
+                            assert_eq!(
+                                (table.alt[i] ^ table.alt[63]) & (1 << zero_bit),
+                                0,
+                                "table {q}, row {i}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn combined_li_witness_preserves_sparse_and_aligned_support() {
+        const LOW_KEEP: [usize; 10] = [1, 4, 6, 7, 9, 11, 18, 19, 24, 28];
+        const HIGH_KEEP: [usize; 9] = [1, 2, 9, 12, 15, 16, 17, 19, 28];
+        const ALT_ZERO_0: [usize; 6] = [6, 7, 8, 9, 13, 30];
+        const ALT_ZERO_1: [usize; 7] = [0, 3, 10, 11, 15, 25, 28];
+        for q in 0..285 {
+            let table = combined_li_table(q);
+            let top = table.alt[63];
+            assert_eq!(table.counts(58).iter().sum::<u64>(), 1 << 14, "table {q}");
+            assert_eq!(&table.alt[61..64], &[top; 3], "table {q}");
+            for i in 0..64 {
+                if i >= 58 {
+                    assert_eq!(table.keep[i], 0, "table {q}, row {i}");
+                } else {
+                    assert!(table.keep[i] & 1 == 0 || LOW_KEEP.contains(&(i / 2)));
+                    assert!(table.keep[i] < 128 || HIGH_KEEP.contains(&(i / 2)));
+                    assert!(table.alt[i] != i as u32 || table.keep[i] == 0);
+                }
+                if (18..38).contains(&i) {
+                    assert_eq!((table.alt[i] ^ top) & 32, 0, "table {q}, row {i}");
+                }
+                if i < 61 {
+                    if ALT_ZERO_0.contains(&(i / 2)) {
+                        assert_eq!((table.alt[i] ^ top) & 1, 0, "table {q}, row {i}");
+                    }
+                    if ALT_ZERO_1.contains(&(i / 2)) {
+                        assert_eq!((table.alt[i] ^ top) & 2, 0, "table {q}, row {i}");
+                    }
+                }
+            }
+        }
+    }
 
     fn lcg(seed: &mut u64) -> u64 {
         *seed = seed
