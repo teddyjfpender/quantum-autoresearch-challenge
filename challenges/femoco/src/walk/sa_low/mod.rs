@@ -18,8 +18,8 @@
 //! the harness cannot swap system qubits, so the spin sector is chosen by running each network
 //! on both spins (their controlled spin swap is not expressible); and uniform superpositions are
 //! the harness's lanes, not prepared.
-pub mod excl;
 mod combinedalias;
+pub mod excl;
 mod globalalias;
 pub mod inner;
 pub mod itemfold;
@@ -30,9 +30,9 @@ pub mod ledger;
 pub mod narrow;
 pub mod onehot;
 pub mod padalias;
-mod parityalias;
 pub mod paired;
 pub mod pareto;
+mod parityalias;
 pub mod qroam;
 pub mod range;
 pub mod rankdel;

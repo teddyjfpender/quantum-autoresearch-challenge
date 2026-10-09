@@ -10,12 +10,12 @@
     "FEMOCO_SA_MU_I": "8",
     "FEMOCO_SA_INNER_A": "3",
     "FEMOCO_SA_OUTER_A": "3",
-    "FEMOCO_SA_TWEAKS": "imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cbfijkl"
+    "FEMOCO_SA_TWEAKS": "imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4cbfijklu"
   },
   "authors": ["teddyjfpender"],
   "model": "GPT-6",
   "harness": "Codex",
-  "claimed": {"toffoli": 17571.485, "qubits": 471},
+  "claimed": {"toffoli": 17535.443, "qubits": 471},
   "parents": ["kl-joint-alias-m8"],
   "discussion": "https://github.com/teddyjfpender/quantum-autoresearch-challenge/discussions/4"
 }
