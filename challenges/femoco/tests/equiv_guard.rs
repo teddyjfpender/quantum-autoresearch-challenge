@@ -480,13 +480,19 @@ fn guard_band_coarse_commutator() {
     all_picks(|| gadget("coarse", 1 << 12, vec![]), 14);
 }
 
-/// Outcome-coverage site counts through a pass the fast engine runs twice. Every lane passes
-/// and many lie inside the guard band, so a folding engine executes the pass, declines to
-/// accept it and falls back. The counts of the declined execution must be dropped: an engine
-/// that kept them would report each execution twice. The circuit is the fine gadget with one
-/// conditioned op (a `Z` on a measured, zeroed ancilla), which runs on half the lanes.
+/// Outcome-coverage site counts when the fast engine runs lanes more than once. Two runs of
+/// the fine gadget with one conditioned op (a `Z` on a measured, zeroed ancilla, which runs on
+/// half the lanes):
+/// - every lane passes and many lie inside the guard band, so the fold falls back to the exact
+///   residual on them;
+/// - the same lanes with one failing lane, so the wide pass that holds it is declined and its
+///   batches are run again one by one, the failing batch on the reference. The counts of the
+///   declined pass must be dropped: an engine that kept them would report those executions
+///   twice.
+///
+/// In both, the engine's counts must equal the reference's.
 #[test]
-fn site_counts_are_not_doubled_by_a_guard_band_fallback() {
+fn site_counts_are_counted_once_when_lanes_are_run_again() {
     let g = calibrate(gadget("fine", 1, vec![]));
     let mut ops = circuit(&g);
     let ancilla = reg(BETA);
@@ -547,19 +553,33 @@ fn site_counts_are_not_doubled_by_a_guard_band_fallback() {
     if cand.0 != "sliced" {
         engines.push(cand);
     }
+    // One lane with control 1 and the flip bit: its sign is wrong.
+    let mut one_fails = lanes.clone();
+    one_fails[700] = Lane {
+        c: true,
+        s: near[0].1 | 1 << FLIP,
+    };
     for (name, engine) in engines {
-        let diffs = equiv::compare_site_counts(engine, &equiv::env_threads(), &ctx, None, &lanes);
-        let fell_back = equiv::engine_counters(&name)
-            .iter()
-            .any(|(k, v)| k.contains("guard") && *v > 0);
-        assert!(
-            name != "sliced" || fell_back,
-            "the sliced engine never fell back, so the case tests nothing"
-        );
-        for (t, d) in &diffs {
-            assert!(d.is_empty(), "engine {name} @{t}: {}", d.join("; "));
+        for (case, lanes, counter) in [
+            ("all pass", &lanes, "guard"),
+            ("one fails", &one_fails, "fallback_batches"),
+        ] {
+            let diffs =
+                equiv::compare_site_counts(engine, &equiv::env_threads(), &ctx, None, lanes);
+            let ran_again = equiv::engine_counters(&name)
+                .iter()
+                .any(|(k, v)| k.contains(counter) && *v > 0);
+            assert!(
+                name != "sliced" || ran_again,
+                "{case}: the sliced engine reports no `{counter}`, so the case tests nothing"
+            );
+            for (t, d) in &diffs {
+                assert!(d.is_empty(), "{case}: engine {name} @{t}: {}", d.join("; "));
+            }
         }
     }
+    let rejected = femoco_walk::sim::validate::reference(&ctx, None, &one_fails, None);
+    assert!(rejected.rejection().is_some(), "the failing lane passed");
     // The reference's own counts: the one site ran on the lanes whose outcome was 1.
     let sink = femoco_walk::sim::condition::CoverageSink::new(1);
     let counted = Context {
