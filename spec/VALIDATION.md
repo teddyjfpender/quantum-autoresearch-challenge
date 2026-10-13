@@ -73,6 +73,11 @@ check; there is no tolerance.
 
 - **Not a proof.** Sampling bounds the fraction of failing lanes; it does not exclude them.
   The bound for a full run is stated in the challenge's design document.
+- **Not an energy statement.** For FeMoco, what the unsampled lanes could do to the energy a
+  phase estimation would report, and the far larger samples or structural checks a
+  chemical-accuracy statement would need, are worked out in
+  [`challenges/femoco/spec/SAMPLING.md`](../challenges/femoco/spec/SAMPLING.md). A row is a
+  sampled regression result.
 - **Not an audit of the sliced engine.** A row's `engine` column says which engines passed it.
   Headline rows are re-validated on the reference engine at full size before the challenge
   leaves `staging` ([ROADMAP.md](ROADMAP.md)).

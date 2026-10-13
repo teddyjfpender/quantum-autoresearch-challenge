@@ -44,6 +44,11 @@
    "evidence": "challenges/femoco/spec/FAST-EVALUATOR.md"
   },
   {
+   "name": "Validation that bounds the energy error: a reflection by construction or a whole-domain symbolic check, and stratified measurement outcomes",
+   "status": "pending",
+   "evidence": "challenges/femoco/spec/SAMPLING.md"
+  },
+  {
    "name": "First submission judged end to end on hosted runners",
    "status": "partial",
    "evidence": "Intake, sandboxed build and report run on pull request 1; evaluation and recording verified by the re-validation workflow and locally"

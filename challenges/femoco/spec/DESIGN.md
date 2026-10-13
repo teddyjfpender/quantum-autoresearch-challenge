@@ -410,7 +410,11 @@ Hermitian) or a `Rotated` product (section 6).
   energy-error statement.
 - **Known limit.** The implied bound holds for the encoded operator only if the block encoding is
   exactly Hermitian on every lane. Certifying that for unsampled lanes would need a symbolic
-  involution check of SELECT, which the harness does not have.
+  involution check of SELECT, which the harness does not have. Where it fails the effect is not
+  linear: a defect tuned to the walk's ground eigenphase on a fraction `f` of lanes displaces
+  the energy phase estimation reports by about `lambda_eff sqrt(2 f)`. [SAMPLING.md](SAMPLING.md)
+  works this out, with the lanes each kind of statement would need, and `score.json` reports
+  the condition and the scale beside the bound (`metrics.sampling_limits`).
 - **Grinding.** The seed commits to every input, but any byte of `family.out.json` or `ops.bin`
   is a free nonce, so a submitter who knows which lanes are wrong can search offline for a draw
   that misses them. This is inherent to Fiat-Shamir with a cheap verifier. `score.json` therefore
@@ -498,6 +502,7 @@ not match the loaded spec. The default build writes:
     "eval_seconds": 0.0,
     "conventions": { },
     "spectral_amplification": { },
+    "sampling_limits": { },
     "nested": { },
     "rounding_class": { } } }
 ```
@@ -844,7 +849,10 @@ What it cannot certify:
 - That the inner block is Hermitian and squares to the identity on unsampled lanes. The walk
   operator is a reflection only if the block encoding is self-inverse on every lane; a block that
   is not, on unsampled lanes, changes the walk without changing any sampled lane (the limit of
-  section 9).
+  section 9). The two copies are required to be identical, not adjoint, so the step is not a
+  reflection by construction; [SAMPLING.md](SAMPLING.md) section 4 discusses the alternative.
+- That a block conditioned on a rare pattern of measurement outcomes was executed at all
+  ([SAMPLING.md](SAMPLING.md) section 2.3).
 - `Reflect` reflects the inner uniform register only, not other ancillas. A circuit that leaves
   garbage in an ancilla after the first copy is not reflected about "its prepared state". The
   paired lanes see the garbage instead, because the second copy runs with a different inner value

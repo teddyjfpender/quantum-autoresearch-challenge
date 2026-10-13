@@ -198,16 +198,35 @@ impl Evaluation {
         self.implied_error_bound_at(0)
     }
     /// [`Self::implied_error_bound`] against `2^draws_log2` free re-draws of the seed.
+    ///
+    /// **Conditional.** It bounds the encoded operator only if the block encoding is Hermitian
+    /// on every lane, sampled or not. Sampling cannot establish that; see
+    /// [`Self::non_hermitian_phase_scale_at`] and spec/SAMPLING.md.
     #[must_use]
     pub fn implied_error_bound_at(&self, draws_log2: u32) -> f64 {
-        let lambda = self.lambda.to_f64();
+        2.0 * self.lambda.to_f64() * self.wrong_weight_bound_at(draws_log2)
+    }
+    /// The operator weight that may sit on wrong control-1 lanes given that every sampled lane
+    /// passed: flat `f_1`, nested `2 f_p1 + f_d1` (spec/DESIGN.md section 16.4).
+    #[must_use]
+    pub fn wrong_weight_bound_at(&self, draws_log2: u32) -> f64 {
         match &self.nested {
-            None => 2.0 * lambda * log_term(draws_log2) / self.control_one_samples.max(1) as f64,
+            None => log_term(draws_log2) / self.control_one_samples.max(1) as f64,
             Some(n) => {
                 let (fp, fd) = n.f_bounds_control_one_at(draws_log2);
-                2.0 * lambda * (2.0 * fp + fd)
+                2.0 * fp + fd
             }
         }
+    }
+    /// How far a defect that is **not** Hermitian can move the walk's eigenphase, in radians,
+    /// when it sits on unsampled lanes of weight up to [`Self::wrong_weight_bound_at`]:
+    /// `sqrt(2 g)`. A defect tuned so that its localized eigenvalue meets the ground eigenphase
+    /// mixes with amplitude `sqrt(g)` and splits the level by this much, where a Hermitian
+    /// defect moves the encoded operator by `2 lambda g` only. It is the size of the effect in
+    /// the rank-one resonance model of spec/SAMPLING.md, not a certified bound.
+    #[must_use]
+    pub fn non_hermitian_phase_scale_at(&self, draws_log2: u32) -> f64 {
+        (2.0 * self.wrong_weight_bound_at(draws_log2)).sqrt()
     }
 }
 

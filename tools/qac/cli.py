@@ -249,6 +249,15 @@ def cmd_compare_row(args) -> int:
         "qubits": int(row["qubits"]) == int(metrics["qubits"]),
         "toffoli": abs(float(row["toffoli"]) - float(metrics["toffoli"])) < 5e-4,
         "samples": int(row["samples"]) == int(metrics["samples"]),
+    }
+    if args.deeper:
+        # A deeper audit draws more lanes from the same seed stream. The Toffoli count is a
+        # mean over lanes, so it moves a little; everything exact must still agree.
+        ratio = float(metrics["toffoli"]) / float(row["toffoli"])
+        checks["toffoli"] = abs(ratio - 1) < 1e-3
+        checks["samples"] = int(metrics["samples"]) > int(row["samples"])
+    checks = {
+        **checks,
         "verifier_sha256": row["verifier_sha256"] == verifier.digest(challenge),
     }
     for name, ok in checks.items():
@@ -466,6 +475,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("verify-ledger", help="[judge] verify every ledger's MAC chain").set_defaults(run=cmd_verify_ledger)
     p = sub.add_parser("compare-row", help="[audit] check a fresh validation against a ledger row")
     p.add_argument("challenge")
+    p.add_argument("--deeper", action="store_true",
+                   help="the fresh validation sampled more lanes than the row: require more lanes and a Toffoli mean within 0.1%%")
     for name in ("submission", "score", "seed"):
         p.add_argument(f"--{name}", required=True)
     p.set_defaults(run=cmd_compare_row)

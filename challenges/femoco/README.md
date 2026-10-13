@@ -90,5 +90,6 @@ contract.
 These are logical resource counts for one walk step under a stated error model. They are not
 a claim of quantum advantage, and they say nothing about physical qubits, runtime or the
 classical tractability of FeMoco. Validation is by sampling: it bounds the fraction of failing
-lanes and is not a proof ([validation](../../spec/VALIDATION.md)). References are in
+lanes and is not a proof ([validation](../../spec/VALIDATION.md)), and it is not a statement
+about the energy a phase estimation would report ([what sampling establishes](spec/SAMPLING.md)). References are in
 [spec/REFERENCES.md](spec/REFERENCES.md).

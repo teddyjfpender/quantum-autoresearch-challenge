@@ -136,6 +136,20 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
     if let Some(est) = &ev.rounding_estimate {
         out["metrics"]["rounding_class"] = estimated_block(est, ev.rounding_error.to_f64());
     }
+    // What the sampled check leaves open (spec/SAMPLING.md). Reported beside the implied
+    // error bound so that the bound is never read without its condition.
+    let grinding = crate::score::GRINDING_LOG2;
+    out["metrics"]["sampling_limits"] = json!({
+        "document": "spec/SAMPLING.md",
+        "wrong_weight_bound": ev.wrong_weight_bound_at(0),
+        "wrong_weight_bound_grinding": ev.wrong_weight_bound_at(grinding),
+        "implied_error_bound_holds_if": "the block encoding is Hermitian on every lane, sampled or not; sampling does not establish this",
+        "non_hermitian_phase_scale_rad": ev.non_hermitian_phase_scale_at(0),
+        "non_hermitian_phase_scale_rad_grinding": ev.non_hermitian_phase_scale_at(grinding),
+        "non_hermitian_phase_scale_formula": "sqrt(2 x wrong_weight_bound): the eigenphase displacement a tuned non-Hermitian defect on unsampled lanes can cause; a scale from the resonance model, not a certified bound",
+        "measurement_outcomes": "drawn uniformly per lane: a block conditioned on a rare outcome pattern is tested on few or no lanes",
+        "certifies_energy_error": false,
+    });
     // Nested runs only, so flat runs' score.json is unchanged (spec/DESIGN.md section 16).
     if let Some(n) = &ev.nested {
         let (fp, fd) = n.f_bounds();

@@ -22,6 +22,10 @@ on:
         type: choice
         options: [sliced, reference]
         default: sliced
+      full_samples:
+        description: Lanes of the full stage; empty for the contract's. A larger count is a deeper audit (challenges/femoco/spec/SAMPLING.md)
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -34,6 +38,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       SUBMISSION: ${{ inputs.submission }}
       FULL_ENGINE: ${{ inputs.full_engine }}
+      FULL_SAMPLES: ${{ inputs.full_samples }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -93,6 +98,14 @@ jobs:
           contract=challenges/femoco/benchmark.json
           "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$(jq -r '.validation.screen.samples' "$contract")" \
             --engine "$(jq -r '.validation.screen.engine' "$contract")" --server-seed "$seed"
-          "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$(jq -r '.validation.full.samples' "$contract")" \
+          samples="$(jq -r '.validation.full.samples' "$contract")"
+          deeper=()
+          if [[ -n "$FULL_SAMPLES" ]]; then
+            [[ "$FULL_SAMPLES" =~ ^[0-9]{1,10}$ ]] && (( FULL_SAMPLES > samples ))
+            samples="$FULL_SAMPLES"
+            deeper=(--deeper)
+          fi
+          "$RUNNER_TEMP/eval_circuit" --root "$root" --samples "$samples" \
             --engine "$FULL_ENGINE" --server-seed "$seed"
-          python3 challenge.py compare-row femoco --submission "$SUBMISSION" --score "$root/score.json" --seed "$seed" | tee -a "$GITHUB_STEP_SUMMARY"
+          jq '.metrics.sampling_limits' "$root/score.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 challenge.py compare-row femoco --submission "$SUBMISSION" --score "$root/score.json" --seed "$seed" "${deeper[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
