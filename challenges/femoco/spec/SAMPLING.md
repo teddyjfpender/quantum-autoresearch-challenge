@@ -349,7 +349,7 @@ digest, checked by trusted code):
 | Circuit | Result | Detail |
 | --- | --- | --- |
 | reiher/est-low-r (Low et al. baseline) | certified | 984 resets and 3,623 outcome phase coefficients proved; 330 system ops, 218 normal-form elements compared; about 3 s |
-| li/low2025-reference (Low et al. baseline) | certified | 1,369 resets and 5,547 outcome phase coefficients proved (measured under rule set v1) |
+| li/low2025-reference (Low et al. baseline) | certified | 1,369 resets and 5,547 outcome phase coefficients proved; 462 system ops, 306 normal-form elements compared; about 17 s |
 | reiher/outer-hi-reconstruct-r1 (best Reiher) | not certified | work budget exhausted after about 7 minutes, in the outcome-independence stage: every one of 3,301 resets proved, registers proved restored, the sign proved independent of 1,341 of the 3,520 outcomes it reads |
 | li/composed-alias-m8 (best Li) | not certified | op 2543511 (`Reflect`): two inner bits proved restored; the third is not proven within the decision-diagram store (about 5.5 minutes) |
 
