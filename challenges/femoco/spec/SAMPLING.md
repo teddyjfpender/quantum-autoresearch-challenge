@@ -13,8 +13,11 @@ of millihartree. No row certifies chemical accuracy, and `score.json` says so
 
 That assumption can now be checked for a circuit, without sampling: the opt-in reflection
 check (section 4, item 2) either proves that the step is Hermitian on every lane or reports
-why it could not. It certifies the Low et al. baseline circuit. It does not certify the best
-Reiher or Li circuit of the ledger, so their rows still rest on the assumption.
+why it could not. It certifies the Low et al. baseline circuits and the best Reiher and Li
+circuits of the ledger (section 4.1). For those circuits the bound above no longer rests on
+the assumption. The bound itself is unchanged, and so is the statement that no row certifies
+chemical accuracy: the check proves the step is a reflection, not that it encodes the spec's
+operator.
 
 ## 1. What a passing sample bounds
 
@@ -256,7 +259,7 @@ In order of strength.
    applies to it. This is the only route here that supports a claim about a final result.
 2. **A step proved to be a reflection.** Implemented as the opt-in reflection check
    (`eval_circuit --reflection-check report|require`, `src/sim/reflection.rs`, rule set
-   `reflection-v2`, DESIGN.md section 16.6). See 4.1 below for what it establishes and what
+   `reflection-v3`, DESIGN.md section 16.6). See 4.1 below for what it establishes and what
    the ledger's circuits get.
 3. **More lanes.** Under the Hermitian assumption `2^24` lanes bound the Reiher error at
    1.2 mHa and `2^26` the Li error at 0.9 mHa. Without it, lanes alone do not reach chemical
@@ -290,11 +293,14 @@ not a mirror; many brackets cross the `Reflect`; and the two inner copies are de
 each other's adjoint (the second applies `M^dagger` by reading a pass flag). A palindrome rule
 would reject every circuit and say nothing about the ones it rejected.
 
-**What is implemented.** One symbolic execution of the op stream under the simulator's lane
-semantics. Every non-system wire is a GF(2) polynomial in immutable symbols: the lane's
-control and uniform bits, the inner bits after the `Reflect`, and one symbol per `Hmr`
-outcome. It is exact (no sampling, no floating point) and it covers every lane and every
-outcome record at once. It never reads a sampled lane.
+**What is implemented.** A symbolic execution of the op stream under the simulator's lane
+semantics. Every non-system wire is a Boolean function of free variables: the lane's control
+and uniform bits, the inner bits after the `Reflect`, and one variable per `Hmr` outcome. Each
+function is held as a reduced ordered binary decision diagram, a canonical form, so "this wire
+is 0 on every lane and for every outcome record" is one comparison. It is exact (no sampling,
+no floating point) and it covers every lane and every outcome record at once. It never reads a
+sampled lane. The stream is run twice, the second time with the inner register's two values
+exchanged, which gives the operator the first run's adjoint must equal.
 
 **What `certified` establishes**, in this order:
 
@@ -302,12 +308,12 @@ outcome record at once. It never reads a sampled lane.
    initial value at the `Reflect`. At the end the control and outer uniform bits hold their
    initial values, the inner register its second-pass value, and every ancilla is 0.
 2. *Outcome independent.* The lane's sign, every system op's control and every rotation angle
-   are proven not to change when any one measurement outcome changes. This is a test of the
-   function, not of how it is written: an outcome may be copied into a qubit, used and undone.
+   are functions that no measurement outcome changes. This is a property of the function, not
+   of how it is written: an outcome may be copied into a qubit, used and undone.
    So the lane operator `L(g, a, b)` depends on the lane only (`g`: control and outer bits; `a`, `b`:
    the inner value before and after the `Reflect`). This also closes 2.3 for the operator: a
    rare outcome pattern cannot change it.
-3. *Hermitian.* `L(g, a, b)^dagger = L(g, b, a)` as an identity in the symbols. With 1 and the
+3. *Hermitian.* `L(g, a, b)^dagger = L(g, b, a)` as an identity in the variables. With 1 and the
    decomposition of DESIGN.md section 16.2 this is Hermiticity of the step on the space where
    every ancilla is 0. The step is a unitary there, so it is a reflection.
 
@@ -325,19 +331,22 @@ effect of 2.2 does not apply to that circuit.
   bound stays at tens of millihartree at the default sample.
 - Executed gate counts on rare outcome patterns (a cost question, not a correctness one).
 - Anything for a circuit it does not certify. `not certified` means not proven within the
-  rule set. It is not a finding that the step is not Hermitian.
+  rule set. A refusal in stage 1 or 2 is exact and comes with a lane and outcome record that
+  shows it. A refusal in stage 3 is not a finding that the step is not Hermitian, because the
+  comparison there is incomplete (below).
 
 **It fails closed.** The result is `certified` or `not certified` with the first obstruction
 (op index, kind, reason). Outside the rule set, and therefore refused: `S`/`Sdg`; a rotation
 under a classical condition; an outcome that reaches a system op; an `R`, `Reflect` or
-end-of-stream condition that is not proven; a sign, control or angle that is not proven
-independent of the outcomes; a mismatch between the lane operator and its adjoint; an exhausted
-work budget; a lane map that is not nested. The work budget counts polynomial and
-decision-diagram operations, never wall clock, so the verdict is deterministic. When the check
-finds that something it needs to be zero is 1 somewhere, the refusal gives one lane and outcome
-assignment on which it is 1, which can be replayed on the lane engine.
+end-of-stream condition that does not hold; a sign, control or angle that depends on an
+outcome; a mismatch between the lane operator and its adjoint; an exhausted work budget or
+node store; a lane map that is not nested. The budget counts decision-diagram steps and nodes,
+never wall clock, so the verdict is deterministic. When the check finds that something it needs
+to be zero is 1 somewhere, the refusal gives one lane and outcome assignment on which it is 1,
+which can be replayed on the lane engine.
 
-**The rules are incomplete, deliberately.** Two examples of true identities they do not find:
+**The comparison of stage 3 is incomplete, deliberately.** Two examples of true identities it
+does not find:
 system ops that commute are not reordered, so a SELECT written as a loop of disjoint
 controlled terms is refused where one data-loaded rotation network is accepted; and an angle
 register holding `2^beta - a` is not recognised as `-a`, so the inverse rotation must be
@@ -348,58 +357,60 @@ digest, checked by trusted code):
 
 | Circuit | Result | Detail |
 | --- | --- | --- |
-| reiher/est-low-r (Low et al. baseline) | certified | 984 resets and 3,623 outcome phase coefficients proved; 330 system ops, 218 normal-form elements compared; about 3 s |
-| li/low2025-reference (Low et al. baseline) | certified | 1,369 resets and 5,547 outcome phase coefficients proved; 462 system ops, 306 normal-form elements compared; about 17 s |
-| reiher/outer-hi-reconstruct-r1 (best Reiher) | not certified | work budget exhausted after about 7 minutes, in the outcome-independence stage: every one of 3,301 resets proved, registers proved restored, the sign proved independent of 1,341 of the 3,520 outcomes it reads |
-| li/composed-alias-m8 (best Li) | not certified | op 2543511 (`Reflect`): two inner bits proved restored; the third is not proven within the decision-diagram store (about 5.5 minutes) |
+| reiher/est-low-r (Low et al. baseline) | certified | 984 resets proved, all 5,008 outcomes proved absent from the operator; 330 system ops, 218 normal-form elements compared; 137 s, 5.7 GB |
+| li/low2025-reference (Low et al. baseline) | certified | 1,369 resets proved, all 7,868 outcomes proved absent from the operator; 462 system ops, 306 normal-form elements compared; 11 min, 12.6 GB |
+| reiher/outer-hi-reconstruct-r1 (best Reiher) | certified | 3,301 resets proved, all 4,622 outcomes proved absent from the operator; 330 system ops, 218 normal-form elements compared; 12 min, 2.7 GB |
+| li/composed-alias-m8 (best Li) | certified | 251 resets proved, all 2,068 outcomes proved absent from the operator; 462 system ops, 306 normal-form elements compared; 39 min, 5.4 GB |
 
-Neither refusal is a finding against the circuit. Both headline circuits pass every sampled
-check at up to `2^24` lanes; the check ran out of budget or store before it reached a verdict.
+Times and peak memory are for one core of a laptop, both runs of the stream included. For
+these four circuits the bound of 2.1 no longer rests on the Hermiticity assumption, and a run
+with the flag reports `hermitian_on_every_lane: "certified"`. The ledger's other rows have
+not been run through rule set v3; a recorded row is not changed by any of this, because the
+check is opt-in and reads the same `ops.bin`.
 
-*What changed with rule set v2.* Under v1 both stopped at the first identity past the truth
-table: a reset over 42 bits (Reiher) and an inner bit over 32 bits (Li). v2 adds a
-decision-diagram rung to the zero test, which proves all of those resets on the Reiher circuit,
-and tests outcome independence as a property of the function. The second was needed as soon as
-the first worked: the best circuits copy an outcome into a qubit inside a condition block, use
-it and undo it (about 124,000 conditioned qubit writes in the best Reiher circuit, none in
-the baselines), and v1 refused any sign that named an outcome through a stored definition
-whether or not the dependence cancelled. One such case was replayed on an independent reading
-of the lane semantics: the sign did not change with the outcome, as the sampled engine also
-finds, so v1's refusal there was the rule's limit and not a defect in the circuit.
+*What changed with rule set v3.* Under v2 the two headline circuits were not certified: the
+check ran out of work proving the Reiher circuit's sign independent of its outcomes one at a
+time, and out of diagram store on one inner bit of the Li circuit. v2 held a wire as a
+polynomial over named sub-expressions and built a decision diagram only for an identity it
+could not settle otherwise, from scratch each time. v3 holds every wire as a decision diagram
+from the start. A dependence on an outcome that cancels is then gone when it cancels, an
+ancilla is 0 when its diagram is the 0 node, and the operator with the two inner values
+exchanged comes from running the stream a second time, not from rewriting the first run. v2's
+refusals of these two circuits were limits of v2 and not defects of the circuits. v3 agrees
+with v2 on everything v2 decided: both baselines, and every circuit of `tests/reflection.rs`.
 
-*What is still missing.* Cost. The Reiher run spends its budget proving independence one
-outcome at a time, at about one second each, and uses about 4 GB. It is not known whether the
-remaining 2,179 outcomes, or the Hermiticity comparison after them, would pass. The Li run
-needs a diagram larger than `2^24` nodes for one inner bit under the variable order the check
-picks. So today only the baselines' bound of 2.1 is free of the Hermiticity assumption, and
-both headline rows keep `hermitian_on_every_lane: "not established"` when run with the flag.
-Ways forward: hold wire values as decision diagrams throughout, so that a dependence that
-cancels never has to be rediscovered per outcome; a better variable order; or a builder that
-undoes those registers through the wires that computed them, which is a new submission and not
-a re-validation of a recorded row.
+*What it costs.* v3 holds table data explicitly: a register filled by a lookup is a diagram
+that grows with the table. So the baselines, which v2 certified in seconds, take minutes, and
+the check needs between 3 and 13 GB. It is deterministic and has no tuning per circuit, but it
+is not a check to run on every submission by default.
 
-**How far to trust it.** The check is about 3,300 lines of trusted code, its unit tests
-included. Its tests
-(`tests/reflection.rs`): the normal form and the adjoint it builds are compared with dense
-matrices on random words of system ops; on about 500 random circuits it certifies, a dense
-simulation of every lane and every outcome record finds exactly what the certificate says
-(the converse is never asserted); and a rotation whose compute and uncompute disagree on one
-uniform value, the construction of 2.2, passes the sampled check at 64 lanes and is refused.
-Each of the sixteen obstruction kinds of DESIGN.md section 16.6 has a circuit that is refused
-with that kind, and so have four lane-semantics rules that no kind names (an op's own
-condition inside a condition block, a conditioned `Swap`, a conditioned `Neg`, a phase on a
-qubit that holds an outcome), each paired with a variant that cancels and is certified. The
-random circuits include conditioned `Swap`s and ops with a condition of their own inside
-blocks. The tests were themselves tested: 30 single-rule alterations of the check (a
-comparison skipped, a rule made a no-op) were applied one at a time in a scratch copy, and
-each makes at least one test fail. That sweep was made on rule set v1 and has not been
-repeated for the parts v2 adds. Those have their own tests: the decision diagrams are compared
-with truth tables for both operations, for canonical form, for collection, for the dependence
-test and for the counterexample; the zero test's rungs are compared with each other and with
-direct evaluation on random sealed polynomials, also with a store too small to hold them; and
-a sign that reaches its outcome only through a sealed value is certified when it cancels and
-refused, with the dense simulation agreeing, when it does not. This is testing, not a proof of
-the implementation.
+**How far to trust it.** The check is about 2,300 lines of trusted code, its unit tests
+included. Its tests (`tests/reflection.rs` and the unit tests of the decision diagrams):
+
+- The decision diagrams are compared with truth tables: both operations, canonical form,
+  collection, which variables a function depends on, and the counterexample.
+- The normal form and the adjoint the check builds are compared with dense matrices on random
+  words of system ops, including a `SpinSwap` that does not execute.
+- On about 500 random circuits it certifies, a dense simulation of every lane and every
+  outcome record finds exactly what the certificate says (the converse is never asserted).
+- A rotation whose compute and uncompute disagree on one uniform value, the construction of
+  2.2, passes the sampled check at 64 lanes and is refused.
+- Each of the sixteen obstruction kinds of DESIGN.md section 16.6 has a circuit that is
+  refused with that kind. Seven lane-semantics rules that no kind names (an op's own
+  condition inside a condition block, a conditioned `Swap`, a conditioned `Neg`, a phase on a
+  qubit that holds an outcome, an outcome mixed into a value with lane bits, the qubit and
+  the bit of a conditioned `Hmr`) each have a stream that is refused paired with a variant
+  that cancels and is certified, and the dense simulation agrees with both.
+- A node store too small refuses with kind `budget` or gives exactly the verdict of a large
+  one, on the tiny circuit and on each of its mutants.
+
+The tests were themselves tested. `tools/analysis/reflection_mutants.py` applies 72
+single-rule alterations of the check, one at a time, in a scratch copy (a comparison skipped,
+a condition ignored, a term dropped, a collection that forgets a root), and each makes at
+least one test fail. On the first run ten did not: nine now have a test written for them, and
+the tenth altered unreachable code, which was removed. This is testing, not a proof of the
+implementation. The check is one implementation, by one author, of semantics that the lane
+engine implements separately; where both have run, they agree.
 
 **Status.** Opt-in and report-only by default. With `--reflection-check report` a run passes
 or fails exactly as without the flag. With `require`, a circuit that is not certified is a

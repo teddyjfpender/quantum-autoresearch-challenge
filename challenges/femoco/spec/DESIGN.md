@@ -617,12 +617,13 @@ not match the loaded spec. The default build writes:
   that those ops are not covered. Nothing else in `score.json`
   differs from the same run without the flag, apart from `eval_seconds`.
 - `metrics.reflection` is present only on a run with `--reflection-check` (section 16.6):
-  `version` (`reflection-v2`), `rule_set`, `status` (`certified` or `not certified`) and the
+  `version` (`reflection-v3`), `rule_set`, `status` (`certified` or `not certified`) and the
   same as the boolean `certified`, `obstruction` (`null`, or `op`, `op_kind`, `kind`,
   `reason`), the three stage flags `registers_restored`, `outcome_independent` and
-  `hermitian` (`false` means not established), `counts` (ops read, measurements, resets and
-  outcome phase coefficients proved zero, system ops, Givens, SpinSwaps, normal-form elements
-  compared, zero tests by rung), `symbols`, `sealed`, `work`, `work_budget` and a `statement`.
+  `hermitian` (`false` means not established), `counts` (ops read, measurements, resets proved
+  zero, outcomes proved independent, system ops, Givens, SpinSwaps, normal-form elements
+  compared), `diagrams` (variables, the most nodes held, the node limit, collections), `work`,
+  `work_budget` and a `statement`.
   On such a run `sampling_limits.hermitian_on_every_lane` is `certified` or
   `not established`. Only when it is `certified`, `implied_error_bound_holds_if` and
   `measurement_outcomes` are replaced by sentences that point to the block, and
@@ -995,84 +996,74 @@ item count has `keep = 0`, and every `keep` is below `2^mu`.
 
 ### 16.6 The reflection check
 
-`eval_circuit --reflection-check report|require` (opt-in; `src/sim/reflection.rs`, polynomials in
-`src/sim/reflection/poly.rs`, decision diagrams in `src/sim/reflection/bdd.rs`, rule set
-`reflection-v2`). It runs after every sampled lane has
-passed, reads the op stream and the compiled registers only, and changes no count or bound. With
-`report` its result goes to `metrics.reflection` and the run passes or fails as without the flag.
-With `require` a step that is not certified is rejected with
+`eval_circuit --reflection-check report|require` (opt-in; `src/sim/reflection.rs`, decision
+diagrams in `src/sim/reflection/bdd.rs`, rule set `reflection-v3`). It runs after every sampled
+lane has passed, reads the op stream and the compiled registers only, and changes no count or
+bound. With `report` its result goes to `metrics.reflection` and the run passes or fails as
+without the flag. With `require` a step that is not certified is rejected with
 `reflection-check: not certified: op I (KIND): reason [kind]`. [SAMPLING.md](SAMPLING.md) section
 4.1 states what a certificate does and does not mean, and what the ledger's circuits get.
 
 **Scope.** Nested lane maps whose control-1 lanes keep their uniform value (`df-nested-alias-v1`,
 `sa-nested-alias-v1`). Any other lane map is `not certified: unsupported-lane-map`.
 
-**Symbols.** One per initial control and uniform bit (`Initial`), one per inner uniform bit
-after the `Reflect` (`Second`), one per `Hmr` op (`Outcome`), and *sealed* symbols, each a name
-for an older polynomial. A monomial is a set of symbols (`x^2 = x`); a polynomial is a set of
-monomials over GF(2). Sealed symbols are hash-consed, so equal definitions give the same symbol.
-Sealing renames a polynomial and never changes its value: it can only make the check miss an
-identity.
+**Variables.** One Boolean variable per initial control and uniform bit, one per inner uniform
+bit after the `Reflect`, one per `Hmr` op (its outcome). Every value the check holds is a
+Boolean function of these, stored as a reduced ordered binary decision diagram. The form is
+canonical for a fixed variable order: two functions are equal exactly when they are the same
+node. So "this wire is 0 on every lane and for every outcome record" is one comparison with
+the 0 node, and a value that names an outcome only in the way it is written (a fix-up that
+cancels) does not depend on it in the diagram at all. The order is: lane bits in the order the
+op stream first names their wires, then the second-pass inner bits in the same relative order,
+then the outcomes in stream order. The order affects cost and never a verdict.
 
-**State.** A polynomial per non-system wire (its `Initial` symbol for the control and uniform
-bits, 0 for ancillas) and per classical bit (0); the condition stack as polynomials, each frame
-holding the product of its bit, as it was at the push, with the enclosing frames; the lane's sign
-`(-1)^Phi` with `Phi` held as one polynomial per product of outcomes; and a log of system ops.
-A wire read as an operand of a product is sealed first if its polynomial has more than 3 terms.
-At a `PopCondition`, a wire the block wrote gets back the polynomial it held at the push when
-the cheap rung of the zero test shows the two are equal. That changes the form and not the
-value: the wire no longer names the block's condition, so what reads it later does not inherit
-a dependence on an outcome that is not there.
+**State.** A function per non-system wire (its variable for the control and uniform bits, 0
+for ancillas) and per classical bit (0); the condition stack, each frame holding the product
+of its bit, as it was at the push, with the enclosing frames; the lane's sign `(-1)^Phi`; and
+a log of system ops. Two things are held as sums and added up lazily, because the diagram of a
+sum can be far larger than its terms while the sum is incomplete:
+
+- A wire is a sum of the terms written to it, added pairwise in a binary counter and added up
+  when the wire is next read. A register that a table lookup fills one entry at a time then
+  costs its final diagram times the logarithm of the table size.
+- `Phi` is held as `sum_mu mu * phi[mu]` over products `mu` of outcomes, with each `phi[mu]` a
+  function of lane bits alone. This is the algebraic normal form in the outcomes, which is
+  unique, so `Phi` is independent of every outcome exactly when every `phi[mu]` with `mu != 1`
+  is 0. A measurement's fix-up may come long after the measurement; one diagram for the sum of
+  thousands of pending `outcome * value` terms would not fit. A term is split into this form
+  by reading its diagram: the outcomes are below the lane bits in the order, so the diagram is
+  one over lane bits whose leaves are functions of outcomes alone.
 
 **Rules.** With `cond` the product of the enclosing blocks and the op's own `c_condition`:
 
 | Op | Effect |
 | --- | --- |
 | `X t`, `CX c t`, `CCX a b t`, non-system `t` | `t += cond`, `cond c`, `cond a b` |
-| `Swap` | unconditioned: exchange; conditioned: both `+= cond (a + b)` |
+| `Swap` | both `+= cond (a + b)` |
 | `Z`, `CZ`, `CCZ` on non-system wires, `Neg` | `Phi += cond x` (the product of the wires; 1 for `Neg`) |
 | `X`/`CX`/`CCX` with a system target; `Z`/`CZ`/`CCZ` with one system qubit | logged as `X` or `Z` on that qubit with control `cond x` (the non-system operands) |
-| `Givens` | `cond` must be the constant 1; logged with the polynomial of every bit of its register |
+| `Givens` | `cond` must be the constant 1; logged with the function of every bit of its register |
 | `SpinSwap`, `SpinSwapDg` | logged with control `cond t` |
 | `BitInvert`, `BitStore0`, `BitStore1` on bit `b` | `b += cond`, `b += cond b`, `b += cond b + cond` |
 | `Hmr t -> b`, new outcome `m` | `Phi += cond m t`; `t += cond t`; `b += cond (b + m)` |
-| `R t` | `t` must be proven 0 (also inside a condition block, which is stricter than the simulator) |
-| `Reflect` | each inner wire must be proven equal to its `Initial` symbol; it then holds a new `Second` symbol |
+| `R t` | `t` must be 0 (also inside a condition block, which is stricter than the simulator) |
+| `Reflect` | each inner wire must equal its initial variable; it then holds its second-pass variable |
 | `Register`, `AppendToRegister`, `Segment`, `DebugPrint` | none (registers are the compiled ones) |
 | `S`, `Sdg`; any other use of a system qubit | refused |
 
-At the end of the stream the control and outer uniform wires must be proven equal to their
-`Initial` symbols, the inner wires to their `Second` symbols and every other non-system wire to
-0. No bracket shape is matched: an AND erasure, a lookup erasure fixed through parity bits, and
-fix-ups that are deferred, merged or placed after the `Reflect` all pass by the same tests.
+At the end of the stream the control and outer uniform wires must equal their initial
+variables, the inner wires their second-pass variables and every other non-system wire 0. No
+bracket shape is matched: an AND erasure, a lookup erasure fixed through parity bits, an
+outcome copied into a qubit and undone, and fix-ups that are deferred, merged or placed after
+the `Reflect` all pass by the same comparisons. These comparisons are exact. A refusal at an
+`R`, at the `Reflect` or at the end carries one assignment of lane bits and outcomes on which
+the wire is wrong, and the fraction of assignments on which it is; the assignment can be
+replayed on the lane engine.
 
-**Outcome independence.** Everything the lane operator is made of (the sign `Phi` with the
-normal form's crossing sign, each logged control, each angle bit, each frame entry) must be
-proven independent of every measurement outcome, as a function. For a polynomial `p` and each
-outcome `m` it reads, directly or through a sealed definition, the check forms `p` with `m = 1`
-plus `p` with `m = 0` (sealed symbols that read `m` are replaced by the seals of their
-restricted definitions) and requires the zero test to prove it 0. A Boolean function that no
-single variable changes is constant in all of them, so `p` then equals `p` with every outcome
-set to 0, a polynomial that names no outcome anywhere, and that form is used from there on. A
-coefficient of a product of outcomes in `Phi` that the cheap rung proves 0 is dropped first.
-This is a test of the function and not of how it is written: an outcome may sit in a qubit, be
-used as a control and be undone, as long as the result does not depend on it.
-
-**The zero test.** "Proven" means one of: the polynomial has no monomials; substituting sealed
-symbols by their definitions, newest first, with cancellation, leaves no monomials (first with a
-limit of `2^12` monomials held, last with `2^19`); when the polynomial depends on at most 20
-primary symbols, it evaluates to 0 on every assignment of them; or its reduced ordered binary
-decision diagram is the constant 0. The diagram is built over the primary symbols, in the order
-a depth-first walk first meets them, from the diagrams of the sealed symbols it depends on. The
-form is canonical for a fixed variable order, so a function is 0 exactly when its diagram is
-the 0 node. The store holds at most `2^24` nodes; nodes no symbol names are collected when it
-is half full, then the diagrams the test at hand no longer reads, and a store that still
-overflows gives "not proven". Each rung is sound, and they agree where two decide. Anything
-else is "not proven" and stops the check. All work is counted in polynomial and diagram
-operations against a fixed budget, never in time, so the verdict is deterministic. When a
-polynomial is found nonzero and its diagram fits, the refusal carries one assignment on which it
-is 1, checked by plain evaluation, and the fraction of assignments on which it is 1; the
-assignment can be replayed on the lane engine.
+**Outcome independence.** Everything the lane operator is made of must be a function that no
+outcome changes: every `phi[mu]` with `mu != 1` must be 0, and no outcome's variable may occur
+in the diagram of a control, an angle bit, a frame entry or the sign of the normal form below.
+Both are exact: a reduced diagram contains a variable exactly when the function depends on it.
 
 **Hermiticity.** Write the lane's logged system ops, in time order, in a normal form: move every
 `Z` to the end, keeping a symbolic `Z` frame `zf`. A `Z` with control `c` on `q` adds `c` to
@@ -1082,22 +1073,33 @@ stays and exchanges `zf[2k]` and `zf[2k+1]` where `c` is 1. This uses `X Z = -Z 
 identities, checked against dense matrices in `tests/reflection.rs`: `Z_p G_pq(t) Z_p = G_pq(-t)`
 (and the same for `Z_q`); `Z_k` commutes with `G_pq` for `k` outside `{p, q}`; and
 `F Z_2k F^dagger = Z_{2k+1}` for the `SpinSwap` layer `F`, in both directions. The lane operator
-is then `(-1)^sign Z^frame E_n ... E_1`. Its adjoint is the frame followed by the `E_i` reversed
-and inverted (`X` unchanged, the Givens angle's sign flipped, `F` and `F^dagger` exchanged),
-brought to the same normal form. The *twin* of a polynomial exchanges each inner bit's `Initial`
-and `Second` symbols; a sealed symbol maps to the sealed symbol of its mapped definition (no `Outcome` symbol is left
-to meet after the step above). The step is certified when the adjoint's normal
-form equals the twin of the lane operator's, element by element: the same kind and qubits, equal
-controls, every angle bit and the angle's sign equal, equal frames and equal signs, each equality
-decided by the zero test.
+`L(g, a, b)` (`g`: control and outer bits; `a`, `b`: the inner value before and after the
+`Reflect`) is then `(-1)^sign Z^frame E_n ... E_1`. Its adjoint is the frame followed by the
+`E_i` reversed and inverted (`X` unchanged, the Givens angle's sign flipped, `F` and
+`F^dagger` exchanged), brought to the same normal form.
+
+The operator to compare it with is `L(g, b, a)`. The check gets it by running the whole stream
+a second time with the two sets of inner variables exchanged: the inner wires start on the
+second-pass variables and receive the first-pass ones at the `Reflect`. That second run is
+checked like the first (stages 1 and 2) and brought to normal form. The step is certified when
+the adjoint's normal form equals the second run's, element by element: the same kind and
+qubits, the same control, every angle bit and the angle's sign the same, the same frame and
+the same sign. "The same" is equality of nodes.
+
+**Limits.** All work is counted in decision-diagram steps against a fixed budget (`2^38`),
+never in time, and the store holds at most `2^28` nodes; nodes that nothing names are
+collected when the store has doubled. An op whose result does not fit is tried once more after
+a collection, and then refused with kind `budget`. So the verdict is deterministic, and a
+store too small can refuse but cannot change a verdict (`tests/reflection.rs` pins this).
 
 **Why that is Hermiticity.** With the registers proven restored, section 16.2 gives
 `C = sum_g sum_{a,b} (2 / 2^w - [a = b]) |g, b><g, a| (x) L(g, a, b)` on the space where every
 ancilla is 0, with `L` the lane operator. So `C^dagger = C` exactly when
 `L(g, a, b)^dagger = L(g, b, a)` for all `g, a, b`. The normal form represents `L(g, a, b)`
-exactly, the twin map is a ring automorphism, so the twin of the normal form represents
-`L(g, b, a)`, and equal polynomials give equal operators. Outcomes are free symbols, so the
-statement holds for every outcome record. Angles are compared bit for bit over the whole
+exactly, and the second run's represents `L(g, b, a)` exactly: the lane semantics do not
+distinguish one free variable from another, so exchanging two sets of them in the inputs
+exchanges them in every function computed. Equal diagrams are equal functions, hence equal
+operators. Outcomes are free variables, so the statement holds for every outcome record. Angles are compared bit for bit over the whole
 register, which is stricter than the tracker's reading modulo `2^beta`.
 
 **Obstruction kinds.** `unsupported-lane-map`, `unsupported-op`, `structure`,
@@ -1106,13 +1108,14 @@ register, which is stricter than the tracker's reading modulo `2^beta`.
 `control-mismatch`, `angle-mismatch`, `frame-mismatch`, `phase-mismatch`, `budget`.
 
 **A discipline that passes** (no hints and no new ops are needed): undo an ancilla through the
-wires that computed it, or by measurement with its fix-up; keep any reset that rests on an
-identity of table data within 20 lane bits; never let a measurement outcome steer a system op;
+wires that computed it, or by measurement with its fix-up; never let a measurement outcome
+steer a system op;
 no `S` gates; write the inverse rotation as `Z G Z` from the same angle register; and keep the
 step's system ops a palindrome (`W^dagger P W` per copy), because commuting ops are not
 reordered. `tests/reflection.rs` has a small circuit written this way.
 
 **What it does not show.** That the step encodes the spec's operator; anything about a circuit
-it does not certify; and the correctness of its own implementation beyond its tests (dense
-matrices for the normal form, a dense simulation of every lane and outcome record of the
-random circuits it certifies, and one refused circuit per obstruction kind above).
+it does not certify; and the correctness of its own implementation beyond its tests (the
+decision diagrams against truth tables, dense matrices for the normal form, a dense simulation
+of every lane and outcome record of the random circuits it certifies, and one refused circuit
+per obstruction kind above).

@@ -3,23 +3,26 @@
 //! section 16.6). Opt-in (`eval_circuit --reflection-check`); it never reads a sampled lane.
 //!
 //! **Method ("symbolic lanes").** The op stream is executed once under the lane semantics of
-//! `super::lanes`, with every non-system wire a GF(2) polynomial (`poly`) over immutable
-//! symbols: one per initial control and uniform bit, one per inner uniform bit after the
-//! `Reflect`, one per `Hmr` outcome. Each rule below is an exact identity of those semantics, so
-//! at every op a wire's polynomial is the wire's value on every lane and outcome record.
+//! `super::lanes`, with every non-system wire and every classical bit a Boolean function, held
+//! as a reduced ordered binary decision diagram (`bdd`), of free variables: one per initial
+//! control and uniform bit, one per inner uniform bit after the `Reflect`, one per `Hmr`
+//! outcome. Each rule of `Engine::exec` is an exact identity of those semantics, so at every op
+//! a wire's diagram is the wire's value on every lane and outcome record. A diagram is a
+//! canonical form: two functions are equal exactly when their diagrams are the same node. So a
+//! wire is 0 on every lane exactly when it is the node `FALSE`, and a value that depends on an
+//! outcome only in form (a fix-up that cancels) does not depend on it in the diagram at all.
 //!
 //! **What a certificate establishes**, in this order (`Report`):
 //! 1. *Registers restored.* Every `R` frees a qubit that is 0; at the `Reflect` the inner
 //!    register holds its initial value; at the end the control and the outer uniform bits hold
 //!    their initial values, the inner register its second-pass value, and every other
 //!    non-system wire is 0.
-//! 2. *Outcome independent.* The lane's sign is `(-1)^Phi` with `Phi` a polynomial; the
-//!    coefficient of every product of outcomes in `Phi` is identically zero, and no system op's
-//!    control, no rotation angle and no part of the remaining sign names an outcome. So the lane
-//!    operator `L(g, a, b)` on the system register is a function of the lane alone (`g`: control
-//!    and outer bits, `a`, `b`: the inner value before and after the `Reflect`).
-//! 3. *Hermitian.* `L(g, a, b)^dagger = L(g, b, a)` as an identity in the symbols. With 1 this is
-//!    Hermiticity of the step `C = sum_g sum_{a,b} (2 / 2^w - [a = b]) |g, b><g, a| (x)
+//! 2. *Outcome independent.* The lane's sign is `(-1)^phi`; `phi`, and every control, angle and
+//!    sign of the lane's system ops in normal form, is a function that no outcome can change.
+//!    So the lane operator `L(g, a, b)` on the system register is a function of the lane alone
+//!    (`g`: control and outer bits, `a`, `b`: the inner value before and after the `Reflect`).
+//! 3. *Hermitian.* `L(g, a, b)^dagger = L(g, b, a)` as an identity in the variables. With 1
+//!    this is Hermiticity of the step `C = sum_g sum_{a,b} (2 / 2^w - [a = b]) |g, b><g, a| (x)
 //!    L(g, a, b)` (spec/DESIGN.md section 16.2) on the space where every ancilla is 0.
 //!
 //! The comparison of 3 writes the lane's system ops in a normal form: `Z`s are moved to the end
@@ -28,68 +31,68 @@
 //! the same for `Z_q`); `Z_k` commutes with `G_pq` for `k` outside `{p, q}`; `F Z_2p F^dagger =
 //! Z_{2p+1}` for the `SpinSwap` layer `F`. tests/reflection.rs checks them against dense
 //! matrices. The adjoint's normal form must then equal, element by element, the normal form
-//! with the first- and second-pass inner symbols exchanged.
+//! with the first- and second-pass inner variables exchanged.
 //!
 //! **Fail closed.** The result is `certified`, or `not certified` with the first obstruction.
 //! Anything outside the rules is an obstruction: `S`/`Sdg`, a rotation under a classical
-//! condition, an outcome that reaches a system op, a zero that is not proven, a normal-form
-//! mismatch, an exhausted work budget, a lane map that is not nested. "Not certified" means not
-//! proven; it is not a finding that the step is not Hermitian. The rules are incomplete on
-//! purpose: for example two system ops that commute are not reordered, and an angle register
-//! that holds `2^beta - a` is not recognised as `-a`.
+//! condition, an outcome that reaches a system op, a wire that is not restored, a normal-form
+//! mismatch, an exhausted work budget or node store, a lane map that is not nested. Stages 1
+//! and 2 are decided exactly (an obstruction there names a lane and outcome record). Stage 3
+//! is incomplete on purpose: for example two system ops that commute are not reordered, and an
+//! angle register that holds `2^beta - a` is not recognised as `-a`. "Not certified" is
+//! therefore not a finding that the step is not Hermitian.
 //!
 //! **Not established.** That the step encodes the spec's operator: a step can be Hermitian and
 //! wrong, and that stays a sampled statement. The certificate also says nothing about executed
 //! gate counts.
 pub mod bdd;
-pub mod poly;
 
 use super::compile::{Layout, MAX_BITS, MAX_QUBITS};
 use super::nested::Inner;
 use crate::circuit::{Op, OperationType as K, NONE};
-use poly::{Arena, Kind, Limits, Mono, Poly, Sym, Verdict, ONE};
+use bdd::{Bdd, Node, Op as B, FALSE, TRUE};
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-/// The rule set's name and version. The sealing threshold, the zero test's rungs and their
-/// limits decide which true identities are found, so they belong to the version: change any of
-/// them and this string must change.
-pub const VERSION: &str = "reflection-v2";
-/// A wire read as an operand of a product is sealed when its polynomial has more terms.
-const CAP: usize = 3;
-const NO_SYM: Sym = u32::MAX;
-/// The cheap cancellation test (`poly::Arena::cancels`): monomials held, monomial products.
-const CHEAP: (usize, usize) = (1 << 12, 1 << 16);
+/// The rule set's name and version. The rules of `Engine::exec`, the normal form and the
+/// variable order belong to the version: change any of them and this string must change.
+pub const VERSION: &str = "reflection-v3";
+const NO_LEVEL: u32 = u32::MAX;
+/// Nodes visited per unit of work when the store is collected.
+const COLLECT_PER_TICK: usize = 16;
+/// The store is not collected below this many nodes.
+const COLLECT_FLOOR: usize = 1 << 16;
 
-/// Deterministic work limits (counts of polynomial and decision-diagram operations; never wall
-/// clock). The Low et al. baseline on the Reiher instance needs about 3.3e7; the default work
-/// limit, about 130 times that, is some seven minutes on a laptop core. Memory is bounded
-/// besides by `poly`'s cap on interned monomials and by the node limit.
+/// A product of measurement outcomes: their levels, ascending. Empty is the constant 1.
+type Mono = Rc<[u32]>;
+/// A function as `sum_mu mu * f_mu` over products `mu` of outcomes, each `f_mu` a function of
+/// the lane bits alone and not 0. The form is unique (the algebraic normal form in the
+/// outcomes), so the function is independent of every outcome exactly when no product other
+/// than the empty one is present.
+type Parts = Vec<(Mono, Node)>;
+/// New coefficients of the lane's sign, to be committed.
+type Signs = Vec<(Mono, Sum)>;
+
+/// Deterministic limits (counts of decision-diagram steps and nodes; never wall clock).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Budget {
-    /// Total work of the run (`poly::Arena::work`).
+    /// Total work of the run: decision-diagram steps, plus one per op.
     pub work: u64,
-    /// Most monomials the expansion rung of one zero test may hold.
-    pub expand: usize,
-    /// Truth tables are used for a zero test over at most this many primary symbols.
-    pub table_bits: u32,
-    /// Most nodes the decision-diagram rung of the zero test may hold (about 50 bytes each).
+    /// Most decision-diagram nodes held at once.
     pub bdd_nodes: usize,
 }
 
 impl Default for Budget {
     fn default() -> Self {
         Self {
-            work: 1 << 32,
-            expand: 1 << 19,
-            table_bits: 20,
-            bdd_nodes: 1 << 24,
+            work: 1 << 38,
+            bdd_nodes: 1 << 28,
         }
     }
 }
 
-/// Why the check did not certify: the first rule the op stream is not proven to meet.
+/// Why the check did not certify: the first rule the op stream does not meet.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Obstruction {
     /// The op it is attributed to; `None` for a condition on the whole stream.
@@ -119,21 +122,19 @@ pub struct Counts {
     pub measurements: u64,
     /// `R` ops whose qubit was proven 0.
     pub resets_proved: u64,
-    /// Products of outcomes whose phase coefficient was proven zero at the end of the stream
-    /// (those that cancelled term by term on the way are not counted).
-    pub outcome_phases_proved: u64,
+    /// Measurement outcomes the lane operator and the lane's sign were proven independent of:
+    /// every one, once stage 2 is established.
+    pub outcomes_proved: u64,
     /// System ops in the lane operator: `X`/`Z` (controlled or not), `Givens`, `SpinSwap`.
     pub system_ops: u64,
     pub givens: u64,
     pub spin_swaps: u64,
     /// Elements of the normal form compared with the adjoint's.
     pub compared: u64,
-    /// Zero tests by the rung that decided them (`poly::Arena::is_zero`).
-    pub zero_syntactic: u64,
-    pub zero_truth_table: u64,
-    pub zero_expansion: u64,
-    pub zero_decision_diagram: u64,
-    pub zero_undecided: u64,
+    /// Most decision-diagram nodes held at once.
+    pub nodes_peak: u64,
+    /// Times the node store was collected.
+    pub collections: u64,
 }
 
 /// The result of [`certify`].
@@ -148,8 +149,8 @@ pub struct Report {
     /// Stage 3.
     pub hermitian: bool,
     pub counts: Counts,
+    /// Boolean variables: lane bits and measurement outcomes.
     pub symbols: u64,
-    pub sealed: u64,
     pub work: u64,
     pub budget: Budget,
 }
@@ -171,7 +172,6 @@ impl Report {
             hermitian: false,
             counts: Counts::default(),
             symbols: 0,
-            sealed: 0,
             work: 0,
             budget,
         }
@@ -193,7 +193,7 @@ impl Report {
         let c = &self.counts;
         json!({
             "version": VERSION,
-            "rule_set": "symbolic lanes: every non-system wire as a GF(2) polynomial in the lane's bits and the measurement outcomes; the system ops in a Z-frame normal form compared with their adjoint under exchange of the first- and second-pass inner values",
+            "rule_set": "symbolic lanes: every non-system wire as a reduced ordered binary decision diagram over the lane's bits and the measurement outcomes; the system ops in a Z-frame normal form compared with their adjoint under exchange of the first- and second-pass inner values",
             "document": "spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6",
             "status": if self.certified { "certified" } else { "not certified" },
             "certified": self.certified,
@@ -210,21 +210,18 @@ impl Report {
                 "ops": c.ops,
                 "measurements": c.measurements,
                 "resets_proved_zero": c.resets_proved,
-                "outcome_phase_coefficients_proved_zero": c.outcome_phases_proved,
+                "outcomes_proved_independent": c.outcomes_proved,
                 "system_ops": c.system_ops,
                 "givens": c.givens,
                 "spin_swaps": c.spin_swaps,
                 "normal_form_elements_compared": c.compared,
-                "zero_tests": {
-                    "syntactic": c.zero_syntactic,
-                    "truth_table": c.zero_truth_table,
-                    "expansion": c.zero_expansion,
-                    "decision_diagram": c.zero_decision_diagram,
-                    "undecided": c.zero_undecided,
-                },
             },
-            "symbols": self.symbols,
-            "sealed": self.sealed,
+            "diagrams": {
+                "variables": self.symbols,
+                "nodes_peak": c.nodes_peak,
+                "node_limit": self.budget.bdd_nodes,
+                "collections": c.collections,
+            },
             "work": self.work,
             "work_budget": self.budget.work,
             "statement": if self.certified {
@@ -237,109 +234,152 @@ impl Report {
 }
 
 /// One system op of the lane operator, with symbolic controls.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Sys {
     /// `Z` on system qubit `q` where `c` is 1.
-    Z { q: usize, c: Poly },
+    Z { q: usize, c: Node },
     /// `X` on system qubit `q` where `c` is 1.
-    X { q: usize, c: Poly },
+    X { q: usize, c: Node },
     /// `G_{p,q}((-1)^sign 2 pi angle / 2^beta)`, the angle register bit by bit.
     G {
         p: usize,
         q: usize,
-        angle: Vec<Poly>,
-        sign: Poly,
+        angle: Vec<Node>,
+        sign: Node,
     },
     /// The `SpinSwap` layer `F` (`F^dagger` when `dagger`) where `c` is 1.
-    F { dagger: bool, c: Poly },
+    F { dagger: bool, c: Node },
 }
 
-/// A symbol under a restriction of outcomes: a constant or a symbol.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Cut {
-    Zero,
-    One,
-    Sym(Sym),
+impl Sys {
+    fn nodes_mut(&mut self) -> Vec<&mut Node> {
+        match self {
+            Sys::Z { c, .. } | Sys::X { c, .. } | Sys::F { c, .. } => vec![c],
+            Sys::G { angle, sign, .. } => angle.iter_mut().chain(std::iter::once(sign)).collect(),
+        }
+    }
+
+    fn nodes(&self) -> Vec<Node> {
+        match self {
+            Sys::Z { c, .. } | Sys::X { c, .. } | Sys::F { c, .. } => vec![*c],
+            Sys::G { angle, sign, .. } => angle.iter().copied().chain([*sign]).collect(),
+        }
+    }
+
+    fn what(&self) -> &'static str {
+        match self {
+            Sys::Z { .. } => "a system Z's control",
+            Sys::X { .. } => "a system X's control",
+            Sys::G { .. } => "a Givens angle or its sign",
+            Sys::F { .. } => "a SpinSwap's control",
+        }
+    }
+}
+
+/// A sum of functions, added up lazily. Slot `k` holds the sum of about `2^k` of the terms, or
+/// `FALSE` for none, and two sums of the same size are added when they meet (a binary counter).
+/// A register that a table lookup fills one entry at a time is then built in work
+/// proportional to its final diagram times the logarithm of the table size, where adding each
+/// entry to the whole would cost the product of the two.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Sum(Vec<Node>);
+
+impl Sum {
+    fn of(f: Node) -> Self {
+        Self(vec![f])
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.iter().all(|&n| n == FALSE)
+    }
+}
+
+/// A list of system ops as `(-1)^sign * Z^frame * (last of list) ... (first of list)`.
+struct Normal {
+    list: Vec<(usize, Sys)>,
+    frame: Vec<Node>,
+    sign: Node,
+}
+
+impl Normal {
+    fn new(system: usize) -> Self {
+        Self {
+            list: Vec::new(),
+            frame: vec![FALSE; system],
+            sign: FALSE,
+        }
+    }
+}
+
+/// A difference between two normal forms: its kind, what differs, the two functions and the
+/// op it is attributed to.
+type Mismatch = (&'static str, String, (Node, Node), Option<usize>);
+
+/// Where the next op of a normal form comes from.
+#[derive(Clone, Copy)]
+enum Source {
+    /// The op at this position of the pass's log.
+    Log(usize),
+    /// The op at this position of the adjoint of `forms[0]`.
+    Adjoint(usize),
 }
 
 struct Engine<'a> {
-    a: Arena,
-    lim: Limits,
+    b: Bdd,
+    work: u64,
+    limit: u64,
+    /// The work limit is passed: nothing computed after that is used.
+    spent: bool,
     l: Layout,
     first: u32,
     inner: Vec<u32>,
     registers: &'a [Vec<u32>],
+    /// Per wire below `first`: the level of its `Initial` variable (`NO_LEVEL` for a system
+    /// qubit).
+    rank: Vec<u32>,
+    /// Per inner wire, in `inner` order: the level of its `Second` variable.
+    second: Vec<u32>,
+    /// The level of the first measurement outcome. Outcomes take the levels from here on, in
+    /// the order of their `Hmr`s.
+    outcome_base: u32,
+    /// Per outcome: the op index of its `Hmr`.
+    outcomes: Vec<usize>,
     /// Per non-system wire: its value.
-    val: Vec<Poly>,
-    /// Per classical bit: its value, a polynomial in the outcomes.
-    cl: Vec<Poly>,
-    /// Per wire below `first`: its `Initial` symbol (`NO_SYM` for a system qubit).
-    initial: Vec<Sym>,
-    /// Per inner wire, in `inner` order: its `Second` symbol, once the `Reflect` has run.
-    second: Vec<Sym>,
+    val: Vec<Sum>,
+    /// Per classical bit: its value, a function of the outcomes.
+    cl: Vec<Node>,
     /// The condition stack: per open block the product of its bit (as it was at the push) and
     /// every enclosing block's.
-    stack: Vec<Poly>,
-    /// Per open block: the wires written inside it, with the value each held at the push.
-    saved: Vec<HashMap<u32, Poly>>,
+    stack: Vec<Node>,
     /// The lane's sign is `(-1)^Phi`, `Phi = sum_mu mu * phi[mu]` over products `mu` of
-    /// outcomes; `phi[ONE]` is the part with no outcome.
-    phi: HashMap<Mono, Poly>,
+    /// outcomes; `phi[1]` is the part with no outcome. Held apart because a measurement's
+    /// fix-up may come long after it, and the sum of thousands of pending `outcome * value`
+    /// terms has no small diagram.
+    phi: BTreeMap<Mono, Sum>,
+    /// Per node that depends on outcomes alone: its algebraic normal form. Emptied when the
+    /// store is collected (ids change).
+    anf: HashMap<Node, Rc<Vec<Mono>>>,
+    /// The system ops of the pass that is running, in stream order.
     log: Vec<(usize, Sys)>,
+    /// Normal forms: of `L(g, a, b)`, of `L(g, b, a)`, of the adjoint of the first.
+    forms: Vec<Normal>,
+    /// The pass that is running starts the inner register on its second-pass variables and
+    /// gives it the first-pass ones at the `Reflect`.
+    swapped: bool,
     reflected: bool,
-    twin: Vec<Sym>,
-    /// Per symbol: the `Outcome` symbols it depends on, through definitions (ascending).
-    outcomes: Vec<Option<Rc<[Sym]>>>,
-    /// `(symbol, outcome, value)`: the symbol with that outcome set to that value; the outcome
-    /// `NO_SYM` stands for every outcome at once. Only symbols that depend on the outcome.
-    cut: HashMap<(Sym, Sym, bool), Cut>,
+    collect_at: usize,
     counts: Counts,
-    /// Where the check is, for the refusal when the work budget runs out.
-    stage: String,
     registers_restored: bool,
     outcome_independent: bool,
     hermitian: bool,
 }
 
-/// The adjoint of `Z^frame * (last of list) ... (first of list)` as a time-ordered list: the
-/// frame first, then the list reversed with each op inverted (`X` and `Z` are their own
-/// inverses; a Givens changes its angle's sign; `F` and `F^dagger` exchange).
-fn adjoint(list: &[(usize, Sys)], frame: &[Poly]) -> Vec<(usize, Sys)> {
-    let mut adj: Vec<(usize, Sys)> = Vec::with_capacity(list.len() + frame.len());
-    for (q, f) in frame.iter().enumerate() {
-        if !f.is_zero() {
-            adj.push((usize::MAX, Sys::Z { q, c: f.clone() }));
-        }
-    }
-    for (at, op) in list.iter().rev() {
-        let inv = match op {
-            Sys::G { p, q, angle, sign } => {
-                let mut s = sign.clone();
-                s.add(&Poly::one());
-                Sys::G {
-                    p: *p,
-                    q: *q,
-                    angle: angle.clone(),
-                    sign: s,
-                }
-            }
-            Sys::F { dagger, c } => Sys::F {
-                dagger: !dagger,
-                c: c.clone(),
-            },
-            other => other.clone(),
-        };
-        adj.push((*at, inv));
-    }
-    adj
-}
-
 /// Test hook (tests/reflection.rs): the normal form and the adjoint on system ops whose
 /// controls are constants, so that both can be compared with dense matrices. Not used by the
-/// check itself; it runs the same `Engine::normal` and `adjoint`.
+/// check itself; it runs the same `Engine::normal` and `Engine::adjoint`.
 #[doc(hidden)]
 pub mod probe {
-    use super::{adjoint, Budget, Engine, Inner, Layout, Poly, Sys};
+    use super::{Budget, Engine, Inner, Layout, Source, Step, Sys, FALSE, TRUE};
 
     /// A system op that executes: `G`'s angle is `(-1)^minus * angle`.
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -355,6 +395,10 @@ pub mod probe {
         F {
             dagger: bool,
         },
+        /// A `SpinSwap` whose control is 0: the identity, which stays in the list.
+        Idle {
+            dagger: bool,
+        },
     }
 
     /// An operator as `(-1)^sign * Z^frame * (last of list) ... (first of list)`.
@@ -367,28 +411,26 @@ pub mod probe {
 
     const BITS: usize = 16;
 
-    fn constant(b: bool) -> Poly {
+    fn constant(b: bool) -> super::Node {
         if b {
-            Poly::one()
+            TRUE
         } else {
-            Poly::zero()
+            FALSE
         }
     }
 
     fn lift(g: &Gate) -> Sys {
         match *g {
-            Gate::X(q) => Sys::X { q, c: Poly::one() },
-            Gate::Z(q) => Sys::Z { q, c: Poly::one() },
+            Gate::X(q) => Sys::X { q, c: TRUE },
+            Gate::Z(q) => Sys::Z { q, c: TRUE },
             Gate::G { p, q, angle, minus } => Sys::G {
                 p,
                 q,
                 angle: (0..BITS).map(|k| constant(angle >> k & 1 == 1)).collect(),
                 sign: constant(minus),
             },
-            Gate::F { dagger } => Sys::F {
-                dagger,
-                c: Poly::one(),
-            },
+            Gate::F { dagger } => Sys::F { dagger, c: TRUE },
+            Gate::Idle { dagger } => Sys::F { dagger, c: FALSE },
         }
     }
 
@@ -399,10 +441,11 @@ pub mod probe {
             Sys::G { p, q, angle, sign } => Gate::G {
                 p: *p,
                 q: *q,
-                angle: (0..angle.len()).fold(0, |a, k| a | u64::from(angle[k].is_one()) << k),
-                minus: sign.is_one(),
+                angle: (0..angle.len()).fold(0, |a, k| a | u64::from(angle[k] == TRUE) << k),
+                minus: *sign == TRUE,
             },
-            Sys::F { dagger, .. } => Gate::F { dagger: *dagger },
+            Sys::F { dagger, c } if *c == TRUE => Gate::F { dagger: *dagger },
+            Sys::F { dagger, .. } => Gate::Idle { dagger: *dagger },
         }
     }
 
@@ -414,19 +457,26 @@ pub mod probe {
             system: n,
             uniform: 0,
         };
-        let mut e = Engine::new(&l, Inner { lo: 0, width: 0 }, &[], Budget::default());
-        let seq: Vec<(usize, Sys)> = seq.iter().map(|g| (0, lift(g))).collect();
-        let (list, frame, sign) = e.normal(&seq);
-        let adj = adjoint(&list, &frame);
-        let (adj_list, adj_frame, crossing) = e.normal(&adj);
-        let pack = |list: &[(usize, Sys)], frame: &[Poly], sign: bool| Normal {
-            list: list.iter().map(|(_, s)| lower(s)).collect(),
-            frame: frame.iter().map(Poly::is_one).collect(),
+        let mut e = Engine::new(&[], &l, Inner { lo: 0, width: 0 }, &[], Budget::default());
+        e.log = seq.iter().map(|g| (0, lift(g))).collect();
+        e.forms.push(super::Normal::new(n));
+        for j in 0..e.log.len() {
+            assert!(matches!(e.fold(0, Source::Log(j)), Ok(Step::Done)));
+        }
+        e.forms.push(super::Normal::new(n));
+        e.forms.push(super::Normal::new(n));
+        for j in 0..n + e.forms[0].list.len() {
+            assert!(matches!(e.fold(2, Source::Adjoint(j)), Ok(Step::Done)));
+        }
+        let pack = |f: &super::Normal, sign: bool| Normal {
+            list: f.list.iter().map(|(_, s)| lower(s)).collect(),
+            frame: f.frame.iter().map(|&x| x == TRUE).collect(),
             sign,
         };
+        let (nf, back) = (&e.forms[0], &e.forms[2]);
         (
-            pack(&list, &frame, sign.is_one()),
-            pack(&adj_list, &adj_frame, sign.is_one() != crossing.is_one()),
+            pack(nf, nf.sign == TRUE),
+            pack(back, (nf.sign == TRUE) != (back.sign == TRUE)),
         )
     }
 }
@@ -463,7 +513,7 @@ pub fn certify(
             "the rule set covers nested lane maps whose control-1 lanes keep their uniform value",
         );
     };
-    if budget.table_bits > 24 || budget.bdd_nodes > 1 << 26 || l.first_ancilla() >= MAX_QUBITS {
+    if budget.bdd_nodes > 1 << 28 || l.first_ancilla() >= MAX_QUBITS {
         return Report::refused(budget, "budget", "limits outside the supported range");
     }
     if inner
@@ -477,238 +527,499 @@ pub fn certify(
             "the inner register is not inside the uniform register",
         );
     }
-    let mut e = Engine::new(l, inner, registers, budget);
+    let mut e = Engine::new(ops, l, inner, registers, budget);
     let obstruction = e.run(ops).err();
-    let r = e.a.rungs;
     Report {
         certified: obstruction.is_none() && e.hermitian,
         obstruction,
         registers_restored: e.registers_restored,
         outcome_independent: e.outcome_independent,
         hermitian: e.hermitian,
-        counts: Counts {
-            zero_syntactic: r.syntactic,
-            zero_truth_table: r.truth_table,
-            zero_expansion: r.expansion,
-            zero_decision_diagram: r.decision_diagram,
-            zero_undecided: r.undecided,
-            ..e.counts
-        },
-        symbols: e.a.symbols(),
-        sealed: e.a.sealed(),
-        work: e.a.work,
+        counts: e.counts,
+        symbols: u64::from(e.outcome_base) + e.outcomes.len() as u64,
+        work: e.work,
         budget,
     }
 }
 
+/// What an attempt at an op or at the end of the stream came to.
+enum Step {
+    Done,
+    /// The node store or the work limit was passed before anything was committed.
+    Full,
+}
+
 impl<'a> Engine<'a> {
-    fn new(l: &Layout, inner: Inner, registers: &'a [Vec<u32>], budget: Budget) -> Self {
-        let mut a = Arena::new(budget.work);
+    /// The variable order (it affects cost only: any order gives a canonical form). Lane bits
+    /// first, in the order the op stream first names their wires, then the second-pass inner
+    /// bits in the same relative order, then the outcomes in stream order. A fix-up reads its
+    /// outcomes after the lane bits that select it, which keeps its diagram narrow.
+    fn new(
+        ops: &[Op],
+        l: &Layout,
+        inner: Inner,
+        registers: &'a [Vec<u32>],
+        budget: Budget,
+    ) -> Self {
         let first = l.first_ancilla();
-        let (mut val, mut initial) = (Vec::new(), Vec::new());
-        for q in 0..first {
-            if l.sys(q).is_some() {
-                initial.push(NO_SYM);
-                val.push(Poly::zero());
-            } else {
-                let s = a.primary(Kind::Initial(q));
-                initial.push(s);
-                val.push(a.sym_poly(s));
+        let mut rank = vec![NO_LEVEL; first as usize];
+        let mut next = 0u32;
+        let lane = |q: u32| q < first && l.sys(q).is_none();
+        let used = ops.iter().flat_map(Op::qubits).chain(0..first);
+        for q in used {
+            if lane(q) && rank[q as usize] == NO_LEVEL {
+                rank[q as usize] = next;
+                next += 1;
             }
         }
+        let inner = inner.qubits(l);
+        let mut by_rank: Vec<u32> = inner.clone();
+        by_rank.sort_unstable_by_key(|&q| rank[q as usize]);
+        let second = inner
+            .iter()
+            .map(|q| next + by_rank.iter().position(|x| x == q).unwrap_or(0) as u32)
+            .collect();
         Self {
-            a,
-            lim: Limits {
-                table_bits: budget.table_bits,
-                expand: budget.expand,
-                bdd_nodes: budget.bdd_nodes,
-            },
+            b: Bdd::new(budget.bdd_nodes),
+            work: 0,
+            limit: budget.work,
+            spent: false,
             l: *l,
             first,
-            inner: inner.qubits(l),
+            outcome_base: next + inner.len() as u32,
+            inner,
             registers,
-            val,
-            cl: Vec::new(),
-            initial,
-            second: Vec::new(),
-            stack: Vec::new(),
-            phi: HashMap::new(),
-            saved: Vec::new(),
-            log: Vec::new(),
-            reflected: false,
-            twin: Vec::new(),
+            rank,
+            second,
             outcomes: Vec::new(),
-            cut: HashMap::new(),
+            val: Vec::new(),
+            cl: Vec::new(),
+            stack: Vec::new(),
+            phi: BTreeMap::new(),
+            anf: HashMap::new(),
+            log: Vec::new(),
+            forms: Vec::new(),
+            swapped: false,
+            reflected: false,
+            collect_at: COLLECT_FLOOR,
             counts: Counts::default(),
-            stage: "in the op stream".into(),
             registers_restored: false,
             outcome_independent: false,
             hermitian: false,
         }
     }
 
-    fn budget(&self, at: Option<(usize, &Op)>) -> Obstruction {
-        obstruct(
-            at,
-            "budget",
-            format!(
-                "the work budget is exhausted {}; nothing is certified",
-                self.stage
-            ),
-        )
+    fn ap(&mut self, op: B, f: Node, g: Node) -> Node {
+        let (work, limit, spent) = (&mut self.work, self.limit, &mut self.spent);
+        self.b.apply(op, f, g, &mut || {
+            *work += 1;
+            *spent |= *work > limit;
+            !*spent
+        })
     }
 
-    fn run(&mut self, ops: &[Op]) -> Result<(), Obstruction> {
-        for (i, op) in ops.iter().enumerate() {
-            self.step(i, op)?;
-            if self.a.exhausted {
-                return Err(self.budget(Some((i, op))));
+    fn and(&mut self, f: Node, g: Node) -> Node {
+        self.ap(B::And, f, g)
+    }
+
+    fn xor(&mut self, f: Node, g: Node) -> Node {
+        self.ap(B::Xor, f, g)
+    }
+
+    /// `s + f`.
+    fn plus(&mut self, s: &Sum, mut f: Node) -> Sum {
+        let mut slots = s.0.clone();
+        let mut k = 0;
+        while f != FALSE {
+            if k == slots.len() {
+                slots.push(FALSE);
             }
+            if slots[k] == FALSE {
+                slots[k] = f;
+                break;
+            }
+            f = self.xor(f, slots[k]);
+            slots[k] = FALSE;
+            k += 1;
+        }
+        Sum(slots)
+    }
+
+    /// The function `s` adds up to.
+    fn total(&mut self, s: &Sum) -> Node {
+        s.0.iter().fold(FALSE, |t, &n| self.xor(t, n))
+    }
+
+    /// The value of the wire `q`. The wire's sum is replaced by its total, which is the same
+    /// function, when that is sound.
+    fn rd(&mut self, q: u32) -> Node {
+        let s = &self.val[q as usize];
+        let mut terms = s.0.iter().filter(|&&n| n != FALSE);
+        match (terms.next(), terms.next()) {
+            (None, _) => FALSE,
+            (Some(&n), None) => n,
+            _ => {
+                let s = s.clone();
+                let t = self.total(&s);
+                if self.sound() {
+                    let mut slots = vec![FALSE; s.0.len()];
+                    slots[s.0.len() - 1] = t;
+                    self.val[q as usize] = Sum(slots);
+                }
+                t
+            }
+        }
+    }
+
+    /// Whether everything computed since the last collection can be used.
+    fn sound(&self) -> bool {
+        !self.b.overflowed && !self.spent
+    }
+
+    /// Drops every node that no wire, bit, condition, sign or logged op names.
+    fn collect(&mut self) {
+        self.counts.nodes_peak = self.counts.nodes_peak.max(self.b.len() as u64);
+        self.work = self
+            .work
+            .saturating_add((self.b.len() / COLLECT_PER_TICK) as u64);
+        self.spent |= self.work > self.limit;
+        let roots = self
+            .val
+            .iter_mut()
+            .flat_map(|s| s.0.iter_mut())
+            .chain(self.cl.iter_mut())
+            .chain(self.stack.iter_mut())
+            .chain(self.phi.values_mut().flat_map(|s| s.0.iter_mut()))
+            .chain(self.log.iter_mut().flat_map(|(_, s)| s.nodes_mut()))
+            .chain(self.forms.iter_mut().flat_map(|f| {
+                let list = f.list.iter_mut().flat_map(|(_, s)| s.nodes_mut());
+                list.chain(f.frame.iter_mut())
+                    .chain(std::iter::once(&mut f.sign))
+            }));
+        self.b.collect(roots);
+        self.anf.clear();
+        self.b.overflowed = false;
+        self.counts.collections += 1;
+        // Next when the store has doubled, or sooner if that is more than half the room left.
+        let (live, limit) = (self.b.len(), self.b.limit());
+        self.collect_at = (2 * live)
+            .min(live + limit.saturating_sub(live) / 2)
+            .max(COLLECT_FLOOR);
+    }
+
+    fn budget(&self, at: Option<(usize, &Op)>) -> Obstruction {
+        let why = if self.spent {
+            "the work budget is exhausted".to_string()
+        } else {
+            format!(
+                "the decision diagrams do not fit in {} nodes",
+                self.b.limit()
+            )
+        };
+        obstruct(at, "budget", format!("{why}; nothing is certified"))
+    }
+
+    /// Runs `attempt` (which commits nothing unless it returns `Done`); if the store fills,
+    /// collects it and runs it once more.
+    fn retry(
+        &mut self,
+        at: Option<(usize, &Op)>,
+        mut attempt: impl FnMut(&mut Self) -> Result<Step, Obstruction>,
+    ) -> Result<(), Obstruction> {
+        for _ in 0..2 {
+            if self.spent {
+                break;
+            }
+            if let Step::Done = attempt(self)? {
+                return Ok(());
+            }
+            self.collect();
+        }
+        Err(self.budget(at))
+    }
+
+    /// The lane operator `L(g, a, b)`, then `L(g, b, a)` (the same stream with the inner
+    /// register's two values exchanged), then the comparison of the first's adjoint with the
+    /// second.
+    fn run(&mut self, ops: &[Op]) -> Result<(), Obstruction> {
+        self.pass(ops, false)?;
+        let first = self.counts;
+        self.pass(ops, true)?;
+        self.counts = Counts {
+            nodes_peak: self.counts.nodes_peak,
+            collections: self.counts.collections,
+            ..first
+        };
+        // The comparison is stated in the first pass's variables.
+        self.swapped = false;
+        self.compare()?;
+        self.counts.nodes_peak = self.counts.nodes_peak.max(self.b.len() as u64);
+        Ok(())
+    }
+
+    /// Collects the store if it has grown enough since the last collection.
+    fn room(&mut self) {
+        if self.b.len() > self.collect_at {
+            self.collect();
+        }
+    }
+
+    /// One symbolic run of the stream, stages 1 and 2 on it, and its normal form, which is
+    /// left as the newest of `forms`.
+    fn pass(&mut self, ops: &[Op], swapped: bool) -> Result<(), Obstruction> {
+        self.swapped = swapped;
+        self.val.clear();
+        self.cl.clear();
+        self.stack.clear();
+        self.phi.clear();
+        self.outcomes.clear();
+        self.log.clear();
+        self.reflected = false;
+        self.retry(None, |e| {
+            Ok(if e.start() { Step::Done } else { Step::Full })
+        })?;
+        // Progress on stderr, for a run that takes minutes. It reads nothing back.
+        let progress = std::env::var_os("FEMOCO_REFLECTION_PROGRESS").is_some();
+        for (i, op) in ops.iter().enumerate() {
+            if progress && i % 100_000 == 0 {
+                eprintln!(
+                    "  reflection  : pass {} of 2, op {i} of {}: {} nodes, work {}",
+                    1 + u8::from(swapped),
+                    ops.len(),
+                    self.b.len(),
+                    self.work
+                );
+            }
+            self.admit(i, op)?;
+            self.work += 1;
+            self.spent |= self.work > self.limit;
+            self.room();
+            self.retry(Some((i, op)), |e| e.exec(i, op))?;
             self.counts.ops += 1;
         }
-        self.stage = "in the end-of-stream register and sign checks".into();
-        let checked = self
-            .finish()
-            .and_then(|()| self.phases())
-            .and_then(|()| self.compare());
-        // An exhausted arena returns zero products, so nothing computed after that is used.
-        if self.a.exhausted {
-            self.hermitian = false;
-            return Err(self.budget(None));
+        self.collect();
+        let no = |why: &str| Err(obstruct(None, "structure", why.to_string()));
+        if !self.stack.is_empty() {
+            return no("a condition block is left open");
         }
-        checked
+        if !self.reflected {
+            return no("the stream has no Reflect");
+        }
+        // Stage 1: every register restored and every ancilla 0.
+        for q in 0..self.val.len() as u32 {
+            self.retry(None, |e| e.restored(q))?;
+        }
+        self.registers_restored = true;
+        // Stage 2: nothing the lane operator is made of depends on an outcome.
+        self.counts.system_ops = self.log.len() as u64;
+        let k = self.forms.len();
+        self.forms.push(Normal::new(self.l.system));
+        for j in 0..self.log.len() {
+            self.room();
+            self.retry(None, |e| e.fold(k, Source::Log(j)))?;
+        }
+        self.independent(k, false)?;
+        self.retry(None, |e| e.fold_sign(k))?;
+        self.independent(k, true)?;
+        self.outcome_independent = true;
+        self.counts.outcomes_proved = self.outcomes.len() as u64;
+        self.val.clear();
+        self.cl.clear();
+        self.log.clear();
+        self.collect();
+        Ok(())
     }
 
-    /// The refusal for a polynomial found nonzero, with one assignment on which it is 1 when
-    /// the decision diagram fits: enough to replay the lane on the lane engine.
-    fn counterexample(&mut self, p: &Poly) -> String {
-        let base = "it is 1 for some lane or outcome record";
-        let Some((at, density)) = self.a.witness(p, &self.lim) else {
-            return base.into();
-        };
-        let (mut start, mut second, mut outcomes) = (Vec::new(), Vec::new(), Vec::new());
-        for (s, v) in at {
-            let v = u8::from(v);
-            match self.a.kind(s) {
-                Kind::Initial(q) => start.push(format!("q{q}={v}")),
-                Kind::Second(q) => second.push(format!("q{q}={v}")),
-                Kind::Outcome(i) => outcomes.push(format!("op {i}={v}")),
-                Kind::Sealed => {}
-            }
+    /// What a variable stands for, for messages.
+    fn describe(&self, level: u32, value: bool, out: &mut [Vec<String>; 3]) {
+        let v = u8::from(value);
+        if level >= self.outcome_base {
+            let op = self.outcomes[(level - self.outcome_base) as usize];
+            out[2].push(format!("op {op}={v}"));
+        } else if let Some(k) = self.second.iter().position(|&x| x == level) {
+            // In the exchanged pass these are the values the inner wires start with.
+            out[usize::from(!self.swapped)].push(format!("q{}={v}", self.inner[k]));
+        } else if let Some(q) = self.rank.iter().position(|&x| x == level) {
+            let inner = self.inner.contains(&(q as u32));
+            out[usize::from(inner && self.swapped)].push(format!("q{q}={v}"));
+        }
+    }
+
+    /// For a function that is not 0: one assignment on which it is 1, enough to replay the lane
+    /// on the lane engine, and the fraction of all assignments on which it is 1.
+    fn counterexample(&self, f: Node) -> String {
+        let mut parts: [Vec<String>; 3] = Default::default();
+        for (level, value) in self.b.witness(f) {
+            self.describe(level, value, &mut parts);
         }
         format!(
-            "{base}: on a fraction {density:e} of the assignments of its bits; for example \
-             wires at the start [{}], inner wires after the Reflect [{}], HMR outcomes [{}], \
-             every other bit free",
-            start.join(" "),
-            second.join(" "),
-            outcomes.join(" ")
+            "it is 1 for some lane or outcome record: on a fraction {:e} of the assignments of \
+             its bits; for example wires at the start [{}], inner wires after the Reflect [{}], \
+             HMR outcomes [{}], every other bit free",
+            self.b.density(f),
+            parts[0].join(" "),
+            parts[1].join(" "),
+            parts[2].join(" ")
         )
     }
 
-    /// `Ok` when `p` is proven identically zero; otherwise why not.
-    fn prove_zero(&mut self, p: &Poly) -> Result<(), String> {
-        match self.a.is_zero(p, &self.lim) {
-            Verdict::Zero => Ok(()),
-            Verdict::Nonzero => Err(self.counterexample(p)),
-            Verdict::Unknown => {
-                // For the reader of the refusal: how wide the unproven identity is.
-                let (primaries, sealed) = self.a.support(p);
-                Err(format!(
-                    "not proven within the work limits (the identity involves {primaries} lane \
-                     and outcome bits through {sealed} sealed definitions)"
-                ))
-            }
-        }
-    }
-
-    /// Called before a write to the wire `q`: every open block that has not seen `q` written
-    /// keeps the value it holds now.
-    fn touch(&mut self, q: u32) {
-        for block in &mut self.saved {
-            block
-                .entry(q)
-                .or_insert_with(|| self.val[q as usize].clone());
-        }
-    }
-
-    /// At a pop: a wire the block wrote and provably left as it found it gets its old
-    /// polynomial back. The two are equal as functions, so nothing changes but the form: the
-    /// old one does not name the block's condition, and whatever reads the wire later does not
-    /// inherit a dependence on an outcome that is not there. A wire not proven restored (by
-    /// the cheap rung of the zero test) keeps the polynomial it has.
-    fn restore(&mut self) {
-        let Some(block) = self.saved.pop() else {
-            return;
-        };
-        let mut wires: Vec<(u32, Poly)> = block.into_iter().collect();
-        wires.sort_unstable_by_key(|w| w.0);
-        for (q, old) in wires {
-            if self.val[q as usize] == old {
+    /// The algebraic normal form of `f`, which depends on outcomes alone: the products of
+    /// outcomes whose sum it is, sorted.
+    fn normal_form(&mut self, f: Node) -> Rc<Vec<Mono>> {
+        let mut todo = vec![f];
+        while let Some(&x) = todo.last() {
+            if self.anf.contains_key(&x) {
+                todo.pop();
                 continue;
             }
-            let mut d = self.val[q as usize].clone();
-            self.a.add(&mut d, &old);
-            if self.a.cancels(&d, CHEAP.0, CHEAP.1) {
-                self.val[q as usize] = old;
+            let Some((level, lo, hi)) = self.b.node(x) else {
+                let form = if x == TRUE {
+                    vec![Mono::from(Vec::new())]
+                } else {
+                    Vec::new()
+                };
+                self.anf.insert(x, Rc::new(form));
+                todo.pop();
+                continue;
+            };
+            let (Some(a), Some(b)) = (self.anf.get(&lo).cloned(), self.anf.get(&hi).cloned())
+            else {
+                todo.extend([lo, hi]);
+                continue;
+            };
+            // lo + m (lo + hi): `m` is above every outcome of `lo` and `hi`.
+            self.work = self.work.saturating_add((a.len() + b.len()) as u64);
+            let mut form: Vec<Mono> = a.iter().cloned().collect();
+            let mut i = 0;
+            let mut j = 0;
+            let with = |s: &Mono| {
+                let mut v = Vec::with_capacity(s.len() + 1);
+                v.push(level);
+                v.extend_from_slice(s);
+                Mono::from(v)
+            };
+            while i < a.len() || j < b.len() {
+                match (a.get(i), b.get(j)) {
+                    (Some(x), Some(y)) if x == y => {
+                        i += 1;
+                        j += 1;
+                    }
+                    (Some(x), Some(y)) if x < y => {
+                        form.push(with(x));
+                        i += 1;
+                    }
+                    (Some(x), None) => {
+                        form.push(with(x));
+                        i += 1;
+                    }
+                    (_, Some(y)) => {
+                        form.push(with(y));
+                        j += 1;
+                    }
+                    (None, None) => {}
+                }
             }
+            form.sort_unstable();
+            self.anf.insert(x, Rc::new(form));
+            todo.pop();
         }
+        self.spent |= self.work > self.limit;
+        self.anf.get(&f).cloned().unwrap_or_default()
     }
 
-    /// The wire `q` as an operand of a product: sealed first if it has more than `CAP` terms
-    /// (the wire then holds the sealed symbol, which is equal to what it held).
-    fn rd(&mut self, q: u32) -> Poly {
-        let v = &self.val[q as usize];
-        if v.len() > CAP {
-            let s = self.a.seal(v);
-            self.val[q as usize] = self.a.sym_poly(s);
+    /// `f` as [`Parts`]. The outcomes are below every lane bit in the variable order, so the
+    /// diagram of `f` is a diagram over lane bits whose leaves are functions of outcomes
+    /// alone; each leaf is put in normal form and the lane bits are put back on top.
+    fn phase(&mut self, f: Node) -> Signs {
+        let mut memo: HashMap<Node, Rc<Parts>> = HashMap::new();
+        let mut todo = vec![f];
+        while let Some(&x) = todo.last() {
+            if memo.contains_key(&x) {
+                todo.pop();
+                continue;
+            }
+            let lane = self
+                .b
+                .node(x)
+                .filter(|&(level, _, _)| level < self.outcome_base);
+            let Some((level, lo, hi)) = lane else {
+                let form = self.normal_form(x);
+                memo.insert(x, Rc::new(form.iter().map(|m| (m.clone(), TRUE)).collect()));
+                todo.pop();
+                continue;
+            };
+            let (Some(a), Some(b)) = (memo.get(&lo).cloned(), memo.get(&hi).cloned()) else {
+                todo.extend([lo, hi]);
+                continue;
+            };
+            self.work = self.work.saturating_add((a.len() + b.len()) as u64);
+            let mut parts = Parts::with_capacity(a.len().max(b.len()));
+            let (mut i, mut j) = (0, 0);
+            while i < a.len() || j < b.len() {
+                let (key, l, h) = match (a.get(i), b.get(j)) {
+                    (Some(x), Some(y)) if x.0 == y.0 => {
+                        i += 1;
+                        j += 1;
+                        (&x.0, x.1, y.1)
+                    }
+                    (Some(x), Some(y)) if x.0 < y.0 => {
+                        i += 1;
+                        (&x.0, x.1, FALSE)
+                    }
+                    (Some(x), None) => {
+                        i += 1;
+                        (&x.0, x.1, FALSE)
+                    }
+                    (_, Some(y)) => {
+                        j += 1;
+                        (&y.0, FALSE, y.1)
+                    }
+                    (None, None) => break,
+                };
+                let n = self.b.pick(level, l, h);
+                if n != FALSE {
+                    parts.push((key.clone(), n));
+                }
+            }
+            memo.insert(x, Rc::new(parts));
+            todo.pop();
         }
-        self.val[q as usize].clone()
+        self.spent |= self.work > self.limit;
+        let parts: Parts = memo.get(&f).map(|p| (**p).clone()).unwrap_or_default();
+        // The new coefficients of the sign.
+        parts
+            .into_iter()
+            .map(|(m, n)| {
+                let old = self.phi.remove(&m).unwrap_or_default();
+                let new = self.plus(&old, n);
+                if !old.is_zero() {
+                    self.phi.insert(m.clone(), old);
+                }
+                (m, new)
+            })
+            .collect()
+    }
+
+    /// Commits the coefficients [`Engine::phase`] computed.
+    fn sign(&mut self, parts: Signs) {
+        for (m, n) in parts {
+            if n.is_zero() {
+                self.phi.remove(&m);
+            } else {
+                self.phi.insert(m, n);
+            }
+        }
     }
 
     /// The condition an op with `c_condition = cc` executes under: the enclosing blocks'
     /// product, times the bit `cc` if given.
-    fn cond(&mut self, cc: u32) -> Poly {
-        let base = self.stack.last().cloned().unwrap_or_else(Poly::one);
-        self.a.tick(base.len());
+    fn cond(&mut self, cc: u32) -> Node {
+        let base = self.stack.last().copied().unwrap_or(TRUE);
         if cc == NONE {
             return base;
         }
-        let b = self.cl[cc as usize].clone();
-        self.a.mul(&base, &b)
-    }
-
-    /// Multiplies the lane's sign by `(-1)^(cond * w)`. Each monomial of the product is filed
-    /// under the outcomes it names, so `phi[mu]` holds outcome-free monomials (sealed symbols
-    /// aside, which the later checks look into).
-    fn add_phase(&mut self, cond: &Poly, w: &Poly) {
-        if cond.is_zero() || w.is_zero() {
-            return;
-        }
-        self.a.tick(cond.len().saturating_mul(w.len()));
-        if self.a.exhausted {
-            return;
-        }
-        let plain = w.terms().iter().all(|&m| !self.a.has_outcome(m));
-        for &mu in cond.terms() {
-            if plain {
-                let e = self.phi.entry(mu).or_default();
-                e.add(w);
-                if e.is_zero() {
-                    self.phi.remove(&mu);
-                }
-                continue;
-            }
-            for &m in w.terms() {
-                let (k, rest) = self.a.split_outcome(m);
-                let key = self.a.mono_mul(mu, k);
-                let e = self.phi.entry(key).or_default();
-                e.toggle(rest);
-                if e.is_zero() {
-                    self.phi.remove(&key);
-                }
-            }
-        }
+        let bit = self.cl[cc as usize];
+        self.and(base, bit)
     }
 
     /// Bounds every id the op names and makes room for it.
@@ -725,9 +1036,7 @@ impl<'a> Engine<'a> {
                     "qubit id above the cap".into(),
                 ));
             }
-            if self.val.len() <= q as usize {
-                self.val.resize(q as usize + 1, Poly::zero());
-            }
+            self.wire(q);
         }
         for b in [op.c_target, op.c_condition] {
             if b == NONE {
@@ -741,20 +1050,51 @@ impl<'a> Engine<'a> {
                 ));
             }
             if self.cl.len() <= b as usize {
-                self.cl.resize(b as usize + 1, Poly::zero());
+                self.cl.resize(b as usize + 1, FALSE);
             }
         }
         Ok(())
     }
 
+    /// Makes room for the wire `q`. A lane wire starts as its `Initial` variable, which is
+    /// made when the wire is first read ([`Engine::start`]); every other wire starts 0.
+    fn wire(&mut self, q: u32) {
+        if self.val.len() <= q as usize {
+            self.val.resize(q as usize + 1, Sum::default());
+        }
+    }
+
+    /// Gives every lane wire its `Initial` variable. `false` if the store is too small.
+    fn start(&mut self) -> bool {
+        self.wire(self.first.saturating_sub(1));
+        for q in 0..self.first {
+            let level = match self.inner.iter().position(|&x| x == q) {
+                Some(k) => self.inner_level(k, false),
+                None => self.rank[q as usize],
+            };
+            if level != NO_LEVEL {
+                self.val[q as usize] = Sum::of(self.b.var(level));
+            }
+        }
+        !self.b.overflowed
+    }
+
+    /// One op. Everything is computed first; state changes only once the results are known to
+    /// be sound, so an attempt that returns `Full` has changed nothing.
     #[allow(clippy::too_many_lines)]
-    fn step(&mut self, i: usize, op: &Op) -> Result<(), Obstruction> {
+    fn exec(&mut self, i: usize, op: &Op) -> Result<Step, Obstruction> {
         let at = Some((i, op));
         let no = |kind: &'static str, why: &str| Err(obstruct(at, kind, why.to_string()));
-        self.admit(i, op)?;
         let l = self.l;
         let sys = move |q: u32| l.sys(q).map(|q| q as usize);
         let (t, c1, c2) = (op.q_target, op.q_control1, op.q_control2);
+        macro_rules! sound {
+            () => {
+                if !self.sound() {
+                    return Ok(Step::Full);
+                }
+            };
+        }
         match op.kind {
             // Bookkeeping: registers are taken from the compiled stream; hints have no effect.
             K::Register | K::AppendToRegister | K::Segment | K::DebugPrint => {}
@@ -766,31 +1106,33 @@ impl<'a> Engine<'a> {
             }
             K::PushCondition => {
                 let c = self.cond(op.c_condition);
+                sound!();
                 self.stack.push(c);
-                self.saved.push(HashMap::new());
             }
             K::PopCondition => {
                 if self.stack.pop().is_none() {
                     return no("structure", "pop on an empty condition stack");
                 }
-                self.restore();
             }
             K::BitInvert | K::BitStore0 | K::BitStore1 => {
                 let c = self.cond(op.c_condition);
-                let mut v = std::mem::take(&mut self.cl[op.c_target as usize]);
+                let mut v = self.cl[op.c_target as usize];
                 if op.kind != K::BitInvert {
                     // Store 0: v + c v. Store 1: v + c v + c.
-                    let d = self.a.mul(&c, &v);
-                    self.a.add(&mut v, &d);
+                    let d = self.and(c, v);
+                    v = self.xor(v, d);
                 }
                 if op.kind != K::BitStore0 {
-                    self.a.add(&mut v, &c);
+                    v = self.xor(v, c);
                 }
+                sound!();
                 self.cl[op.c_target as usize] = v;
             }
             K::Neg => {
                 let c = self.cond(op.c_condition);
-                self.add_phase(&c, &Poly::one());
+                let p = self.phase(c);
+                sound!();
+                self.sign(p);
             }
             K::X | K::CX | K::CCX => {
                 if [c1, c2].iter().any(|&c| c != NONE && sys(c).is_some()) {
@@ -800,15 +1142,19 @@ impl<'a> Engine<'a> {
                 for c in [c1, c2] {
                     if c != NONE {
                         let v = self.rd(c);
-                        p = self.a.mul(&p, &v);
+                        p = self.and(p, v);
                     }
                 }
                 match sys(t) {
-                    Some(q) => self.log.push((i, Sys::X { q, c: p })),
+                    Some(q) => {
+                        sound!();
+                        self.log.push((i, Sys::X { q, c: p }));
+                    }
                     None => {
-                        self.touch(t);
-                        let mut v = std::mem::take(&mut self.val[t as usize]);
-                        self.a.add(&mut v, &p);
+                        let old = std::mem::take(&mut self.val[t as usize]);
+                        let v = self.plus(&old, p);
+                        self.val[t as usize] = old;
+                        sound!();
                         self.val[t as usize] = v;
                     }
                 }
@@ -819,18 +1165,18 @@ impl<'a> Engine<'a> {
                 if on.len() > 1 {
                     return no("unsupported-op", "more than one system qubit in a gate");
                 }
-                let c = self.cond(op.c_condition);
-                let mut w = Poly::one();
+                let mut w = self.cond(op.c_condition);
                 for &q in qs.iter().filter(|&&q| sys(q).is_none()) {
                     let v = self.rd(q);
-                    w = self.a.mul(&w, &v);
+                    w = self.and(w, v);
                 }
-                match on[..] {
-                    [q] => {
-                        let c = self.a.mul(&c, &w);
-                        self.log.push((i, Sys::Z { q, c }));
-                    }
-                    _ => self.add_phase(&c, &w),
+                if let [q] = on[..] {
+                    sound!();
+                    self.log.push((i, Sys::Z { q, c: w }));
+                } else {
+                    let p = self.phase(w);
+                    sound!();
+                    self.sign(p);
                 }
             }
             K::Swap => {
@@ -838,69 +1184,68 @@ impl<'a> Engine<'a> {
                     return no("unsupported-op", "Swap on a system qubit");
                 }
                 let c = self.cond(op.c_condition);
-                self.touch(t);
-                self.touch(c1);
-                if c.is_one() {
-                    self.val.swap(t as usize, c1 as usize);
-                } else if !c.is_zero() {
-                    let mut d = self.rd(t);
-                    let other = self.rd(c1);
-                    self.a.add(&mut d, &other);
-                    let d = self.a.mul(&c, &d);
-                    for q in [t, c1] {
-                        let mut v = std::mem::take(&mut self.val[q as usize]);
-                        self.a.add(&mut v, &d);
-                        self.val[q as usize] = v;
-                    }
-                }
+                let (x, y) = (self.rd(t), self.rd(c1));
+                let d = self.xor(x, y);
+                let d = self.and(c, d);
+                let (x, y) = (self.xor(x, d), self.xor(y, d));
+                sound!();
+                (self.val[t as usize], self.val[c1 as usize]) = (Sum::of(x), Sum::of(y));
             }
             K::Hmr => {
                 if t < self.first {
                     return no("unsupported-op", "Hmr on a qubit that is not an ancilla");
                 }
-                self.counts.measurements += 1;
+                let Some(level) = u32::try_from(self.outcomes.len())
+                    .ok()
+                    .and_then(|n| self.outcome_base.checked_add(n))
+                    .filter(|&x| x < NO_LEVEL - 1)
+                else {
+                    return no("unsupported-op", "too many measurements");
+                };
                 let c = self.cond(op.c_condition);
                 // On the lanes where `c` holds: sign (-1)^(m v), the qubit becomes 0, the bit m.
-                let m = self.a.primary(Kind::Outcome(i));
-                let m = self.a.sym_poly(m);
-                self.touch(t);
+                let m = self.b.var(level);
                 let v = self.rd(t);
-                let cm = self.a.mul(&c, &m);
-                self.add_phase(&cm, &v);
+                let cv = self.and(c, v);
+                let s = self.and(cv, m);
+                let p = self.phase(s);
+                let w = self.xor(v, cv);
                 let b = op.c_target as usize;
-                if c.is_one() {
-                    self.val[t as usize] = Poly::zero();
-                    self.cl[b] = m;
-                } else {
-                    let d = self.a.mul(&c, &v);
-                    let mut w = v;
-                    self.a.add(&mut w, &d);
-                    self.val[t as usize] = w;
-                    let mut bit = std::mem::take(&mut self.cl[b]);
-                    let mut e = bit.clone();
-                    self.a.add(&mut e, &m);
-                    let e = self.a.mul(&c, &e);
-                    self.a.add(&mut bit, &e);
-                    self.cl[b] = bit;
-                }
+                let old = self.cl[b];
+                let e = self.xor(old, m);
+                let e = self.and(c, e);
+                let bit = self.xor(old, e);
+                sound!();
+                self.sign(p);
+                self.val[t as usize] = Sum::of(w);
+                self.cl[b] = bit;
+                self.outcomes.push(i);
+                self.counts.measurements += 1;
             }
             K::R => {
                 if t < self.first {
                     return no("unsupported-op", "R on a qubit that is not an ancilla");
                 }
                 // Stricter than the simulator inside a condition block: 0 on every lane.
-                let v = std::mem::take(&mut self.val[t as usize]);
-                if let Err(why) = self.prove_zero(&v) {
+                let v = self.rd(t);
+                sound!();
+                if v != FALSE {
                     return Err(obstruct(
                         at,
                         "reset-not-proven",
-                        format!("ancilla q{t} is not proven 0 when freed: {why}"),
+                        format!(
+                            "ancilla q{t} is not 0 when freed: {}",
+                            self.counterexample(v)
+                        ),
                     ));
                 }
+                self.val[t as usize] = Sum::default();
                 self.counts.resets_proved += 1;
             }
             K::Givens => {
-                if !self.cond(op.c_condition).is_one() {
+                let c = self.cond(op.c_condition);
+                sound!();
+                if c != TRUE {
                     return no(
                         "conditioned-rotation",
                         "a Givens under a classical condition is outside the rule set",
@@ -918,12 +1263,11 @@ impl<'a> Engine<'a> {
                 }
                 let mut angle = Vec::with_capacity(reg.len());
                 for &x in reg {
-                    if self.val.len() <= x as usize {
-                        self.val.resize(x as usize + 1, Poly::zero());
-                    }
+                    self.wire(x);
                     angle.push(self.rd(x));
                 }
-                let sign = Poly::zero();
+                sound!();
+                let sign = FALSE;
                 self.counts.givens += 1;
                 self.log.push((i, Sys::G { p, q, angle, sign }));
             }
@@ -933,18 +1277,19 @@ impl<'a> Engine<'a> {
                 }
                 let c = self.cond(op.c_condition);
                 let v = self.rd(t);
-                let c = self.a.mul(&c, &v);
+                let c = self.and(c, v);
+                sound!();
                 let dagger = op.kind == K::SpinSwapDg;
                 self.counts.spin_swaps += 1;
                 self.log.push((i, Sys::F { dagger, c }));
             }
-            K::Reflect => self.reflect(i, op)?,
+            K::Reflect => return self.reflect(i, op),
         }
-        Ok(())
+        Ok(Step::Done)
     }
 
-    /// `Reflect`: the inner register must hold its initial value; it then holds new symbols.
-    fn reflect(&mut self, i: usize, op: &Op) -> Result<(), Obstruction> {
+    /// `Reflect`: the inner register must hold its initial value; it then holds new variables.
+    fn reflect(&mut self, i: usize, op: &Op) -> Result<Step, Obstruction> {
         let at = Some((i, op));
         let no = |why: &str| Err(obstruct(at, "structure", why.to_string()));
         if self.reflected {
@@ -962,625 +1307,299 @@ impl<'a> Engine<'a> {
         if reg != self.inner {
             return no("Reflect is not on exactly the inner uniform register");
         }
+        let mut after = Vec::with_capacity(self.inner.len());
+        let mut wrong = None;
         for k in 0..self.inner.len() {
             let q = self.inner[k];
-            let mut d = self.val[q as usize].clone();
-            d.add(&self.a.sym_poly(self.initial[q as usize]));
-            if let Err(why) = self.prove_zero(&d) {
-                return Err(obstruct(
-                    at,
-                    "reflect-not-restored",
-                    format!(
-                        "inner uniform qubit q{q} is not proven to hold its initial value at the \
-                         Reflect: {why}"
-                    ),
-                ));
+            let want = self.b.var(self.inner_level(k, false));
+            let v = self.rd(q);
+            let d = self.xor(v, want);
+            if d != FALSE && wrong.is_none() {
+                wrong = Some((q, d));
             }
-            let s = self.a.primary(Kind::Second(q));
-            self.second.push(s);
-            self.val[q as usize] = self.a.sym_poly(s);
+            after.push(self.b.var(self.inner_level(k, true)));
+        }
+        if !self.sound() {
+            return Ok(Step::Full);
+        }
+        if let Some((q, d)) = wrong {
+            return Err(obstruct(
+                at,
+                "reflect-not-restored",
+                format!(
+                    "inner uniform qubit q{q} does not hold its initial value at the Reflect: {}",
+                    self.counterexample(d)
+                ),
+            ));
+        }
+        for (k, v) in after.into_iter().enumerate() {
+            self.val[self.inner[k] as usize] = Sum::of(v);
         }
         self.reflected = true;
-        Ok(())
+        Ok(Step::Done)
     }
 
-    /// End of stream: every register restored and every ancilla 0.
-    fn finish(&mut self) -> Result<(), Obstruction> {
-        let no = |kind: &'static str, why: String| Err(obstruct(None, kind, why));
-        if !self.stack.is_empty() {
-            return no("structure", "a condition block is left open".into());
-        }
-        if !self.reflected {
-            return no("structure", "the stream has no Reflect".into());
-        }
-        for q in 0..self.val.len() as u32 {
-            if self.l.sys(q).is_some() {
-                continue;
-            }
-            let mut d = self.val[q as usize].clone();
-            let kind = if let Some(k) = self.inner.iter().position(|&x| x == q) {
-                d.add(&self.a.sym_poly(self.second[k]));
-                "registers-not-restored"
-            } else if q < self.first {
-                d.add(&self.a.sym_poly(self.initial[q as usize]));
-                "registers-not-restored"
-            } else {
-                "ancilla-not-clean"
-            };
-            if let Err(why) = self.prove_zero(&d) {
-                let what = if q < self.first {
-                    "is not proven to hold the value the lane must end with"
-                } else {
-                    "is not proven 0 at the end"
-                };
-                return no(kind, format!("qubit q{q} {what}: {why}"));
-            }
-        }
-        if self.a.exhausted {
-            return Err(self.budget(None));
-        }
-        self.registers_restored = true;
-        Ok(())
-    }
-
-    /// Folds the lane's sign into one polynomial, `phi[ONE]`. A coefficient of a product of
-    /// outcomes that the cheap rung of the zero test proves identically zero contributes
-    /// nothing and is dropped; any other is multiplied by its outcomes and kept, for
-    /// [`Engine::settle`] to judge with the rest of the sign.
-    fn phases(&mut self) -> Result<(), Obstruction> {
-        let mut keys: Vec<Mono> = self.phi.keys().copied().filter(|&k| k != ONE).collect();
-        keys.sort_unstable();
-        let mut sign = self.phi.remove(&ONE).unwrap_or_default();
-        for k in keys {
-            let p = self.phi.remove(&k).unwrap_or_default();
-            if self.a.cancels(&p, CHEAP.0, CHEAP.1) {
-                self.counts.outcome_phases_proved += 1;
-                continue;
-            }
-            let kp = self.a.mul(&Poly::from_terms(vec![k]), &p);
-            self.a.add(&mut sign, &kp);
-        }
-        if self.a.exhausted {
-            return Err(self.budget(None));
-        }
-        self.phi.insert(ONE, sign);
-        Ok(())
-    }
-
-    /// The `Outcome` symbols `s` depends on, through definitions.
-    fn outcomes_of(&mut self, s: Sym) -> Rc<[Sym]> {
-        let mut todo = vec![s];
-        while let Some(&x) = todo.last() {
-            if self.outcomes.len() < self.a.symbols() as usize {
-                self.outcomes.resize(self.a.symbols() as usize, None);
-            }
-            if self.outcomes[x as usize].is_some() {
-                todo.pop();
-                continue;
-            }
-            let set: Vec<Sym> = match (self.a.kind(x), self.a.def(x)) {
-                (Kind::Outcome(_), _) => vec![x],
-                (_, None) => Vec::new(),
-                (_, Some(def)) => {
-                    self.a.tick(def.len());
-                    let before = todo.len();
-                    let mut all = Vec::new();
-                    for &m in def.terms() {
-                        for &c in self.a.syms(m).iter() {
-                            match &self.outcomes[c as usize] {
-                                Some(o) => all.extend_from_slice(o),
-                                None => todo.push(c),
-                            }
-                        }
-                    }
-                    if todo.len() > before {
-                        continue;
-                    }
-                    self.a.tick(all.len());
-                    all.sort_unstable();
-                    all.dedup();
-                    all
-                }
-            };
-            self.outcomes[x as usize] = Some(Rc::from(set));
-            todo.pop();
-        }
-        self.outcomes[s as usize]
-            .clone()
-            .unwrap_or_else(|| Rc::from(Vec::new()))
-    }
-
-    /// Whether the value of `s` changes under the restriction of `m` (`NO_SYM`: of any outcome).
-    fn reads(&mut self, s: Sym, m: Sym) -> bool {
-        let o = self.outcomes_of(s);
-        if m == NO_SYM {
-            !o.is_empty()
+    /// The level of inner wire `k`'s variable before (`after = false`) or after the `Reflect`
+    /// in the pass that is running.
+    fn inner_level(&self, k: usize, after: bool) -> u32 {
+        if after == self.swapped {
+            self.rank[self.inner[k] as usize]
         } else {
-            o.binary_search(&m).is_ok()
+            self.second[k]
         }
     }
 
-    /// The symbol `s` with the outcome `m` set to `v` (`m = NO_SYM`: every outcome set to `v`).
-    /// A sealed symbol that reads `m` maps to the seal of its restricted definition.
-    fn cut_sym(&mut self, s: Sym, m: Sym, v: bool) -> Cut {
-        let mut todo = vec![s];
-        let mut last = Cut::Sym(s);
-        while let Some(&x) = todo.last() {
-            if !self.reads(x, m) {
-                last = Cut::Sym(x);
-                todo.pop();
-                continue;
-            }
-            if let Some(&c) = self.cut.get(&(x, m, v)) {
-                last = c;
-                todo.pop();
-                continue;
-            }
-            let c = match self.a.def(x) {
-                // An outcome that `m` names.
-                None => {
-                    if v {
-                        Cut::One
-                    } else {
-                        Cut::Zero
-                    }
-                }
-                Some(def) => {
-                    self.a.tick(def.len());
-                    let before = todo.len();
-                    for &t in def.terms() {
-                        for &c in self.a.syms(t).iter() {
-                            if self.reads(c, m) && !self.cut.contains_key(&(c, m, v)) {
-                                todo.push(c);
-                            }
-                        }
-                    }
-                    if todo.len() > before {
-                        continue;
-                    }
-                    let q = self.cut_mapped(&def, m, v);
-                    if q.is_zero() {
-                        Cut::Zero
-                    } else if q.is_one() {
-                        Cut::One
-                    } else {
-                        Cut::Sym(self.a.seal(&q))
-                    }
-                }
+    /// End of the stream, wire `q`: a lane wire holds the value the lane must end with, any
+    /// other wire 0.
+    fn restored(&mut self, q: u32) -> Result<Step, Obstruction> {
+        if self.l.sys(q).is_some() {
+            return Ok(Step::Done);
+        }
+        let (want, kind) = if let Some(k) = self.inner.iter().position(|&x| x == q) {
+            let level = self.inner_level(k, true);
+            (self.b.var(level), "registers-not-restored")
+        } else if q < self.first {
+            (self.b.var(self.rank[q as usize]), "registers-not-restored")
+        } else {
+            (FALSE, "ancilla-not-clean")
+        };
+        let v = self.rd(q);
+        let d = self.xor(v, want);
+        if !self.sound() {
+            return Ok(Step::Full);
+        }
+        if d != FALSE {
+            let what = if q < self.first {
+                "does not hold the value the lane must end with"
+            } else {
+                "is not 0 at the end"
             };
-            self.cut.insert((x, m, v), c);
-            last = c;
-            todo.pop();
-        }
-        last
-    }
-
-    /// `p` under the restriction; every symbol of `p` that reads `m` is already in `cut`.
-    fn cut_mapped(&mut self, p: &Poly, m: Sym, v: bool) -> Poly {
-        self.a.tick(p.len());
-        let mut out = Vec::with_capacity(p.len());
-        'term: for &t in p.terms() {
-            let mut syms: Vec<Sym> = Vec::new();
-            for &c in self.a.syms(t).iter() {
-                let cut = if self.reads(c, m) {
-                    self.cut.get(&(c, m, v)).copied().unwrap_or(Cut::Sym(c))
-                } else {
-                    Cut::Sym(c)
-                };
-                match cut {
-                    Cut::Zero => continue 'term,
-                    Cut::One => {}
-                    Cut::Sym(y) => syms.push(y),
-                }
-            }
-            syms.sort_unstable();
-            syms.dedup();
-            out.push(self.a.intern(&syms));
-        }
-        Poly::from_terms(out)
-    }
-
-    /// `p` with the outcome `m` set to `v` (`m = NO_SYM`: every outcome).
-    fn cut_poly(&mut self, p: &Poly, m: Sym, v: bool) -> Poly {
-        for &t in p.terms() {
-            for &c in self.a.syms(t).iter() {
-                self.cut_sym(c, m, v);
-            }
-        }
-        self.cut_mapped(p, m, v)
-    }
-
-    /// Proves that `p` does not depend on any measurement outcome, as a function: for every
-    /// outcome `m` it reads, directly or through a definition, `p` with `m = 1` plus `p` with
-    /// `m = 0` is identically zero. A function that no single variable can change is constant
-    /// in all of them, so `p` then equals `p` with every outcome set to 0, which is returned:
-    /// a polynomial that names no outcome anywhere. `Err` is the op of an outcome `p` is not
-    /// proven independent of, and why.
-    fn settle(&mut self, p: &Poly) -> Result<Poly, (usize, String)> {
-        // Per outcome: the terms of `p` that read it.
-        let mut readers: HashMap<Sym, Vec<Mono>> = HashMap::new();
-        for &t in p.terms() {
-            let mut all: Vec<Sym> = Vec::new();
-            for &c in self.a.syms(t).iter() {
-                all.extend_from_slice(&self.outcomes_of(c));
-            }
-            all.sort_unstable();
-            all.dedup();
-            self.a.tick(all.len());
-            for m in all {
-                readers.entry(m).or_default().push(t);
-            }
-        }
-        if readers.is_empty() {
-            return Ok(p.clone());
-        }
-        let mut outcomes: Vec<Sym> = readers.keys().copied().collect();
-        outcomes.sort_unstable();
-        let total = outcomes.len();
-        for (k, m) in outcomes.into_iter().enumerate() {
-            self.stage = format!(
-                "while proving a polynomial of {} terms independent of outcome {} of the {total} \
-                 it reads",
-                p.len(),
-                k + 1
-            );
-            // Terms that do not read `m` are the same on both sides and cancel.
-            let part = Poly::from_terms(readers.remove(&m).unwrap_or_default());
-            // First by the diagram of those terms as they stand: it shares every symbol's
-            // diagram with the other outcomes' tests, where the restrictions below are new
-            // symbols each time.
-            if self.a.depends_on(&part, m, &self.lim) == Some(false) {
-                self.counts.outcome_phases_proved += 1;
-                continue;
-            }
-            let mut d = self.cut_poly(&part, m, true);
-            let zero = self.cut_poly(&part, m, false);
-            self.a.add(&mut d, &zero);
-            if self.a.exhausted {
-                return Err((usize::MAX, "the work budget is exhausted".into()));
-            }
-            if let Err(why) = self.prove_zero(&d) {
-                let op = match self.a.kind(m) {
-                    Kind::Outcome(i) => i,
-                    _ => usize::MAX,
-                };
-                return Err((op, why));
-            }
-            self.counts.outcome_phases_proved += 1;
-        }
-        self.stage = "while writing a polynomial without the outcomes it was proven not to \
-                      depend on"
-            .into();
-        let plain = self.cut_poly(p, NO_SYM, false);
-        self.stage = "in the comparison of the lane operator with its adjoint".into();
-        Ok(plain)
-    }
-
-    /// The symbol `s` with the first- and second-pass inner symbols exchanged. A sealed symbol
-    /// maps to the sealed symbol of its mapped definition. `Err` carries an `Outcome` symbol's
-    /// op when `s` depends on one.
-    fn twin_sym(&mut self, s: Sym) -> Result<Sym, usize> {
-        let mut todo = vec![s];
-        while let Some(&x) = todo.last() {
-            if self.twin.len() < self.a.symbols() as usize {
-                self.twin.resize(self.a.symbols() as usize, NO_SYM);
-            }
-            if self.twin[x as usize] != NO_SYM {
-                todo.pop();
-                continue;
-            }
-            let y = match self.a.kind(x) {
-                Kind::Outcome(i) => return Err(i),
-                Kind::Initial(q) => match self.inner.iter().position(|&w| w == q) {
-                    Some(k) => self.second[k],
-                    None => x,
-                },
-                Kind::Second(q) => self.initial[q as usize],
-                Kind::Sealed => {
-                    let Some(def) = self.a.def(x) else {
-                        return Err(usize::MAX);
-                    };
-                    self.a.tick(def.len());
-                    let before = todo.len();
-                    for &m in def.terms() {
-                        for &c in self.a.syms(m).iter() {
-                            if self.twin[c as usize] == NO_SYM {
-                                todo.push(c);
-                            }
-                        }
-                    }
-                    if todo.len() > before {
-                        continue;
-                    }
-                    let mapped = self.twin_mapped(&def);
-                    if mapped.is_zero() {
-                        // Cannot happen for a renaming of a nonzero polynomial; refuse anyway.
-                        return Err(usize::MAX);
-                    }
-                    self.a.seal(&mapped)
-                }
-            };
-            if self.twin.len() < self.a.symbols() as usize {
-                self.twin.resize(self.a.symbols() as usize, NO_SYM);
-            }
-            self.twin[x as usize] = y;
-            todo.pop();
-        }
-        Ok(self.twin[s as usize])
-    }
-
-    /// `p` with every symbol replaced by its twin; every symbol's twin is already known.
-    fn twin_mapped(&mut self, p: &Poly) -> Poly {
-        self.a.tick(p.len());
-        let mut out = Vec::with_capacity(p.len());
-        for &m in p.terms() {
-            let mut syms: Vec<Sym> = self
-                .a
-                .syms(m)
-                .iter()
-                .map(|&s| self.twin[s as usize])
-                .collect();
-            syms.sort_unstable();
-            syms.dedup();
-            out.push(self.a.intern(&syms));
-        }
-        Poly::from_terms(out)
-    }
-
-    fn twin_poly(&mut self, p: &Poly) -> Result<Poly, usize> {
-        for &m in p.terms() {
-            for &s in self.a.syms(m).iter() {
-                self.twin_sym(s)?;
-            }
-        }
-        Ok(self.twin_mapped(p))
-    }
-
-    /// The normal form of a time-ordered list of system ops: every `Z` moved to the end.
-    /// Returns the remaining ops, the final `Z` frame and the sign picked up on the way, so that
-    /// the list's operator is `(-1)^sign * Z^frame * (last op) ... (first op)`.
-    fn normal(&mut self, seq: &[(usize, Sys)]) -> (Vec<(usize, Sys)>, Vec<Poly>, Poly) {
-        let n = self.l.system;
-        let mut zf = vec![Poly::zero(); n];
-        let mut out = Vec::new();
-        let mut sign = Poly::zero();
-        for (at, op) in seq {
-            match op {
-                Sys::Z { q, c } => self.a.add(&mut zf[*q], c),
-                // X^c Z^f = (-1)^(c f) Z^f X^c.
-                Sys::X { q, c } => {
-                    let d = self.a.mul(c, &zf[*q]);
-                    self.a.add(&mut sign, &d);
-                    out.push((*at, op.clone()));
-                }
-                // G_pq(t) Z_p = Z_p G_pq(-t), the same for Z_q; other Z commute with G_pq.
-                Sys::G {
-                    p,
-                    q,
-                    angle,
-                    sign: s,
-                } => {
-                    let mut s = s.clone();
-                    self.a.add(&mut s, &zf[*p]);
-                    self.a.add(&mut s, &zf[*q]);
-                    let g = Sys::G {
-                        p: *p,
-                        q: *q,
-                        angle: angle.clone(),
-                        sign: s,
-                    };
-                    out.push((*at, g));
-                }
-                // F exchanges Z_2k and Z_2k+1 (F^dagger too): where c is 1 the pair's frame
-                // bits are exchanged.
-                Sys::F { c, .. } => {
-                    for k in 0..n / 2 {
-                        let mut d = zf[2 * k].clone();
-                        self.a.add(&mut d, &zf[2 * k + 1]);
-                        let d = self.a.mul(c, &d);
-                        self.a.add(&mut zf[2 * k], &d);
-                        self.a.add(&mut zf[2 * k + 1], &d);
-                    }
-                    out.push((*at, op.clone()));
-                }
-            }
-        }
-        (out, zf, sign)
-    }
-
-    /// Stage 2's last part and stage 3: nothing left names an outcome, and the adjoint's normal
-    /// form equals the twin of the lane operator's.
-    #[allow(clippy::too_many_lines)]
-    fn compare(&mut self) -> Result<(), Obstruction> {
-        self.counts.system_ops = self.log.len() as u64;
-        let log = std::mem::take(&mut self.log);
-        let (list, frame, crossing) = self.normal(&log);
-        let mut sign = self.phi.get(&ONE).cloned().unwrap_or_default();
-        self.a.add(&mut sign, &crossing);
-        // Everything the lane operator is made of is proven independent of every outcome and
-        // replaced by its outcome-free form (`settle`).
-        let depends =
-            |at: Option<usize>, kind: &'static str, what: &str, e: (usize, String)| Obstruction {
-                op: at.or((e.0 != usize::MAX).then_some(e.0)),
-                name: at.is_none().then_some(K::Hmr.name()),
+            return Err(obstruct(
+                None,
                 kind,
-                reason: match e.0 {
-                    usize::MAX => {
-                        format!("{what} is not proven independent of the outcomes: {}", e.1)
-                    }
-                    i => format!(
-                        "{what} is not proven independent of the outcome of the HMR at op {i}: {}",
-                        e.1
-                    ),
-                },
-            };
-        let steers = "outcome-steers-system";
-        let mut settled: Vec<(usize, Sys)> = Vec::with_capacity(list.len());
-        for (at, op) in &list {
-            let here = Some(*at);
-            let t = match op {
-                Sys::X { q, c } => Sys::X {
-                    q: *q,
-                    c: self
-                        .settle(c)
-                        .map_err(|e| depends(here, steers, "a system X's control", e))?,
-                },
-                Sys::F { dagger, c } => Sys::F {
-                    dagger: *dagger,
-                    c: self
-                        .settle(c)
-                        .map_err(|e| depends(here, steers, "a SpinSwap's control", e))?,
-                },
-                Sys::G { p, q, angle, sign } => {
-                    let mut bits = Vec::with_capacity(angle.len());
-                    for b in angle {
-                        bits.push(
-                            self.settle(b)
-                                .map_err(|e| depends(here, steers, "a Givens angle", e))?,
-                        );
-                    }
-                    Sys::G {
-                        p: *p,
-                        q: *q,
-                        angle: bits,
-                        sign: self
-                            .settle(sign)
-                            .map_err(|e| depends(here, steers, "a system Z's control", e))?,
-                    }
+                format!("qubit q{q} {what}: {}", self.counterexample(d)),
+            ));
+        }
+        Ok(Step::Done)
+    }
+
+    /// Appends one system op to the normal form `forms[k]`: a `Z` joins the frame, any other
+    /// op is moved past the frame and joins the list.
+    fn fold(&mut self, k: usize, from: Source) -> Result<Step, Obstruction> {
+        let (at, op) = match from {
+            Source::Log(j) => self.log[j].clone(),
+            // The adjoint of `forms[0]`, `Z^frame * (last of list) ... (first of list)`, as a
+            // time-ordered list: the frame first, then the list reversed with each op
+            // inverted (`X` and `Z` are their own inverses; a Givens changes its angle's sign;
+            // `F` and `F^dagger` exchange).
+            Source::Adjoint(j) => {
+                let n = self.forms[0].frame.len();
+                if j < n {
+                    let c = self.forms[0].frame[j];
+                    (usize::MAX, Sys::Z { q: j, c })
+                } else {
+                    let m = self.forms[0].list.len();
+                    let (at, op) = self.forms[0].list[m - 1 - (j - n)].clone();
+                    let inv = match op {
+                        Sys::G { p, q, angle, sign } => Sys::G {
+                            p,
+                            q,
+                            angle,
+                            sign: self.xor(sign, TRUE),
+                        },
+                        Sys::F { dagger, c } => Sys::F { dagger: !dagger, c },
+                        other => other,
+                    };
+                    (at, inv)
                 }
-                Sys::Z { q, c } => Sys::Z {
-                    q: *q,
-                    c: self
-                        .settle(c)
-                        .map_err(|e| depends(here, steers, "a system Z's control", e))?,
-                },
-            };
-            settled.push((*at, t));
+            }
+        };
+        match op {
+            Sys::Z { q, c } => {
+                let f = self.xor(self.forms[k].frame[q], c);
+                if !self.sound() {
+                    return Ok(Step::Full);
+                }
+                self.forms[k].frame[q] = f;
+            }
+            // X^c Z^f = (-1)^(c f) Z^f X^c.
+            Sys::X { q, c } => {
+                let d = self.and(c, self.forms[k].frame[q]);
+                let s = self.xor(self.forms[k].sign, d);
+                if !self.sound() {
+                    return Ok(Step::Full);
+                }
+                self.forms[k].sign = s;
+                self.forms[k].list.push((at, Sys::X { q, c }));
+            }
+            // G_pq(t) Z_p = Z_p G_pq(-t), the same for Z_q; other Z commute with G_pq.
+            Sys::G { p, q, angle, sign } => {
+                let sign = self.xor(sign, self.forms[k].frame[p]);
+                let sign = self.xor(sign, self.forms[k].frame[q]);
+                if !self.sound() {
+                    return Ok(Step::Full);
+                }
+                self.forms[k].list.push((at, Sys::G { p, q, angle, sign }));
+            }
+            // F exchanges Z_2j and Z_2j+1 (F^dagger too): where c is 1 the pair's frame bits
+            // are exchanged.
+            Sys::F { dagger, c } => {
+                let pairs = self.forms[k].frame.len() / 2;
+                let mut frame = Vec::with_capacity(2 * pairs);
+                for j in 0..pairs {
+                    let (x, y) = (self.forms[k].frame[2 * j], self.forms[k].frame[2 * j + 1]);
+                    let d = self.xor(x, y);
+                    let d = self.and(c, d);
+                    frame.push(self.xor(x, d));
+                    frame.push(self.xor(y, d));
+                }
+                if !self.sound() {
+                    return Ok(Step::Full);
+                }
+                self.forms[k].frame[..2 * pairs].copy_from_slice(&frame);
+                self.forms[k].list.push((at, Sys::F { dagger, c }));
+            }
         }
-        let list = settled;
-        let mut plain = Vec::with_capacity(frame.len());
-        for f in &frame {
-            plain.push(
-                self.settle(f)
-                    .map_err(|e| depends(None, steers, "a system Z's control", e))?,
-            );
+        Ok(Step::Done)
+    }
+
+    /// Adds the lane's sign to `forms[k]`. Every coefficient of a product of outcomes must be
+    /// 0; the part with no outcome is the sign.
+    fn fold_sign(&mut self, k: usize) -> Result<Step, Obstruction> {
+        let phi = std::mem::take(&mut self.phi);
+        let totals: Vec<(Mono, Node)> = phi
+            .iter()
+            .map(|(m, s)| (m.clone(), self.total(s)))
+            .collect();
+        self.phi = phi;
+        let plain = totals
+            .iter()
+            .find(|t| t.0.is_empty())
+            .map_or(FALSE, |t| t.1);
+        let s = self.xor(self.forms[k].sign, plain);
+        if !self.sound() {
+            return Ok(Step::Full);
         }
-        let frame = plain;
-        let sign = self
-            .settle(&sign)
-            .map_err(|e| depends(None, "outcome-phase", "the lane's sign", e))?;
-        if self.a.exhausted {
-            return Err(self.budget(None));
+        if let Some((m, c)) = totals.iter().find(|t| !t.0.is_empty() && t.1 != FALSE) {
+            let op = |x: u32| self.outcomes[(x - self.outcome_base) as usize];
+            let ops: Vec<String> = m.iter().map(|&x| op(x).to_string()).collect();
+            return Err(Obstruction {
+                op: Some(op(m[0])),
+                name: Some(K::Hmr.name()),
+                kind: "outcome-phase",
+                reason: format!(
+                    "the lane's sign depends on the outcome of the HMR at op {}: the coefficient \
+                     of the product of the outcomes at ops [{}] is not 0: {}",
+                    op(m[0]),
+                    ops.join(" "),
+                    self.counterexample(*c)
+                ),
+            });
         }
-        // The twin of each. No outcome is left to meet.
-        let steered = |at: Option<usize>, i: usize, what: &str| Obstruction {
+        self.forms[k].sign = s;
+        self.phi.clear();
+        Ok(Step::Done)
+    }
+
+    /// The op of an outcome some function of `roots` depends on, if any.
+    fn outcome_in(&self, roots: &[Node]) -> Option<usize> {
+        self.b
+            .reads_from(roots, self.outcome_base)
+            .map(|level| self.outcomes[(level - self.outcome_base) as usize])
+    }
+
+    /// Refuses if `forms[k]` depends on an outcome: its list and frame, or (`sign`) its sign.
+    fn independent(&self, k: usize, sign: bool) -> Result<(), Obstruction> {
+        let f = &self.forms[k];
+        let depends = |at: Option<usize>, kind: &'static str, what: &str, i: usize| Obstruction {
             op: at,
             name: None,
-            kind: "outcome-steers-system",
-            reason: match i {
-                usize::MAX => format!("{what} names a symbol the check cannot map"),
-                _ => format!("{what} depends on the outcome of the HMR at op {i}"),
-            },
+            kind,
+            reason: format!("{what} depends on the outcome of the HMR at op {i}"),
         };
-        let mut twins: Vec<Sys> = Vec::with_capacity(list.len());
-        for (at, op) in &list {
-            let at = Some(*at);
-            let t = match op {
-                Sys::X { q, c } => Sys::X {
-                    q: *q,
-                    c: self
-                        .twin_poly(c)
-                        .map_err(|i| steered(at, i, "a system X's control"))?,
-                },
-                Sys::F { dagger, c } => Sys::F {
-                    dagger: *dagger,
-                    c: self
-                        .twin_poly(c)
-                        .map_err(|i| steered(at, i, "a SpinSwap's control"))?,
-                },
-                Sys::G { p, q, angle, sign } => {
-                    let mut bits = Vec::with_capacity(angle.len());
-                    for b in angle {
-                        bits.push(
-                            self.twin_poly(b)
-                                .map_err(|i| steered(at, i, "a Givens angle"))?,
-                        );
-                    }
-                    Sys::G {
-                        p: *p,
-                        q: *q,
-                        angle: bits,
-                        sign: self
-                            .twin_poly(sign)
-                            .map_err(|i| steered(at, i, "a system Z's control"))?,
-                    }
+        if sign {
+            return match self.outcome_in(&[f.sign]) {
+                None => Ok(()),
+                Some(i) => {
+                    let mut o = depends(Some(i), "outcome-phase", "the lane's sign", i);
+                    o.name = Some(K::Hmr.name());
+                    Err(o)
                 }
-                Sys::Z { .. } => return Err(steered(at, usize::MAX, "a normal-form element")),
             };
-            twins.push(t);
         }
-        let mut frame_twin = Vec::with_capacity(frame.len());
-        for f in &frame {
-            frame_twin.push(
-                self.twin_poly(f)
-                    .map_err(|i| steered(None, i, "a system Z's control"))?,
-            );
+        let mut all: Vec<Node> = f.list.iter().flat_map(|(_, s)| s.nodes()).collect();
+        all.extend_from_slice(&f.frame);
+        if self.outcome_in(&all).is_none() {
+            return Ok(());
         }
-        let sign_twin = self.twin_poly(&sign).map_err(|i| Obstruction {
-            op: (i != usize::MAX).then_some(i),
-            name: Some(K::Hmr.name()),
-            kind: "outcome-phase",
-            reason: format!(
-                "the lane's sign depends on the outcome of the HMR at op {i} through a value the \
-                 check does not expand"
-            ),
+        let steers = "outcome-steers-system";
+        for (at, s) in &f.list {
+            if let Some(i) = self.outcome_in(&s.nodes()) {
+                return Err(depends(Some(*at), steers, s.what(), i));
+            }
+        }
+        let i = self.outcome_in(&f.frame).unwrap_or(usize::MAX);
+        Err(depends(None, steers, "a system Z's control", i))
+    }
+
+    /// Stage 3: the normal form of the adjoint of `forms[0]`, the lane operator `L(g, a, b)`,
+    /// is `forms[1]`, the normal form of `L(g, b, a)`, element by element.
+    #[allow(clippy::too_many_lines)]
+    fn compare(&mut self) -> Result<(), Obstruction> {
+        let n = self.forms[0].frame.len() + self.forms[0].list.len();
+        self.forms.push(Normal::new(self.l.system));
+        for j in 0..n {
+            self.room();
+            self.retry(None, |e| e.fold(2, Source::Adjoint(j)))?;
+        }
+        // The adjoint's sign: the lane's, and what moving the frame back through cost.
+        self.retry(None, |e| {
+            let s = e.xor(e.forms[0].sign, e.forms[2].sign);
+            if !e.sound() {
+                return Ok(Step::Full);
+            }
+            e.forms[2].sign = s;
+            Ok(Step::Done)
         })?;
-        if self.a.exhausted {
-            return Err(self.budget(None));
-        }
-        self.outcome_independent = true;
-
-        let adj = adjoint(&list, &frame);
-        let (adj_list, adj_frame, adj_crossing) = self.normal(&adj);
-        let mut adj_sign = sign.clone();
-        self.a.add(&mut adj_sign, &adj_crossing);
-
         let differ = |at: Option<usize>, kind: &'static str, reason: String| Obstruction {
             op: at,
             name: None,
             kind,
             reason,
         };
-        debug_assert_eq!(adj_list.len(), twins.len());
-        for (k, ((_, got), want)) in adj_list.iter().zip(&twins).enumerate() {
+        let mut wrong: Option<Mismatch> = None;
+        let (back, twin) = (&self.forms[2], &self.forms[1]);
+        if back.list.len() != twin.list.len() {
+            return Err(differ(
+                None,
+                "shape-mismatch",
+                "the adjoint's normal form has a different length".into(),
+            ));
+        }
+        let mut compared = 0;
+        for (k, ((_, got), (at, want))) in back.list.iter().zip(&twin.list).enumerate() {
             // Named by the op the lane operator has at this position.
-            let at = Some(list[k].0);
-            let here = format!("element {k} of {} of the normal form", twins.len());
-            match (got, want) {
-                (Sys::X { q, c }, Sys::X { q: q2, c: c2 }) if q == q2 => {
-                    self.same(c, c2).map_err(|why| {
-                        differ(
-                            at,
+            let at = Some(*at);
+            let here = format!("element {k} of {} of the normal form", twin.list.len());
+            let found = match (got, want) {
+                (Sys::X { q, c }, Sys::X { q: q2, c: c2 }) if q == q2 => (c != c2).then(|| {
+                    (
+                        "control-mismatch",
+                        format!(
+                            "{here}: the X on system qubit {q} has a different control in the \
+                             adjoint"
+                        ),
+                        (*c, *c2),
+                    )
+                }),
+                (Sys::F { dagger, c }, Sys::F { dagger: d2, c: c2 }) if dagger == d2 => (c != c2)
+                    .then(|| {
+                        (
                             "control-mismatch",
-                            format!(
-                                "{here}: the X on system qubit {q} has a different control in \
-                                 the adjoint: {why}"
-                            ),
+                            format!("{here}: the SpinSwap has a different control in the adjoint"),
+                            (*c, *c2),
                         )
-                    })?;
-                }
-                (Sys::F { dagger, c }, Sys::F { dagger: d2, c: c2 }) if dagger == d2 => {
-                    self.same(c, c2).map_err(|why| {
-                        differ(
-                            at,
-                            "control-mismatch",
-                            format!(
-                                "{here}: the SpinSwap has a different control in the adjoint: \
-                                 {why}"
-                            ),
-                        )
-                    })?;
-                }
+                    }),
                 (
                     Sys::G { p, q, angle, sign },
                     Sys::G {
@@ -1589,30 +1608,33 @@ impl<'a> Engine<'a> {
                         angle: a2,
                         sign: s2,
                     },
-                ) if p == p2 && q == q2 && angle.len() == a2.len() => {
-                    for (j, (x, y)) in angle.iter().zip(a2).enumerate() {
-                        self.same(x, y).map_err(|why| {
-                            differ(
-                                at,
-                                "angle-mismatch",
-                                format!(
-                                    "{here}: bit {j} of the angle of the Givens on modes ({p}, \
-                                     {q}) differs in the adjoint: {why}"
-                                ),
-                            )
-                        })?;
-                    }
-                    self.same(sign, s2).map_err(|why| {
-                        differ(
-                            at,
+                ) if p == p2 && q == q2 && angle.len() == a2.len() => angle
+                    .iter()
+                    .zip(a2)
+                    .enumerate()
+                    .find(|(_, (x, y))| x != y)
+                    .map(|(j, (x, y))| {
+                        (
                             "angle-mismatch",
                             format!(
-                                "{here}: the sign of the angle of the Givens on modes ({p}, {q}) \
-                                 differs in the adjoint: {why}"
+                                "{here}: bit {j} of the angle of the Givens on modes ({p}, {q}) \
+                                 differs in the adjoint"
                             ),
+                            (*x, *y),
                         )
-                    })?;
-                }
+                    })
+                    .or_else(|| {
+                        (sign != s2).then(|| {
+                            (
+                                "angle-mismatch",
+                                format!(
+                                    "{here}: the sign of the angle of the Givens on modes ({p}, \
+                                     {q}) differs in the adjoint"
+                                ),
+                                (*sign, *s2),
+                            )
+                        })
+                    }),
                 _ => {
                     return Err(differ(
                         at,
@@ -1623,36 +1645,48 @@ impl<'a> Engine<'a> {
                         ),
                     ))
                 }
+            };
+            if let Some((kind, what, pair)) = found {
+                wrong = Some((kind, what, pair, at));
+                break;
             }
-            self.counts.compared += 1;
+            compared += 1;
         }
-        for (q, (got, want)) in adj_frame.iter().zip(&frame_twin).enumerate() {
-            self.same(got, want).map_err(|why| {
-                differ(
-                    None,
-                    "frame-mismatch",
-                    format!("the Z left on system qubit {q} differs in the adjoint: {why}"),
-                )
-            })?;
+        if wrong.is_none() {
+            wrong = back
+                .frame
+                .iter()
+                .zip(&twin.frame)
+                .enumerate()
+                .find(|(_, (x, y))| x != y)
+                .map(|(q, (x, y))| {
+                    (
+                        "frame-mismatch",
+                        format!("the Z left on system qubit {q} differs in the adjoint"),
+                        (*x, *y),
+                        None,
+                    )
+                });
         }
-        self.same(&adj_sign, &sign_twin).map_err(|why| {
-            differ(
-                None,
+        if wrong.is_none() && back.sign != twin.sign {
+            wrong = Some((
                 "phase-mismatch",
-                format!("the lane's sign differs in the adjoint: {why}"),
-            )
-        })?;
-        if self.a.exhausted {
-            return Err(self.budget(None));
+                "the lane's sign differs in the adjoint".into(),
+                (back.sign, twin.sign),
+                None,
+            ));
         }
+        if let Some((kind, what, (x, y), at)) = wrong {
+            let d = self.xor(x, y);
+            let why = if self.sound() {
+                self.counterexample(d)
+            } else {
+                "the two are different functions".into()
+            };
+            return Err(differ(at, kind, format!("{what}: {why}")));
+        }
+        self.counts.compared = compared;
         self.hermitian = true;
         Ok(())
-    }
-
-    /// `Ok` when `p = q` is proven.
-    fn same(&mut self, p: &Poly, q: &Poly) -> Result<(), String> {
-        let mut d = p.clone();
-        self.a.add(&mut d, q);
-        self.prove_zero(&d)
     }
 }

@@ -7,7 +7,9 @@
 //!   breaks Hermiticity the dense simulation confirms it. Every obstruction kind of
 //!   spec/DESIGN.md section 16.6 has one, and so have the lane semantics a certificate rests on
 //!   that no kind names: an op's own condition inside a condition block, a conditioned `Swap`,
-//!   a conditioned `Neg`, and a phase on a qubit that holds an outcome.
+//!   a conditioned `Neg`, a phase on a qubit that holds an outcome, an outcome mixed into a
+//!   value, and the qubit and the bit of a conditioned `Hmr`.
+//! - A node store too small refuses or gives the verdict of a large one.
 //! - A step that is Hermitian but encodes a different operator is certified: the certificate is
 //!   about Hermiticity, not about the operator.
 //! - The three operator identities the normal form uses hold for dense matrices.
@@ -194,6 +196,7 @@ fn dense_gates(n: usize, beta: u32, list: &[probe::Gate]) -> M {
                 n,
             ),
             probe::Gate::F { dagger } => f_layer(n, dagger),
+            probe::Gate::Idle { .. } => eye(1 << n),
         };
         mul(&g, &m)
     })
@@ -219,8 +222,12 @@ fn normal_form_and_adjoint_equal_the_dense_operator() {
     let mut r = Rng(0xD1B5_4A32_D192_ED03);
     for round in 0..400 {
         let word: Vec<probe::Gate> = (0..1 + r.below(12))
-            .map(|_| match r.below(6) {
+            .map(|_| match r.below(7) {
                 0 => probe::Gate::X(r.below(n)),
+                // A SpinSwap that does not execute must leave the frame alone.
+                6 => probe::Gate::Idle {
+                    dagger: r.chance(50),
+                },
                 1 | 2 => probe::Gate::Z(r.below(n)),
                 3 | 4 => {
                     let p = r.below(n - 1);
@@ -693,6 +700,11 @@ enum Mutant {
     XControl,
     /// The copy's first rotation is `V`, not `V^dagger`: the two `Z`s around it are missing.
     NoInverseRotation,
+    /// One more `X` controlled on the outer bit in each copy: on system qubit 3 in the first,
+    /// on system qubit 1 in the second. Only the qubit differs between the two.
+    XQubit,
+    /// The copy opens with `SpinSwap` where it should open with `SpinSwapDg`.
+    SwapDirection,
 }
 
 /// Angle table of the tiny circuit: the rotation's angle for each inner value.
@@ -761,6 +773,8 @@ fn tiny(m: Mutant) -> Vec<Op> {
             b.spin_swap_dg(f);
             b.ccx(e, inner[0], f);
             b.free(f);
+        } else if m == Mutant::SwapDirection {
+            b.spin_swap(e);
         } else {
             b.spin_swap_dg(e);
         }
@@ -769,6 +783,13 @@ fn tiny(m: Mutant) -> Vec<Op> {
         b.cx(inner[0], s1);
         if m == Mutant::XControl {
             b.ccx(pass, o, s1);
+        }
+        if m == Mutant::XQubit {
+            let s3 = b.system(3);
+            b.ccx(pass, o, s1);
+            b.x(pass);
+            b.ccx(pass, o, s3);
+            b.x(pass);
         }
         if m != Mutant::NoPassSign {
             b.cz(inner[0], pass);
@@ -924,8 +945,9 @@ fn registers_and_ancillas_wrong_at_the_end_are_refused() {
 }
 
 /// The comparisons of the normal form that no other test reaches: the `Z` frame, the control
-/// of a `SpinSwap`, the control of a system `X`, and the sign of a rotation's angle (its bits
-/// are `Mutant::AngleDefect`'s). Each mutant restores its registers and
+/// of a `SpinSwap`, the control of a system `X`, the sign of a rotation's angle (its bits
+/// are `Mutant::AngleDefect`'s), the qubit of a system `X` and the direction of a `SpinSwap`.
+/// Each mutant restores its registers and
 /// keeps the outcomes out of the operator; only Hermiticity fails, and the dense simulation
 /// confirms it.
 #[test]
@@ -947,6 +969,12 @@ fn frame_and_control_mismatches_are_refused_at_the_comparison() {
             "angle-mismatch",
             "the sign of the angle of the Givens on modes (0, 2)",
         ),
+        (Mutant::XQubit, "shape-mismatch", "a different system op"),
+        (
+            Mutant::SwapDirection,
+            "shape-mismatch",
+            "a different system op",
+        ),
     ] {
         let (r, dense) = refused_ops(&tiny(m), &format!("{m:?}"));
         assert!(r.registers_restored && r.outcome_independent, "{m:?}");
@@ -967,9 +995,10 @@ fn frame_and_control_mismatches_are_refused_at_the_comparison() {
 /// - A conditioned `Swap` exchanges its qubits where the condition holds.
 /// - A conditioned `Neg` is a sign where the condition holds.
 /// - A phase on a qubit that holds an outcome is an outcome-dependent sign.
-/// - A conditioned `Hmr` clears its qubit where the condition holds and leaves it elsewhere.
-/// - An outcome that reaches the sign through a sealed value is judged as a function: it is
-///   certified when the sign does not change with the outcome and refused when it does.
+/// - A conditioned `Hmr` clears its qubit where the condition holds and leaves it elsewhere,
+///   and the same for the bit it writes.
+/// - An outcome mixed into a value with lane bits is judged as a function: the sign is
+///   certified when it does not change with the outcome and refused when it does.
 #[test]
 fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantics() {
     let (a, b) = (FRESH, FRESH + 1);
@@ -988,6 +1017,9 @@ fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantic
     let swap = raw(K::Swap, y, x, a);
     let swap_wrong = [outcome(q, a), copy, swap, copy];
     let swap_right = [outcome(q, a), copy, swap, swap, copy];
+    // The conditioned swap undone by an unconditioned one: undone only where the outcome is 1.
+    let plain_swap = raw(K::Swap, y, x, NONE);
+    let swap_mixed = [outcome(q, a), copy, swap, plain_swap, copy];
     let neg = raw(K::Neg, NONE, NONE, a);
     let neg_wrong = [outcome(q, a), neg];
     let neg_right = [outcome(q, a), neg, neg];
@@ -1008,11 +1040,28 @@ fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantic
     let clear = [one, flip, raw(K::CX, x, OUTER, not_a)];
     let hmr_wrong = [&[outcome(q, a), copy, measure][..], &fix].concat();
     let hmr_right = [&hmr_wrong[..], &clear].concat();
-    // The outcome XORed into a qubit that also holds two lane bits and a 1, so the qubit's value
-    // is sealed when it is read. Its Z is a sign in the outcome and in the lane bits; the lane
-    // part is undone by two Zs and a Neg, and the outcome part by a conditioned Neg. The sign's
-    // dependence on the outcome sits inside a sealed definition, and only the test of the
-    // function (the sign at a = 1 against the sign at a = 0) can find that it cancels.
+    // A conditioned Hmr writes its bit where the condition holds and leaves it elsewhere. Bit
+    // `k` holds an older outcome, copied to `d`; x is measured into `k` where `a` is 1. Where
+    // `a` is 0, a sign on `k` is the old outcome's, and the same sign on `d` cancels it.
+    let (k, d) = (FRESH + 4, FRESH + 5);
+    let mut keep = Op::new(K::BitInvert);
+    (keep.c_target, keep.c_condition) = (d, k);
+    let mut measure_k = outcome(x, k);
+    measure_k.c_condition = a;
+    let sign_on = |bit| [push(not_a), raw(K::Z, OUTER, NONE, bit), pop];
+    let bit_wrong = [
+        &[outcome(q, k), keep, outcome(q, a), copy, measure_k][..],
+        &[push(a), raw(K::Z, OUTER, NONE, k), pop],
+        &[one, flip],
+        &sign_on(k),
+        &[raw(K::CX, x, OUTER, not_a)],
+    ]
+    .concat();
+    let bit_right = [&bit_wrong[..], &sign_on(d)].concat();
+    // The outcome XORed into a qubit that also holds two lane bits and a 1. Its Z is a sign in
+    // the outcome and in the lane bits; the lane part is undone by two Zs and a Neg, and the
+    // outcome part by a conditioned Neg. No term of the sign names the outcome alone: only the
+    // sign as a function (at a = 1 against a = 0) shows whether it cancels.
     let mix = [
         raw(K::X, x, NONE, a),
         raw(K::CX, x, OUTER, NONE),
@@ -1024,13 +1073,13 @@ fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantic
         raw(K::Z, CONTROL, NONE, NONE),
         raw(K::Neg, NONE, NONE, NONE),
     ];
-    let sealed_wrong = [&[outcome(q, a)][..], &mix, &[z], &lane_part, &mix].concat();
-    let sealed_right = [&[outcome(q, a)][..], &mix, &[z], &lane_part, &[neg], &mix].concat();
+    let mixed_wrong = [&[outcome(q, a)][..], &mix, &[z], &lane_part, &mix].concat();
+    let mixed_right = [&[outcome(q, a)][..], &mix, &[z], &lane_part, &[neg], &mix].concat();
     for (what, wrong, right, kind, dense_says) in [
         (
-            "outcome inside a sealed value",
-            &sealed_wrong[..],
-            &sealed_right[..],
+            "outcome mixed into a value",
+            &mixed_wrong[..],
+            &mixed_right[..],
             "outcome-phase",
             "depends on the outcomes",
         ),
@@ -1047,6 +1096,20 @@ fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantic
             &swap_right[..],
             "ancilla-not-clean",
             "dirty ancilla",
+        ),
+        (
+            "conditioned Swap undone by an unconditioned one",
+            &swap_mixed[..],
+            &swap_right[..],
+            "ancilla-not-clean",
+            "dirty ancilla",
+        ),
+        (
+            "bit of a conditioned Hmr",
+            &bit_wrong[..],
+            &bit_right[..],
+            "outcome-phase",
+            "depends on the outcomes",
         ),
         (
             "conditioned Neg",
@@ -1082,6 +1145,65 @@ fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantic
     }
 }
 
+/// A node store that fills is collected and the op tried again; one that is still too small is
+/// a budget refusal. Either way the verdict is the one a large store gives: the size of the
+/// store never turns a refusal into a certificate or one obstruction into another.
+#[test]
+fn small_node_stores_refuse_or_agree_with_a_large_one() {
+    let (l, inner) = layout();
+    let all = [
+        Mutant::None,
+        Mutant::NoAndFix,
+        Mutant::NoParityInvert,
+        Mutant::DirtyReset,
+        Mutant::NoPassSign,
+        Mutant::AngleDefect,
+        Mutant::NoRotationBack,
+        Mutant::OutcomeSteers,
+        Mutant::SymmetricSign,
+        Mutant::InnerNotRestored,
+        Mutant::InnerLeftWrong,
+        Mutant::LoneFrameZ,
+        Mutant::SwapControl,
+        Mutant::XControl,
+        Mutant::NoInverseRotation,
+        Mutant::XQubit,
+        Mutant::SwapDirection,
+    ];
+    let (mut agreed, mut refused, mut collected) = (0, 0, 0);
+    for m in all {
+        let ops = tiny(m);
+        let (large, registers) = check_ops(&ops, Budget::default());
+        let verdict = |r: &Report| {
+            let o = r
+                .obstruction
+                .as_ref()
+                .map(|o| (o.op, o.kind, o.reason.clone()));
+            (r.certified, r.registers_restored, r.outcome_independent, o)
+        };
+        for nodes in (3..40).map(|k| k * k * 2) {
+            let b = Budget {
+                bdd_nodes: nodes,
+                ..Budget::default()
+            };
+            let r = certify(&ops, &l, Some(inner), &registers, b);
+            if r.obstruction.as_ref().is_some_and(|o| o.kind == "budget") {
+                assert!(!r.certified && !r.hermitian, "{m:?}, {nodes} nodes");
+                refused += 1;
+                continue;
+            }
+            assert_eq!(verdict(&r), verdict(&large), "{m:?}, {nodes} nodes");
+            agreed += 1;
+            collected += u32::from(r.counts.collections > large.counts.collections);
+        }
+    }
+    // The three cases all occur: too small, enough, and enough only after a collection.
+    assert!(
+        agreed > 50 && refused > 20 && collected > 10,
+        "{agreed} {refused} {collected}"
+    );
+}
+
 /// (1) The tiny circuit is certified, twice with identical reports, and the dense simulation
 /// agrees on every lane.
 #[test]
@@ -1096,9 +1218,9 @@ fn tiny_circuit_is_certified_and_dense_simulation_agrees() {
     // Per copy: two Givens, two SpinSwaps and one X stay in the normal form; the Zs do not.
     assert_eq!((r.counts.givens, r.counts.spin_swaps), (4, 4));
     assert_eq!(r.counts.compared, 10);
-    assert!(r.counts.measurements > 0 && r.counts.outcome_phases_proved > 0);
+    assert!(r.counts.measurements > 0 && r.counts.outcomes_proved > 0);
     let j = r.json();
-    assert_eq!(j["version"], "reflection-v2");
+    assert_eq!(j["version"], "reflection-v3");
     assert_eq!(j["status"], "certified");
     assert!(j["obstruction"].is_null());
     assert!(j["statement"]
@@ -1239,6 +1361,44 @@ fn what_the_rule_set_does_not_cover_is_refused() {
     sysctl.push(cx);
     let r = certify(&sysctl, &l, Some(inner), &registers, Budget::default());
     assert_eq!(r.obstruction.unwrap().kind, "unsupported-op");
+    // A CZ between two system qubits.
+    let mut two = ops.clone();
+    let mut cz = Op::new(K::CZ);
+    (cz.q_control1, cz.q_target) = (1, 2);
+    two.push(cz);
+    let r = certify(&two, &l, Some(inner), &registers, Budget::default());
+    let o = r.obstruction.unwrap();
+    assert_eq!(o.kind, "unsupported-op", "{o}");
+    assert!(o.reason.contains("more than one system qubit"), "{o}");
+    // A Reflect on a register that is not the inner register (here the angle register).
+    let angles = ops.iter().find(|o| o.kind == K::Givens).unwrap().r_target;
+    let mut elsewhere = ops.clone();
+    elsewhere[at].r_target = angles;
+    let r = certify(&elsewhere, &l, Some(inner), &registers, Budget::default());
+    let o = r.obstruction.unwrap();
+    assert_eq!(o.kind, "structure", "{o}");
+    assert!(o.reason.contains("not on exactly the inner"), "{o}");
+    // A condition block that is never closed, even on the constant 1.
+    let mut open = ops.clone();
+    open.push(raw(K::PushCondition, NONE, NONE, one));
+    let r = certify(&open, &l, Some(inner), &registers, Budget::default());
+    let o = r.obstruction.unwrap();
+    assert_eq!(o.kind, "structure", "{o}");
+    assert!(o.reason.contains("left open"), "{o}");
+    // A SpinSwap on an ancilla that holds 1, under a measurement outcome: the outcome steers
+    // the system, whatever the ancilla holds.
+    let (bit, anc) = (FRESH, FRESH + 1);
+    let set = raw(K::X, anc, NONE, NONE);
+    let steered = [
+        outcome(FRESH, bit),
+        set,
+        raw(K::SpinSwap, anc, NONE, bit),
+        set,
+    ];
+    let (r, _) = refused_ops(&tiny_then(&steered), "SpinSwap under an outcome");
+    let o = r.obstruction.unwrap();
+    assert_eq!(o.kind, "outcome-steers-system", "{o}");
+    assert!(o.reason.contains("a SpinSwap's control"), "{o}");
 }
 
 /// (5) A `Z` on the walk control behind 30 nested outcome conditions: no sampled lane reaches
@@ -2036,7 +2196,7 @@ mod sa {
             let m = j["metrics"].as_object_mut().unwrap();
             let refl = m.remove("reflection").unwrap();
             assert_eq!(refl["status"], "certified");
-            assert_eq!(refl["version"], "reflection-v2");
+            assert_eq!(refl["version"], "reflection-v3");
             let s = m["sampling_limits"].as_object_mut().unwrap();
             assert_eq!(s.remove("hermitian_on_every_lane").unwrap(), "certified");
             assert_eq!(
@@ -2268,10 +2428,13 @@ mod sa {
         use femoco_walk::{lanemap, spec as specs};
         // (ops.bin SHA-256 prefix, certified, first obstruction's op and kind).
         type First = Option<(usize, &'static str)>;
-        let pinned: [(&str, bool, First); 3] = [
+        let pinned: [(&str, bool, First); 4] = [
+            // reiher/est-low-r and li/low2025-reference (Low et al.'s construction).
             ("95e8fe89", true, None),
-            ("a939d204", false, Some((763_394, "reset-not-proven"))),
-            ("22ed4a76", false, Some((2_543_511, "reflect-not-restored"))),
+            ("096fe98c", true, None),
+            // reiher/outer-hi-reconstruct-r1 and li/composed-alias-m8 (the ledger's best).
+            ("a939d204", true, None),
+            ("22ed4a76", true, None),
         ];
         let roots = std::env::var("FEMOCO_REFLECTION_ROOTS").expect("FEMOCO_REFLECTION_ROOTS");
         let here = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -2294,13 +2457,21 @@ mod sa {
             let t0 = std::time::Instant::now();
             let r = certify(&ops.ops, &l, inner, &c.registers, Budget::default());
             let digest = hex::encode(ops.sha256);
+            let c = &r.counts;
             println!(
-                "{}: ops {digest}: {} ({} ops read, {} symbols, {} sealed, work {}, {:.1} s)",
+                "{}: ops {digest}: {} ({} ops read, {} measurements, {} resets, {} system ops, \
+                 {} elements compared, {} variables, {} nodes at most, {} collections, work {}, \
+                 {:.1} s)",
                 dir.display(),
                 r.summary(),
-                r.counts.ops,
+                c.ops,
+                c.measurements,
+                c.resets_proved,
+                c.system_ops,
+                c.compared,
                 r.symbols,
-                r.sealed,
+                c.nodes_peak,
+                c.collections,
                 r.work,
                 t0.elapsed().as_secs_f64()
             );
