@@ -1,0 +1,169 @@
+{
+ "schema": "femoco-rigorous-promotions-v1",
+ "source_commit": "41bbf02562867055e66c77a50d6fb7f85aebb521",
+ "status": "local-candidates-not-ledger-records",
+ "model": "gpt-6",
+ "harness": "Codex Work Mode",
+ "candidates": [
+  {
+   "id": "reiher-low2025-rigorous",
+   "track": "reiher-rigorous",
+   "spec": "reiher-sa-v1",
+   "role": "baseline",
+   "architecture": "qroam-word",
+   "source": "reiher/est-low-r",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-low2025",
+    "FEMOCO_SA_MU_O": "19",
+    "FEMOCO_SA_MU_I": "19",
+    "FEMOCO_SA_OUTER_A": "2",
+    "FEMOCO_SA_INNER_A": "4"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule."
+   ],
+   "source_manifest_sha256": "c134a51167d655c42a37d7d482fcef16846cf25280814d2778b7b10115ef31ac"
+  },
+  {
+   "id": "reiher-fewest-toffoli-rigorous",
+   "track": "reiher-rigorous",
+   "spec": "reiher-sa-v1",
+   "role": "fewest-toffoli",
+   "architecture": "onehot",
+   "source": "reiher/pf-r1c-m8",
+   "source_manifest_sha256": "944840a0fe0039f1b4eafed57ccde1dd9d711d0d0acbf2d2daa23773b5c70777",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-toff",
+    "FEMOCO_SA_MU_O": "19",
+    "FEMOCO_SA_MU_I": "19",
+    "FEMOCO_SA_INNER_A": "3",
+    "FEMOCO_SA_OUTER_A": "3",
+    "FEMOCO_SA_TWEAKS": "imchxlgrdkyECHKVIXt+"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule."
+   ]
+  },
+  {
+   "id": "reiher-best-product-rigorous",
+   "track": "reiher-rigorous",
+   "spec": "reiher-sa-v1",
+   "role": "best-product",
+   "architecture": "rank-scheduled",
+   "source": "reiher/sparse-high-alias-r1",
+   "source_manifest_sha256": "ea94e96e99a57251e50f732d9fbbca8f982dab47b915f1cbc7048cc6272d9c27",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-toff",
+    "FEMOCO_SA_MU_O": "19",
+    "FEMOCO_SA_MU_I": "19",
+    "FEMOCO_SA_INNER_A": "2",
+    "FEMOCO_SA_OUTER_A": "2",
+    "FEMOCO_SA_TWEAKS": "imchxgrdky3zabCHKVIDXtNBWs+Rq17_1.14.e"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule.",
+    "Disable .d: its sparse alias table is pinned to the estimated Reiher mu8 spec."
+   ]
+  },
+  {
+   "id": "reiher-fewest-qubits-rigorous",
+   "track": "reiher-rigorous",
+   "spec": "reiher-sa-v1",
+   "role": "fewest-qubits",
+   "architecture": "rank-scheduled",
+   "source": "reiher/rc-r5q-m8",
+   "source_manifest_sha256": "2a54b6dd1555f0350e7e53ff673f28b25b287395d40cf0590a780514f30296a1",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-toff",
+    "FEMOCO_SA_MU_O": "19",
+    "FEMOCO_SA_MU_I": "19",
+    "FEMOCO_SA_INNER_A": "2",
+    "FEMOCO_SA_OUTER_A": "1",
+    "FEMOCO_SA_TWEAKS": "imchxgrdky5zabfHKVITXSNOBWUs_~q15_1.12"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule."
+   ]
+  },
+  {
+   "id": "li-low2025-rigorous",
+   "track": "li-rigorous",
+   "spec": "li-sa-v1",
+   "role": "baseline",
+   "architecture": "qroam-word",
+   "source": "li/low2025-reference",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-low2025",
+    "FEMOCO_SA_MU_O": "20",
+    "FEMOCO_SA_MU_I": "21",
+    "FEMOCO_SA_OUTER_A": "2",
+    "FEMOCO_SA_INNER_A": "5"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule."
+   ],
+   "source_manifest_sha256": "97f5ab746266bb1f5c026cad6c7156c036ff21d077e07846ad3c310bc69af2b6"
+  },
+  {
+   "id": "li-fewest-toffoli-rigorous",
+   "track": "li-rigorous",
+   "spec": "li-sa-v1",
+   "role": "fewest-toffoli",
+   "architecture": "rank-scheduled",
+   "source": "li/kl-l3q618p-m9",
+   "source_manifest_sha256": "48f28085a4a71a6c4d060d4d92d4d36d7b44ad86b98bd18189410ee71fc045cb",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-toff",
+    "FEMOCO_SA_MU_O": "20",
+    "FEMOCO_SA_MU_I": "21",
+    "FEMOCO_SA_INNER_A": "9",
+    "FEMOCO_SA_OUTER_A": "3",
+    "FEMOCO_SA_TWEAKS": "imchxgrdky3zabCAXJBMnFsUtq618_1.p"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule."
+   ]
+  },
+  {
+   "id": "li-best-product-rigorous",
+   "track": "li-rigorous",
+   "spec": "li-sa-v1",
+   "role": "best-product",
+   "architecture": "onehot-split",
+   "source": "li/kl-aligned-inner-m8",
+   "source_manifest_sha256": "ba09f4f22bca8ac41eb59c495d1aec32fae825cc8bd0486ad8eeb1546f5fd5d1",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-toff",
+    "FEMOCO_SA_MU_O": "20",
+    "FEMOCO_SA_MU_I": "21",
+    "FEMOCO_SA_INNER_A": "3",
+    "FEMOCO_SA_OUTER_A": "3",
+    "FEMOCO_SA_TWEAKS": "imchxgrdky4zabCAHVIXZJtRNOBWsYU+-_.geh4c"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule.",
+    "Disable .b: its sparse alias table is pinned to the estimated Li mu8 spec. Use the generic + alias arrangement at higher precision."
+   ]
+  },
+  {
+   "id": "li-fewest-qubits-rigorous",
+   "track": "li-rigorous",
+   "spec": "li-sa-v1",
+   "role": "fewest-qubits",
+   "architecture": "onehot-split",
+   "source": "li/rc-l7-m8",
+   "source_manifest_sha256": "bb0476661cdb38eb3aed86cd6227eae95e369faaa4d096beab48b35e13bcd0fb",
+   "build": {
+    "FEMOCO_WALK_ARCH": "sa-toff",
+    "FEMOCO_SA_MU_O": "20",
+    "FEMOCO_SA_MU_I": "21",
+    "FEMOCO_SA_INNER_A": "3",
+    "FEMOCO_SA_OUTER_A": "2",
+    "FEMOCO_SA_TWEAKS": "imchxgrdky7zabCHKVIXJOBWsotU+_~.e"
+   },
+   "changes": [
+    "Increase coefficient precision to meet the exact 0.1 mHa rule."
+   ]
+  }
+ ]
+}

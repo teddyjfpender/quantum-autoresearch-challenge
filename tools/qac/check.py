@@ -16,6 +16,30 @@ LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 CODE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
 
 
+def check_baseline(challenge, track: dict, rows: list[dict]) -> list[str]:
+    """A staging catalogue entry can precede an authenticated baseline; never a live one."""
+    where, errors = challenge.path, []
+    baseline = track.get("baseline", {})
+    wanted = baseline.get("submission")
+    if baseline.get("pending") is True:
+        if challenge.contract.get("status") != "staging" or track.get("status") != "staging":
+            errors.append(f"{where}: only staging tracks may have a pending baseline")
+        if wanted is not None:
+            errors.append(f"{where}: a pending baseline must not claim a ledger submission")
+        try:
+            catalogue = load_json(challenge.dir / baseline["catalogue"])
+            if catalogue.get("schema") != "femoco-rigorous-promotions-v1":
+                raise ContractError("unrecognised promotion catalogue")
+            candidate = next(c for c in catalogue["candidates"] if c["id"] == baseline["candidate"])
+            if (candidate["track"], candidate["spec"], candidate["role"]) != (track["name"], track["spec"], "baseline"):
+                errors.append(f"{where}: pending baseline does not match its staging track")
+        except (KeyError, StopIteration, ContractError):
+            errors.append(f"{where}: pending baseline requires a matching promotion candidate")
+    elif wanted is None or not any(r["submission"] == wanted and r["track"] == track["name"] for r in rows):
+        errors.append(f"{where}: track {track['name']} needs a baseline that is a ledger row of the track")
+    return errors
+
+
 def check_markdown_links() -> list[str]:
     errors = []
     skip = {"target", "node_modules", ".git"}
@@ -87,9 +111,7 @@ def run(signed: bool = False) -> list[str]:
                         errors.append(f"{rel(directory)}: track or architecture differs from its ledger row")
         errors += [f"{where}: ledger row names submission '{s}', which has no directory" for s in sorted(recorded - present)]
         for track in contract["tracks"]:
-            wanted = track.get("baseline", {}).get("submission")
-            if wanted is None or not any(r["submission"] == wanted and r["track"] == track["name"] for r in rows):
-                errors.append(f"{where}: track {track['name']} needs a baseline that is a ledger row of the track")
+            errors += check_baseline(challenge, track, rows)
         for target in challenge.targets():
             if target.get("track") not in challenge.tracks:
                 errors.append(f"{where}: target '{target.get('id')}' names an unknown track")

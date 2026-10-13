@@ -207,17 +207,24 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/challenges/femoco/specs" "$root/specs"
           ln -s "$GITHUB_WORKSPACE/challenges/femoco/taxonomy" "$root/taxonomy"
           contract=challenges/femoco/benchmark.json
+          track="$(python3 -c 'import json,os; print(json.loads(os.environ["MANIFEST"])["track"])')"
+          coverage="$(jq -r --arg track "$track" '.tracks[] | select(.name == $track) | .validation.coverage // empty' "$contract")"
           engines=""
           for stage in screen full; do
             engine="$(jq -r ".validation.$stage.engine" "$contract")"
             samples="$(jq -r ".validation.$stage.samples" "$contract")"
             echo "::group::$stage: $engine engine, $samples lanes"
             rm -f "$root/score.json"
-            judge/eval_circuit --root "$root" --samples "$samples" --engine "$engine" --server-seed "$SEED"
+            extra=()
+            if [[ "$stage" == full && -n "$coverage" ]]; then
+              extra=(--coverage "$coverage")
+            fi
+            judge/eval_circuit --root "$root" --samples "$samples" --engine "$engine" --server-seed "$SEED" "${extra[@]}"
             test -s "$root/score.json"
             echo "::endgroup::"
             engines="${engines:+$engines+}$engine-$samples"
           done
+          if [[ -n "$coverage" ]]; then engines="$engines+deterministic-$coverage"; fi
           echo "ENGINES=$engines" >> "$GITHUB_ENV"
       - name: Ledger row and standing
         id: row
