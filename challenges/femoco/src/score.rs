@@ -14,6 +14,7 @@ use crate::fiat_shamir::{
 };
 use crate::lanemap::{self, LaneMap};
 use crate::sim::condition::{canonical_bytes, CoverageSink, Directed, System};
+use crate::sim::reflection;
 use crate::sim::{compile, compile_nested, compile_sa, validate, Inner, Layout, TrackerFactory};
 use crate::spec::rounding::{Estimate, RoundingClass};
 use crate::spec::{EncodingSpec, Exact};
@@ -115,7 +116,25 @@ pub struct Evaluation {
     pub seconds: f64,
     /// Outcome-coverage mode only ([`Options::outcome_coverage`]); `None` for every other run.
     pub outcome_coverage: Option<CoverageReport>,
+    /// Reflection check only ([`Options::reflection`]); `None` for every other run.
+    pub reflection: Option<reflection::Report>,
 }
+
+/// `eval_circuit --reflection-check` (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReflectionCheck {
+    /// The check does not run and no output changes.
+    #[default]
+    Off,
+    /// Run it and report the result in `metrics.reflection`; never a rejection.
+    Report,
+    /// As `Report`, and a step that is not certified is rejected.
+    Require,
+}
+
+/// Lane-map families the reflection check covers: nested, and no family here overrides
+/// `LaneMap::uniform_after`, so every lane ends on the uniform value it must hold.
+const REFLECTION_FAMILIES: [&str; 2] = ["df-nested-alias-v1", lanemap::sa_nested::FAMILY];
 
 /// Opt-in parts of an evaluation. The default is the ordinary run.
 #[derive(Clone, Copy, Debug, Default)]
@@ -126,6 +145,10 @@ pub struct Options {
     /// `coverage::COVERAGE_MIN` validated control-1 executions. Costs and bounds still come
     /// from the uniform lanes only.
     pub outcome_coverage: bool,
+    /// `eval_circuit --reflection-check MODE`: after every sampled lane has passed, run the
+    /// static certificate `sim::reflection::certify`. It reads the op stream only, never a
+    /// lane, and changes no count or bound.
+    pub reflection: ReflectionCheck,
 }
 
 /// A spec-declared rounding rule and what the lane map met it with (spec/SPEC-SA.md section 12).
@@ -219,7 +242,8 @@ impl Evaluation {
     ///
     /// **Conditional.** It bounds the encoded operator only if the block encoding is Hermitian
     /// on every lane, sampled or not. Sampling cannot establish that; see
-    /// [`Self::non_hermitian_phase_scale_at`] and spec/SAMPLING.md.
+    /// [`Self::non_hermitian_phase_scale_at`] and spec/SAMPLING.md. A certified reflection check
+    /// ([`Self::reflection`]) establishes it for the circuit at hand.
     #[must_use]
     pub fn implied_error_bound_at(&self, draws_log2: u32) -> f64 {
         2.0 * self.lambda.to_f64() * self.wrong_weight_bound_at(draws_log2)
@@ -469,6 +493,22 @@ pub fn evaluate_opts(
         }
         _ => None,
     };
+    // Reflection check only. It runs after the lanes so that a circuit the sampled check
+    // rejects is reported with that rejection.
+    let reflection = match opts.reflection {
+        ReflectionCheck::Off => None,
+        mode => {
+            let budget = reflection::Budget::default();
+            // A family outside the list is passed as "not nested", which the check refuses.
+            let scope = inner.filter(|_| REFLECTION_FAMILIES.contains(&lm.family()));
+            let report =
+                reflection::certify(&inp.ops.ops, &layout, scope, &compiled.registers, budget);
+            if mode == ReflectionCheck::Require && !report.certified {
+                return Err(format!("reflection-check: {}", report.summary()));
+            }
+            Some(report)
+        }
+    };
     let per = |v: u64| v as f64 / k as f64;
     let mut facts = static_facts(&inp.ops.ops, &layout);
     fill_facts(&mut facts, inp.spec, lm.as_ref(), &compiled, &out.tally, k);
@@ -550,6 +590,7 @@ pub fn evaluate_opts(
         seconds: t0.elapsed().as_secs_f64(),
         facts,
         outcome_coverage,
+        reflection,
     })
 }
 

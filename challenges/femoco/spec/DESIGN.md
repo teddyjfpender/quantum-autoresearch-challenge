@@ -60,7 +60,7 @@ path; everything else is trusted.
 | `src/spec/` | trusted | spec types, the loader, exact rationals, rounding classes (sections 7, 13) |
 | `src/lanemap/` | trusted | lane-map families (section 6) |
 | `src/fiat_shamir.rs` | trusted | the seed stream (sections 9, 14) |
-| `src/sim/` | trusted | static checks, liveness, the bit-sliced lane simulator, the fermionic Gaussian tracker, per-lane validation; `condition.rs`, the outcome-coverage mode's static pass, counts and directed outcomes (section 9) |
+| `src/sim/` | trusted | static checks, liveness, the bit-sliced lane simulator, the fermionic Gaussian tracker, per-lane validation; `condition.rs`, the outcome-coverage mode's static pass, counts and directed outcomes (section 9); `reflection.rs`, `reflection/`, the reflection check (section 16.6) |
 | `src/fastsim/`, `src/equiv.rs` | trusted | the optional fast lane engine and its equivalence harness (spec/FAST-EVALUATOR.md) |
 | `src/facts.rs`, `src/taxonomy.rs`, `src/taxonomy/` | trusted | `CircuitFacts` and the taxonomy checker (section 10) |
 | `src/score.rs`, `src/score/` | trusted | evaluation, scoring, `score.json` and `results.tsv` writers (sections 8, 11); `coverage.rs`, the outcome-coverage acceptance rule and report (section 9) |
@@ -416,12 +416,17 @@ Hermitian) or a `Rotated` product (section 6).
   practical `K`: the sampled check is ecdsa.fail's standard (every drawn lane passes), not an
   energy-error statement.
 - **Known limit.** The implied bound holds for the encoded operator only if the block encoding is
-  exactly Hermitian on every lane. Certifying that for unsampled lanes would need a symbolic
-  involution check of SELECT, which the harness does not have. Where it fails the effect is not
-  linear: a defect tuned to the walk's ground eigenphase on a fraction `f` of lanes displaces
-  the energy phase estimation reports by about `lambda_eff sqrt(2 f)`. [SAMPLING.md](SAMPLING.md)
-  works this out, with the lanes each kind of statement would need, and `score.json` reports
-  the condition and the scale beside the bound (`metrics.sampling_limits`).
+  exactly Hermitian on every lane. Sampling cannot establish that for unsampled lanes. Where it
+  fails the effect is not linear: a defect tuned to the walk's ground eigenphase on a fraction
+  `f` of lanes displaces the energy phase estimation reports by about `lambda_eff sqrt(2 f)`.
+  [SAMPLING.md](SAMPLING.md) works this out, with the lanes each kind of statement would need,
+  and `score.json` reports the condition and the scale beside the bound
+  (`metrics.sampling_limits`).
+- **Reflection check** (`eval_circuit --reflection-check report|require`, opt-in;
+  `src/sim/reflection.rs`, tests in `tests/reflection.rs`). A static analysis of the op stream
+  that either proves the condition above for the circuit at hand, on every lane and for every
+  outcome record, or reports the first obstruction. Section 16.6 gives its rules. Without the
+  flag it does not run and every output is unchanged.
 - **Grinding.** The seed commits to every input, but any byte of `family.out.json` or `ops.bin`
   is a free nonce, so a submitter who knows which lanes are wrong can search offline for a draw
   that misses them. This is inherent to Fiat-Shamir with a cheap verifier. `score.json` therefore
@@ -582,6 +587,18 @@ not match the loaded spec. The default build writes:
   and `u64` control-0 executions), which `--dump-coverage FILE` writes. On such a run
   `sampling_limits.measurement_outcomes` points to the block. Nothing else in `score.json`
   differs from the same run without the flag, apart from `eval_seconds`.
+- `metrics.reflection` is present only on a run with `--reflection-check` (section 16.6):
+  `version` (`reflection-v1`), `rule_set`, `status` (`certified` or `not certified`) and the
+  same as the boolean `certified`, `obstruction` (`null`, or `op`, `op_kind`, `kind`,
+  `reason`), the three stage flags `registers_restored`, `outcome_independent` and
+  `hermitian` (`false` means not established), `counts` (ops read, measurements, resets and
+  outcome phase coefficients proved zero, system ops, Givens, SpinSwaps, normal-form elements
+  compared, zero tests by rung), `symbols`, `sealed`, `work`, `work_budget` and a `statement`.
+  On such a run `sampling_limits.hermitian_on_every_lane` is `certified` or
+  `not established`. Only when it is `certified`, `implied_error_bound_holds_if` and
+  `measurement_outcomes` are replaced by sentences that point to the block, and
+  `non_hermitian_phase_scale_applies: false` is added. `certifies_energy_error` stays `false`.
+  Nothing else differs from the same run without the flag, apart from `eval_seconds`.
 - The lane engine is not recorded.
 
 This `results.tsv` is the evaluator's local run log, written in the `--root` directory. `benchmark.sh` runs the evaluator in `run/` (git-ignored), so the log is `run/results.tsv` and is never committed. It is not the challenge ledger, `results.tsv` at the challenge root, which has its own columns and is appended to only by the judge ([../../../spec/LEDGER.md](../../../spec/LEDGER.md)).
@@ -883,6 +900,12 @@ and diagonal lanes certify the operator without it. What it certifies is the arc
 block encoding, a reflection, the same block encoding"), and it is what makes the nested `select`
 values of the taxonomy verifiable (`nested_validated`, section 10).
 
+It does not show that the step is Hermitian. Requiring the second half of the step to be the
+op-for-op adjoint of the first was considered and rejected: on the ledger's circuits fewer than
+0.1% of ops sit in a mirrored position, and the lookup erasures and the pass-flag adjoint are
+not mirrors at all. The reflection check of 16.6 proves Hermiticity semantically instead, and
+runs after this check has passed.
+
 ### 16.4 Sampling and the bound
 
 The control bit and uniform value are drawn exactly as for a flat lane map, so the prefix of the
@@ -906,13 +929,17 @@ lanes, and the control-1 counts the bound uses.
 What it cannot certify:
 
 - Lanes that were not drawn, as for a flat lane map.
-- That the inner block is Hermitian and squares to the identity on unsampled lanes. The walk
-  operator is a reflection only if the block encoding is self-inverse on every lane; a block that
-  is not, on unsampled lanes, changes the walk without changing any sampled lane (the limit of
-  section 9). The two copies are required to be identical, not adjoint, so the step is not a
-  reflection by construction; [SAMPLING.md](SAMPLING.md) section 4 discusses the alternative.
+- That the step is Hermitian on unsampled lanes. The walk operator is a product of two
+  reflections only if the step is self-inverse on every lane; a step that is not, on unsampled
+  lanes, changes the walk without changing any sampled lane (the limit of section 9). The two
+  copies are required to be identical, not adjoint, so the step is not a reflection by
+  construction. The reflection check of 16.6 can establish it for a circuit: on a run where it
+  certifies, the bound above holds for the encoded operator without this condition, at the
+  same confidence. On every other run the bound stays conditional.
 - That a block conditioned on a rare pattern of measurement outcomes was executed at all
-  ([SAMPLING.md](SAMPLING.md) section 2.3).
+  ([SAMPLING.md](SAMPLING.md) section 2.3). A certified reflection check shows that no outcome
+  pattern changes the step's operator, which removes this for correctness though not for
+  executed-gate counts.
 - `Reflect` reflects the inner uniform register only, not other ancillas. A circuit that leaves
   garbage in an ancilla after the first copy is not reflected about "its prepared state". The
   paired lanes see the garbage instead, because the second copy runs with a different inner value
@@ -936,3 +963,103 @@ products `t = (alpha, x, y)`, `x != y`, of each generator's LCU; the spin bits c
 lanes an item owns, and spec/SPEC-SA.md section 5 gives the counts. At parse a nested lane map is
 checked for well-formed tables: every `alt` names an existing item, every bucket at or past the
 item count has `keep = 0`, and every `keep` is below `2^mu`.
+
+### 16.6 The reflection check
+
+`eval_circuit --reflection-check report|require` (opt-in; `src/sim/reflection.rs`, polynomials in
+`src/sim/reflection/poly.rs`, rule set `reflection-v1`). It runs after every sampled lane has
+passed, reads the op stream and the compiled registers only, and changes no count or bound. With
+`report` its result goes to `metrics.reflection` and the run passes or fails as without the flag.
+With `require` a step that is not certified is rejected with
+`reflection-check: not certified: op I (KIND): reason [kind]`. [SAMPLING.md](SAMPLING.md) section
+4.1 states what a certificate does and does not mean, and what the ledger's circuits get.
+
+**Scope.** Nested lane maps whose control-1 lanes keep their uniform value (`df-nested-alias-v1`,
+`sa-nested-alias-v1`). Any other lane map is `not certified: unsupported-lane-map`.
+
+**Symbols.** One per initial control and uniform bit (`Initial`), one per inner uniform bit
+after the `Reflect` (`Second`), one per `Hmr` op (`Outcome`), and *sealed* symbols, each a name
+for an older polynomial. A monomial is a set of symbols (`x^2 = x`); a polynomial is a set of
+monomials over GF(2). Sealed symbols are hash-consed, so equal definitions give the same symbol.
+Sealing renames a polynomial and never changes its value: it can only make the check miss an
+identity.
+
+**State.** A polynomial per non-system wire (its `Initial` symbol for the control and uniform
+bits, 0 for ancillas) and per classical bit (0); the condition stack as polynomials, each frame
+holding the product of its bit, as it was at the push, with the enclosing frames; the lane's sign
+`(-1)^Phi` with `Phi` held as one polynomial per product of outcomes; and a log of system ops.
+A wire read as an operand of a product is sealed first if its polynomial has more than 3 terms.
+
+**Rules.** With `cond` the product of the enclosing blocks and the op's own `c_condition`:
+
+| Op | Effect |
+| --- | --- |
+| `X t`, `CX c t`, `CCX a b t`, non-system `t` | `t += cond`, `cond c`, `cond a b` |
+| `Swap` | unconditioned: exchange; conditioned: both `+= cond (a + b)` |
+| `Z`, `CZ`, `CCZ` on non-system wires, `Neg` | `Phi += cond x` (the product of the wires; 1 for `Neg`) |
+| `X`/`CX`/`CCX` with a system target; `Z`/`CZ`/`CCZ` with one system qubit | logged as `X` or `Z` on that qubit with control `cond x` (the non-system operands) |
+| `Givens` | `cond` must be the constant 1; logged with the polynomial of every bit of its register |
+| `SpinSwap`, `SpinSwapDg` | logged with control `cond t` |
+| `BitInvert`, `BitStore0`, `BitStore1` on bit `b` | `b += cond`, `b += cond b`, `b += cond b + cond` |
+| `Hmr t -> b`, new outcome `m` | `Phi += cond m t`; `t += cond t`; `b += cond (b + m)` |
+| `R t` | `t` must be proven 0 (also inside a condition block, which is stricter than the simulator) |
+| `Reflect` | each inner wire must be proven equal to its `Initial` symbol; it then holds a new `Second` symbol |
+| `Register`, `AppendToRegister`, `Segment`, `DebugPrint` | none (registers are the compiled ones) |
+| `S`, `Sdg`; any other use of a system qubit | refused |
+
+At the end of the stream the control and outer uniform wires must be proven equal to their
+`Initial` symbols, the inner wires to their `Second` symbols and every other non-system wire to
+0, and the coefficient of every product of outcomes in `Phi` must be proven 0. No bracket shape
+is matched: an AND erasure, a lookup erasure fixed through parity bits, and fix-ups that are
+deferred, merged or placed after the `Reflect` all pass by the same test.
+
+**The zero test.** "Proven" means one of: the polynomial has no monomials; substituting sealed
+symbols by their definitions, newest first, with cancellation, leaves no monomials (first with a
+limit of `2^12` monomials held, last with `2^19`); or, when the polynomial depends on at most 20
+primary symbols, it evaluates to 0 on every assignment of them. Each is sound, and they agree
+where two decide. Anything else is "not proven" and stops the check. All work is counted in
+polynomial operations against a fixed budget (`2^30`), never in time, so the verdict is
+deterministic.
+
+**Hermiticity.** Write the lane's logged system ops, in time order, in a normal form: move every
+`Z` to the end, keeping a symbolic `Z` frame `zf`. A `Z` with control `c` on `q` adds `c` to
+`zf[q]`. An `X` with control `c` on `q` adds `c zf[q]` to the sign and stays. A `Givens` on
+`(p, q)` stays with its angle's sign changed by `zf[p] + zf[q]`. A `SpinSwap` with control `c`
+stays and exchanges `zf[2k]` and `zf[2k+1]` where `c` is 1. This uses `X Z = -Z X` and three
+identities, checked against dense matrices in `tests/reflection.rs`: `Z_p G_pq(t) Z_p = G_pq(-t)`
+(and the same for `Z_q`); `Z_k` commutes with `G_pq` for `k` outside `{p, q}`; and
+`F Z_2k F^dagger = Z_{2k+1}` for the `SpinSwap` layer `F`, in both directions. The lane operator
+is then `(-1)^sign Z^frame E_n ... E_1`. Its adjoint is the frame followed by the `E_i` reversed
+and inverted (`X` unchanged, the Givens angle's sign flipped, `F` and `F^dagger` exchanged),
+brought to the same normal form. The *twin* of a polynomial exchanges each inner bit's `Initial`
+and `Second` symbols; a sealed symbol maps to the sealed symbol of its mapped definition, and
+reaching an `Outcome` symbol is an obstruction. The step is certified when the adjoint's normal
+form equals the twin of the lane operator's, element by element: the same kind and qubits, equal
+controls, every angle bit and the angle's sign equal, equal frames and equal signs, each equality
+decided by the zero test.
+
+**Why that is Hermiticity.** With the registers proven restored, section 16.2 gives
+`C = sum_g sum_{a,b} (2 / 2^w - [a = b]) |g, b><g, a| (x) L(g, a, b)` on the space where every
+ancilla is 0, with `L` the lane operator. So `C^dagger = C` exactly when
+`L(g, a, b)^dagger = L(g, b, a)` for all `g, a, b`. The normal form represents `L(g, a, b)`
+exactly, the twin map is a ring automorphism, so the twin of the normal form represents
+`L(g, b, a)`, and equal polynomials give equal operators. Outcomes are free symbols, so the
+statement holds for every outcome record. Angles are compared bit for bit over the whole
+register, which is stricter than the tracker's reading modulo `2^beta`.
+
+**Obstruction kinds.** `unsupported-lane-map`, `unsupported-op`, `structure`,
+`conditioned-rotation`, `reset-not-proven`, `reflect-not-restored`, `registers-not-restored`,
+`ancilla-not-clean`, `outcome-phase`, `outcome-steers-system`, `shape-mismatch`,
+`control-mismatch`, `angle-mismatch`, `frame-mismatch`, `phase-mismatch`, `budget`.
+
+**A discipline that passes** (no hints and no new ops are needed): undo an ancilla through the
+wires that computed it, or by measurement with its fix-up; keep any reset that rests on an
+identity of table data within 20 lane bits; never let a measurement outcome steer a system op;
+no `S` gates; write the inverse rotation as `Z G Z` from the same angle register; and keep the
+step's system ops a palindrome (`W^dagger P W` per copy), because commuting ops are not
+reordered. `tests/reflection.rs` has a small circuit written this way.
+
+**What it does not show.** That the step encodes the spec's operator; anything about a circuit
+it does not certify; and the correctness of its own implementation beyond its tests (dense
+matrices for the normal form, and a dense simulation of every lane and outcome record of the
+random circuits it certifies).

@@ -12,6 +12,12 @@ qubits\tscore\ttotal_toffoli_lit\tsamples\tstatus\tnote";
 /// `sampling_limits.measurement_outcomes` of a run in the outcome-coverage mode.
 pub const COVERED_OUTCOMES: &str = "drawn uniformly per lane; in addition every conditioned site not proved unreachable executed on validated control-1 lanes (metrics.outcome_coverage), a per-site count and not a bound over combinations of outcomes";
 
+/// `sampling_limits.implied_error_bound_holds_if` of a run whose reflection check certified.
+pub const CERTIFIED_HERMITIAN: &str = "no further condition on the lanes' Hermiticity: metrics.reflection certifies that the step is Hermitian on every lane and outcome record, so the bound holds for the encoded operator at the confidence of wrong_weight_bound; it is still a bound from sampled lanes, far above chemical accuracy";
+
+/// `sampling_limits.measurement_outcomes` of a run whose reflection check certified.
+pub const CERTIFIED_OUTCOMES: &str = "drawn uniformly per lane; metrics.reflection certifies that the step's operator is the same for every outcome record, so a rare outcome pattern cannot change it; executed-gate counts on rare patterns are still sampled";
+
 fn axes_named(ev: &Evaluation, verified: bool) -> Vec<String> {
     ev.verdicts
         .iter()
@@ -158,6 +164,22 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
     if let Some(c) = &ev.outcome_coverage {
         out["metrics"]["outcome_coverage"] = c.json.clone();
         out["metrics"]["sampling_limits"]["measurement_outcomes"] = json!(COVERED_OUTCOMES);
+    }
+    // Reflection check only (spec/SAMPLING.md section 4): every other run's score.json is
+    // unchanged. The bound's condition is replaced only when the certificate holds.
+    if let Some(r) = &ev.reflection {
+        out["metrics"]["reflection"] = r.json();
+        let s = &mut out["metrics"]["sampling_limits"];
+        s["hermitian_on_every_lane"] = json!(if r.certified {
+            "certified"
+        } else {
+            "not established"
+        });
+        if r.certified {
+            s["implied_error_bound_holds_if"] = json!(CERTIFIED_HERMITIAN);
+            s["measurement_outcomes"] = json!(CERTIFIED_OUTCOMES);
+            s["non_hermitian_phase_scale_applies"] = json!(false);
+        }
     }
     // Nested runs only, so flat runs' score.json is unchanged (spec/DESIGN.md section 16).
     if let Some(n) = &ev.nested {

@@ -131,6 +131,7 @@ fn eval_on(
     };
     let opts = Options {
         outcome_coverage: coverage,
+        ..Options::default()
     };
     score::evaluate_opts(&inp, engine, None, opts)
 }
@@ -551,6 +552,7 @@ fn ledger_circuits_pass_with_no_directed_strata() {
         let digest = hex::encode(ops.sha256);
         let opts = Options {
             outcome_coverage: true,
+            ..Options::default()
         };
         let ev = score::evaluate_opts(&inp, sliced(), None, opts)
             .unwrap_or_else(|e| panic!("{}: {e}", dir.display()));

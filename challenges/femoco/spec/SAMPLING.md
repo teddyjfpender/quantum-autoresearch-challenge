@@ -11,6 +11,11 @@ circuit can pass most draws and still move the energy that phase estimation repo
 of millihartree. No row certifies chemical accuracy, and `score.json` says so
 (`metrics.sampling_limits.certifies_energy_error: false`).
 
+That assumption can now be checked for a circuit, without sampling: the opt-in reflection
+check (section 4, item 2) either proves that the step is Hermitian on every lane or reports
+why it could not. It certifies the Low et al. baseline circuit. It does not certify the best
+Reiher or Li circuit of the ledger, so their rows still rest on the assumption.
+
 ## 1. What a passing sample bounds
 
 Every sampled lane passed. With confidence `1 - 2 delta` (`delta = 1e-6`) the operator weight
@@ -37,8 +42,11 @@ wrong lanes do, qubitization is exact for the operator `A'` that the circuit act
 and `||A' - A|| <= 2 Lambda g`. This is `implied_error_bound`: 36.9 mHa (Reiher) and
 113.7 mHa (Li) at the default sample.
 
-**The condition is not checked.** A sampled lane is checked exactly, so it is Hermitian there.
-Nothing constrains an unsampled lane.
+**Sampling does not check the condition.** A sampled lane is checked exactly, so it is
+Hermitian there. Nothing in the sample constrains an unsampled lane. The reflection check of
+section 4 (item 2) is a separate, static analysis that can establish the condition for a
+circuit; where it certifies, this bound holds for the encoded operator with no assumption
+about the lanes, at the confidence of `g`.
 
 ### 2.2 Non-Hermitian defects: the square root
 
@@ -146,9 +154,10 @@ every other site runs on about a half or a quarter of the lanes, so none needs d
 - Every sampled lane applies the declared operator, restores its ancillas and leaves no phase.
 - The Toffoli and qubit counts are those of the sampled executions.
 - **Not** that the unsampled lanes are Hermitian, **not** an energy error, **not** that every
-  conditioned block was executed. The last holds only for a run made in the outcome-coverage
-  mode (2.3), whose `score.json` then carries `metrics.outcome_coverage`; ledger rows are not
-  made in that mode today.
+  conditioned block was executed. The first holds only for a run whose reflection check
+  certified (section 4, item 2: `metrics.reflection.status` is `certified`). The last holds
+  only for a run made in the outcome-coverage mode (2.3), whose `score.json` then carries
+  `metrics.outcome_coverage`. Ledger rows are made with neither flag today.
 
 For comparing circuits built by the same builders under the same rule, which is what the
 board does, this is the standard the challenge started from (every drawn lane passes). It is
@@ -162,13 +171,10 @@ In order of strength.
    present) compares the gate word with the spec for every input and every measurement
    outcome. A circuit with such a certificate has no unsampled lanes, and none of section 2
    applies to it. This is the only route here that supports a claim about a final result.
-2. **A step that is a reflection by construction.** Today the two inner copies must be
-   identical op for op (DESIGN.md section 16.3). If instead the second half of the step had to
-   be the syntactic adjoint of the first, the step would be Hermitian on every lane whatever
-   the lanes do, the linear bound of 2.1 would hold unconditionally, and `2^24` to `2^26`
-   lanes would give a real statement. It needs adjoint rules for measurement-based
-   uncomputation and for rotation angles, and it changes the contract for every builder. Not
-   implemented.
+2. **A step proved to be a reflection.** Implemented as the opt-in reflection check
+   (`eval_circuit --reflection-check report|require`, `src/sim/reflection.rs`, rule set
+   `reflection-v1`, DESIGN.md section 16.6). See 4.1 below for what it establishes and what
+   the ledger's circuits get.
 3. **More lanes.** Under the Hermitian assumption `2^24` lanes bound the Reiher error at
    1.2 mHa and `2^26` the Li error at 0.9 mHa. Without it, lanes alone do not reach chemical
    accuracy at any practical count. The re-validation workflow takes a lane count, so a
@@ -184,5 +190,99 @@ In order of strength.
    outcomes do (all-one leaves 5,636 to 11,769 sites unexecuted that uniform reaches), and their
    lanes are not samples from a distribution a bound can be stated over.
 
-Item 2 is open design work. Until one of 1 or 2 holds for a circuit, its row is a sampled
-regression result and is labelled as one.
+Until item 1 holds for a circuit, its row is a sampled regression result and is labelled as
+one. Item 2 removes one assumption from the bound of 2.1; it does not make the bound small.
+
+### 4.1 The reflection check
+
+**Why not a syntactic rule.** The first idea was to require the second half of the step to be
+the op-for-op adjoint of the first. The ledger's circuits are nowhere near that shape, for good
+reasons: fewer than 0.1% of their ops sit in a mirrored position; about half of their
+measurement brackets are lookup erasures, whose correctness is an identity of table data and
+not a mirror; many brackets cross the `Reflect`; and the two inner copies are deliberately not
+each other's adjoint (the second applies `M^dagger` by reading a pass flag). A palindrome rule
+would reject every circuit and say nothing about the ones it rejected.
+
+**What is implemented.** One symbolic execution of the op stream under the simulator's lane
+semantics. Every non-system wire is a GF(2) polynomial in immutable symbols: the lane's
+control and uniform bits, the inner bits after the `Reflect`, and one symbol per `Hmr`
+outcome. It is exact (no sampling, no floating point) and it covers every lane and every
+outcome record at once. It never reads a sampled lane.
+
+**What `certified` establishes**, in this order:
+
+1. *Registers restored.* Every `R` frees a qubit that is 0. The inner register holds its
+   initial value at the `Reflect`. At the end the control and outer uniform bits hold their
+   initial values, the inner register its second-pass value, and every ancilla is 0.
+2. *Outcome independent.* The lane's sign has no term in any product of outcomes, and no system
+   op's control, no rotation angle and no part of the remaining sign names an outcome. So the
+   lane operator `L(g, a, b)` depends on the lane only (`g`: control and outer bits; `a`, `b`:
+   the inner value before and after the `Reflect`). This also closes 2.3 for the operator: a
+   rare outcome pattern cannot change it.
+3. *Hermitian.* `L(g, a, b)^dagger = L(g, b, a)` as an identity in the symbols. With 1 and the
+   decomposition of DESIGN.md section 16.2 this is Hermiticity of the step on the space where
+   every ancilla is 0. The step is a unitary there, so it is a reflection.
+
+When certified, `score.json` says so: `metrics.reflection.status = "certified"`,
+`metrics.sampling_limits.hermitian_on_every_lane = "certified"`, and
+`implied_error_bound_holds_if` no longer names the Hermiticity condition. The bound
+`2 Lambda g` then holds for the encoded operator at the confidence of `g`, and the square-root
+effect of 2.2 does not apply to that circuit.
+
+**What it does not establish.**
+
+- That the step encodes the spec's operator. A step can be Hermitian and wrong (a sign on
+  some lanes, applied symmetrically, is certified; `tests/reflection.rs` pins this). The
+  operator is still a sampled statement, so `certifies_energy_error` stays `false` and the
+  bound stays at tens of millihartree at the default sample.
+- Executed gate counts on rare outcome patterns (a cost question, not a correctness one).
+- Anything for a circuit it does not certify. `not certified` means not proven within the
+  rule set. It is not a finding that the step is not Hermitian.
+
+**It fails closed.** The result is `certified` or `not certified` with the first obstruction
+(op index, kind, reason). Outside the rule set, and therefore refused: `S`/`Sdg`; a rotation
+under a classical condition; an outcome that reaches a system op; an `R`, `Reflect` or
+end-of-stream condition that is not proven; an outcome-dependent phase that is not proven to
+cancel; a mismatch between the lane operator and its adjoint; an exhausted work budget; a lane
+map that is not nested. The work budget counts polynomial operations, never wall clock, so
+the verdict is deterministic.
+
+**The rules are incomplete, deliberately.** Two examples of true identities they do not find:
+system ops that commute are not reordered, so a SELECT written as a loop of disjoint
+controlled terms is refused where one data-loaded rotation network is accepted; and an angle
+register holding `2^beta - a` is not recognised as `-a`, so the inverse rotation must be
+written as `Z G Z` from the same register (as Low et al.'s construction does).
+
+**What the ledger's circuits get** (built from their manifests, `ops.bin` equal to the ledger
+digest, checked by trusted code):
+
+| Circuit | Result | Detail |
+| --- | --- | --- |
+| reiher/est-low-r (Low et al. baseline) | certified | 984 resets and 3,623 outcome phase coefficients proved; 218 system ops compared; about 1.5 s |
+| reiher/outer-hi-reconstruct-r1 (best Reiher) | not certified | op 763394 (`R`): the freed ancilla is not proven 0 within the limits |
+| li/composed-alias-m8 (best Li) | not certified | op 2543511 (`Reflect`): an inner uniform bit is not proven restored within the limits |
+
+Both refusals are "not proven within the work limits": the reset and the register rely on an
+identity that the zero test does not decide. The two polynomials depend on 42 and 32 lane and
+outcome bits, past the truth table's 20, and their expansion passes the limit of `2^19`
+monomials. The check stops at the first
+obstruction, so it is not known whether these circuits would pass the later stages. So today
+only the baseline's bound of 2.1 is free of the Hermiticity assumption, and both headline
+rows keep `hermitian_on_every_lane: "not established"` when run with the flag. Two ways to
+change that: a stronger zero test (not implemented), or a builder that undoes those registers
+through the wires that computed them, which is a new submission and not a re-validation of a
+recorded row.
+
+**How far to trust it.** The check is about 1,850 lines of trusted code. Its tests
+(`tests/reflection.rs`): the normal form and the adjoint it builds are compared with dense
+matrices on random words of system ops; on about 500 random circuits it certifies, a dense
+simulation of every lane and every outcome record finds exactly what the certificate says
+(the converse is never asserted); one mutant per rule is refused with that rule's reason; and
+a rotation whose compute and uncompute disagree on one uniform value, the construction of
+2.2, passes the sampled check at 64 lanes and is refused. This is testing, not a proof of the
+implementation.
+
+**Status.** Opt-in and report-only by default. With `--reflection-check report` a run passes
+or fails exactly as without the flag. With `require`, a circuit that is not certified is a
+`FAIL` row. Whether the judge requires it is a maintainer decision; the acceptance rules of
+`benchmark.json` are unchanged.

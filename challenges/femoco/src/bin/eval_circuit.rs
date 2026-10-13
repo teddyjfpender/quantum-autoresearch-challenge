@@ -45,9 +45,26 @@
 //! outcomes across sites and does not certify an energy error. `--dump-coverage FILE` (with the
 //! flag) writes the whole site table whose SHA-256 `score.json` carries. Without the flag no
 //! code of the mode runs and every output is what it was before the mode existed.
+//!
+//! Reflection check (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6):
+//! `--reflection-check MODE`, opt-in, `MODE` = `report` or `require`. After every sampled lane
+//! has passed, a static analysis of the op stream (`sim::reflection`, rule set `reflection-v1`)
+//! tries to prove, for every lane and every measurement-outcome record and without reading a
+//! sampled lane, that the step restores its registers, that its system operator does not depend
+//! on the outcomes, and that the step is Hermitian. The result is `metrics.reflection` in
+//! `score.json`: `certified`, or `not certified` with the first obstruction (op index, kind,
+//! reason). When certified, `metrics.sampling_limits` states that `implied_error_bound` no
+//! longer rests on the unchecked Hermiticity condition. "Not certified" means not proven within
+//! the rule set, not that the step is wrong: with `report` the run passes either way and no
+//! count or bound changes; with `require` a step that is not certified is a `FAIL` row. The
+//! check does not establish that the step encodes the spec's operator (that stays sampled) and
+//! `certifies_energy_error` stays `false`. Without the flag no code of the check runs and every
+//! output is unchanged.
 use femoco_walk::circuit::read_ops;
 use femoco_walk::fiat_shamir::{self, quicknet, AuditBeacon, Digests};
-use femoco_walk::score::{self, append_results_row, score_json, Inputs, ResultsRow};
+use femoco_walk::score::{
+    self, append_results_row, score_json, Inputs, ReflectionCheck, ResultsRow,
+};
 use femoco_walk::sim::validate::{self, Engine};
 use femoco_walk::{equiv, sim, spec, taxonomy};
 use serde_json::{json, Value};
@@ -75,6 +92,7 @@ struct Args {
     dump_verdicts: Option<PathBuf>,
     outcome_coverage: bool,
     dump_coverage: Option<PathBuf>,
+    reflection: ReflectionCheck,
 }
 
 fn args() -> Result<Args, String> {
@@ -93,6 +111,7 @@ fn args() -> Result<Args, String> {
         dump_verdicts: None,
         outcome_coverage: false,
         dump_coverage: None,
+        reflection: ReflectionCheck::Off,
     };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
@@ -142,6 +161,17 @@ fn args() -> Result<Args, String> {
             "--outcome-coverage" if inline.is_none() => a.outcome_coverage = true,
             "--outcome-coverage" => return Err("--outcome-coverage takes no value".into()),
             "--dump-coverage" => a.dump_coverage = Some(val()?.into()),
+            "--reflection-check" => {
+                a.reflection = match val()?.as_str() {
+                    "report" => ReflectionCheck::Report,
+                    "require" => ReflectionCheck::Require,
+                    other => {
+                        return Err(format!(
+                            "--reflection-check {other}: expected report or require"
+                        ))
+                    }
+                };
+            }
             other => return Err(format!("unknown argument {other}")),
         }
     }
@@ -405,8 +435,12 @@ fn run(
     if a.outcome_coverage {
         println!("  coverage    : outcome-coverage mode (spec/SAMPLING.md section 2.3)");
     }
+    if a.reflection != ReflectionCheck::Off {
+        println!("  reflection  : static Hermiticity check (spec/SAMPLING.md section 4)");
+    }
     let opts = score::Options {
         outcome_coverage: a.outcome_coverage,
+        reflection: a.reflection,
     };
     let eval = || score::evaluate_opts(&inputs, engine, probe_ref, opts);
     let ev = match (audit, a.server_seed) {
@@ -568,6 +602,15 @@ fn main() {
                     c.min_control_one.map_or("n/a".to_string(), |n| n.to_string()),
                     c.directed_strata,
                     c.lanes_per_stratum
+                );
+            }
+            if let Some(r) = &ev.reflection {
+                println!(
+                    "  reflection  : {} ({} system ops, {} symbols, work {})",
+                    r.summary(),
+                    r.counts.system_ops,
+                    r.symbols,
+                    r.work
                 );
             }
             if audit.is_some() {
