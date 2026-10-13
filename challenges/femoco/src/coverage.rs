@@ -255,6 +255,8 @@ pub fn check(
         reference: &reference,
         uniform_after: &uniform_after,
         tracker: inp.tracker,
+        coverage: None,
+        directed: None,
     };
     let nested = validate::Nested {
         lo: inner.lo,
