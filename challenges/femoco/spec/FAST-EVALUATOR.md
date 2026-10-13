@@ -147,7 +147,9 @@ Modules under `src/fastsim/`; the reference path imports none of them:
 
 In the outcome-coverage mode (`eval_circuit --outcome-coverage`, spec/DESIGN.md section 9) the
 executor also counts each conditioned site's executions and, in a directed stratum, applies
-the directed outcomes, both through the helpers the reference uses (`src/sim/condition.rs`). A
+the directed outcomes, both through the helpers the reference uses (`src/sim/condition.rs`).
+The mode's static passes, the refusal of outcomes read from qubits among them, run outside
+the engines and are the same code for both. A
 pass adds its counts only when it is accepted; a pass or batch that is re-run drops them and the
 re-run adds its own, so the totals are the reference's. `equiv::compare_site_counts` compares
 them, and `tests/equiv_fuzz.rs` calls it on every case. Without the mode neither runs.

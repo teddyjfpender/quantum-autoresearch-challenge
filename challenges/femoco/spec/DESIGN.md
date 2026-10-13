@@ -442,9 +442,10 @@ Hermitian) or a `Rotated` product (section 6).
   `src/score/coverage.rs`, tests in `tests/outcome_coverage.rs`). Outcomes are uniform per lane,
   so a block conditioned on a rare outcome pattern runs on few or no sampled lanes
   ([SAMPLING.md](SAMPLING.md) section 2.3). Without the flag nothing below runs and every output
-  is unchanged. With it:
+  of a run is unchanged (the verifier digest is not one: SAMPLING.md section 3.1). With it:
   - *Sites.* Every `PushCondition` and every other op with a `c_condition`, in stream order. A
-    site executes on a lane when its whole mask is 1 there.
+    site executes on a lane when its whole mask is 1 there. A site is a classical condition
+    only: an op steered by an outcome through a qubit is not one (*Outcomes in qubits* below).
   - *Counts.* Both engines count, per site, the lanes on which it executed, split by the sampled
     control bit. Counts are summed over batches and are used only when every lane of the engine
     call passed.
@@ -453,7 +454,11 @@ Hermitian) or a `Rotated` product (section 6).
     most 64 rows), or `Opaque`. `Hmr`, `BitInvert`, `BitStore0/1` and the condition stack each
     have a rule that is exact or yields `Opaque`. A site is *proved unreachable* (inconsistent
     system), *affine* of rank `r` (it executes with probability `2^-r` under uniform outcomes),
-    or *opaque*. The pass has a work cap; past it everything is opaque.
+    or *opaque*. The pass has a work cap (`2^31` entries touched); past it everything is
+    opaque. Its memory is bounded separately: an equation of more than 4,096 outcomes is
+    opaque, and so is a value that would take the entries held, over every classical bit and
+    every open block, past `2^24`. `static.work_cap_reached` and `static.memory_cap_reached`
+    report either.
   - *Directed strata.* After the uniform run passes, each distinct system among the affine
     sites with fewer than 256 control-1 executions gets one stratum of 1,024 lanes. With
     `sid = SHA-256("femoco-walk-coverage-stratum-v1" || system bytes)`, the stratum's
@@ -467,9 +472,27 @@ Hermitian) or a `Rotated` product (section 6).
     its own; every per-lane check applies, and a failing lane rejects the run with
     `outcome-coverage (directed lanes for op I): ` before the usual message, `I` being the op
     whose stratum the lane belongs to. More than 1,024 strata refuses the run.
+  - *Outcomes in qubits.* A second static pass, which uses nothing of the first. A non-system
+    qubit is *marked* by an op that writes it while a classical condition is in force (its own
+    or an enclosing block's): `X`, `CX`, `CCX`, `Swap`, `Hmr`. The mark spreads to the target
+    of an `X`-type gate one of whose controls is marked and moves with an unconditioned
+    `Swap`. An `Hmr` with no condition in force removes it (the qubit is then 0 on every
+    lane); `R` does not (it checks the qubit and leaves it). An op *reads* a marked qubit when
+    the qubit is a control of its `CX`/`CCX` or of its system Pauli, an operand of its phase, a
+    bit of its `Givens` register, the control of its `SpinSwap`, the qubit it measures or
+    frees, or an inner qubit at the `Reflect`; each qubit still marked at the end of the
+    stream counts as one read, by the end-of-lane checks. With no read, every qubit an op
+    reads is a function of the lane alone on every lane and outcome record, because the system
+    register never controls a non-system qubit (the static rule of `src/sim/compile.rs`). The
+    rule is one-sided: a read is
+    not a defect, and honest circuits that write qubits inside condition blocks have many.
   - *Acceptance.* Every site not proved unreachable needs 256 control-1 executions: from the
     uniform lanes, or from those plus its own stratum (never another site's). An opaque site
-    left short is refused (`outcome-coverage: unexercised: op I ...`).
+    left short is refused (`outcome-coverage: unexercised: op I ...`). After the uniform lanes
+    have passed and before any stratum, a stream with a read of a marked qubit is refused
+    (`outcome-coverage: outcome-in-qubit: op I (KIND) reads qubit qN, ...`).
+    `--outcome-coverage=sites` skips this last refusal only: the reads are reported and the
+    run's statement says they are not covered.
   - *Guards.* The run is refused with `internal error` if a proved-unreachable site executes on
     any lane of any engine call, if a site does not execute on every lane of its own stratum, or
     if the engine passes a different number of sites than the static pass counted. So an error
@@ -576,16 +599,22 @@ not match the loaded spec. The default build writes:
 - `metrics.rounding_class` is present only under the estimated class (section 13).
 - `metrics.audit` or `metrics.server_seed` is present only on the runs of section 14.
 - `metrics.outcome_coverage` is present only on a run with `--outcome-coverage` (section 9):
-  `mode` (`femoco-outcome-coverage-v1`), `required_control_one_executions` (256), the counts of
+  `mode` (`femoco-outcome-coverage-v2`), `scope` (`sites-and-qubit-outcomes`, or `sites-only`
+  with `=sites`), `required_control_one_executions` (256), the counts of
   `sites`, `push_blocks`, `conditioned_ops` and `hmr_ops`, the `static` classes with the rank
-  histogram, the `uniform` run's lanes and fewest executions, the `directed` strata (count,
-  lanes per stratum, sites covered, cap), the final `min_control_one_executions` and
+  histogram and the two cap flags, the `uniform` run's lanes and fewest executions, the
+  `directed` strata (count, lanes per stratum, sites covered, cap), `qubit_outcomes`
+  (`conditioned_qubit_writes`, `reads`, the first eight `first_reads` with the reading op, its
+  kind, the qubit and the op its mark goes back to, `covered`, which is `reads == 0`, and the
+  rule), the final `min_control_one_executions` and
   `min_control_zero_executions`, a histogram of executions, the eight `rarest` sites, the first
   proved-unreachable op indices, `per_site_bound` with its meaning, a `statement` of what the
   block does and does not establish, and `site_table_sha256`. The last is the SHA-256 of the
   whole site table (26 bytes per site: `u64` op index, `u8` class, `u8` rank, `u64` control-1
   and `u64` control-0 executions), which `--dump-coverage FILE` writes. On such a run
-  `sampling_limits.measurement_outcomes` points to the block. Nothing else in `score.json`
+  `sampling_limits.measurement_outcomes` points to the block, in one of two sentences: one for
+  a run with no read of a marked qubit, one for a sites-only run that has some, which says
+  that those ops are not covered. Nothing else in `score.json`
   differs from the same run without the flag, apart from `eval_seconds`.
 - `metrics.reflection` is present only on a run with `--reflection-check` (section 16.6):
   `version` (`reflection-v1`), `rule_set`, `status` (`certified` or `not certified`) and the
@@ -1061,5 +1090,5 @@ reordered. `tests/reflection.rs` has a small circuit written this way.
 
 **What it does not show.** That the step encodes the spec's operator; anything about a circuit
 it does not certify; and the correctness of its own implementation beyond its tests (dense
-matrices for the normal form, and a dense simulation of every lane and outcome record of the
-random circuits it certifies).
+matrices for the normal form, a dense simulation of every lane and outcome record of the
+random circuits it certifies, and one refused circuit per obstruction kind above).

@@ -3,8 +3,11 @@
 //!
 //! - A tiny nested circuit written to the check's discipline is certified, and a dense
 //!   simulation of every lane confirms what the certificate says.
-//! - One mutant per rule is refused with that rule's reason; where the mutant really breaks
-//!   Hermiticity the dense simulation confirms it.
+//! - Mutants are refused with the reason of the rule they break; where the mutant really
+//!   breaks Hermiticity the dense simulation confirms it. Every obstruction kind of
+//!   spec/DESIGN.md section 16.6 has one, and so have the lane semantics a certificate rests on
+//!   that no kind names: an op's own condition inside a condition block, a conditioned `Swap`,
+//!   a conditioned `Neg`, and a phase on a qubit that holds an outcome.
 //! - A step that is Hermitian but encodes a different operator is certified: the certificate is
 //!   about Hermiticity, not about the operator.
 //! - The three operator identities the normal form uses hold for dense matrices.
@@ -677,6 +680,19 @@ enum Mutant {
     SymmetricSign,
     /// The inner copy leaves inner bit 0 flipped on one outer value.
     InnerNotRestored,
+    /// The second copy alone (it reads the pass flag) leaves inner bit 0 flipped: the inner
+    /// register is restored at the `Reflect` and wrong at the end.
+    InnerLeftWrong,
+    /// The first copy alone applies `Z` on system qubit 3 where inner bit 0 is set: a `Z` frame
+    /// that depends on the first-pass inner value and not on the second.
+    LoneFrameZ,
+    /// The copy's `SpinSwapDg` is controlled on `e AND inner bit 0`, its `SpinSwap` on `e`.
+    SwapControl,
+    /// The second copy alone applies one more `X` on system qubit 1, controlled on the outer
+    /// bit.
+    XControl,
+    /// The copy's first rotation is `V`, not `V^dagger`: the two `Z`s around it are missing.
+    NoInverseRotation,
 }
 
 /// Angle table of the tiny circuit: the rotation's angle for each inner value.
@@ -725,13 +741,35 @@ fn tiny(m: Mutant) -> Vec<Op> {
         }
         // V^dagger = Z_0 V Z_0, the term, V.
         let (s0, s1) = (b.system(0), b.system(1));
-        b.z(s0);
-        b.givens_modes(0, 2, reg);
-        b.z(s0);
-        b.spin_swap_dg(e);
+        if m == Mutant::LoneFrameZ {
+            // The pass flag is 0 in the first copy and 1 in the second.
+            let s3 = b.system(3);
+            b.x(pass);
+            b.ccz(pass, inner[0], s3);
+            b.x(pass);
+        }
+        if m == Mutant::NoInverseRotation {
+            b.givens_modes(0, 2, reg);
+        } else {
+            b.z(s0);
+            b.givens_modes(0, 2, reg);
+            b.z(s0);
+        }
+        if m == Mutant::SwapControl {
+            let f = b.alloc();
+            b.ccx(e, inner[0], f);
+            b.spin_swap_dg(f);
+            b.ccx(e, inner[0], f);
+            b.free(f);
+        } else {
+            b.spin_swap_dg(e);
+        }
         b.cz(e, s0);
         b.cz(inner[0], s1);
         b.cx(inner[0], s1);
+        if m == Mutant::XControl {
+            b.ccx(pass, o, s1);
+        }
         if m != Mutant::NoPassSign {
             b.cz(inner[0], pass);
         }
@@ -782,6 +820,9 @@ fn tiny(m: Mutant) -> Vec<Op> {
         if m == Mutant::InnerNotRestored {
             b.cx(o, inner[0]);
         }
+        if m == Mutant::InnerLeftWrong {
+            b.cx(pass, inner[0]);
+        }
         b.x(pass);
     });
     b.segment(SEG_UNPREPARE);
@@ -796,17 +837,222 @@ fn tiny(m: Mutant) -> Vec<Op> {
 }
 
 fn refused(m: Mutant) -> (String, String, Result<(), String>) {
-    let ops = tiny(m);
-    let (r, registers) = check_ops(&ops, Budget::default());
-    assert!(!r.certified && !r.hermitian, "{m:?}: {}", r.summary());
+    let (r, dense) = refused_ops(&tiny(m), &format!("{m:?}"));
+    let kind = r.obstruction.as_ref().map_or("", |o| o.kind);
+    (kind.to_string(), r.summary(), dense)
+}
+
+/// `ops` is refused; returns the report and the dense verdict on the same circuit.
+fn refused_ops(ops: &[Op], what: &str) -> (Report, Result<(), String>) {
+    let (r, registers) = check_ops(ops, Budget::default());
+    assert!(!r.certified && !r.hermitian, "{what}: {}", r.summary());
     let o = r.obstruction.clone().expect("an obstruction");
     assert_eq!(r.json()["status"], "not certified");
     assert_eq!(r.json()["obstruction"]["kind"], o.kind);
-    (
-        o.kind.to_string(),
-        r.summary(),
-        dense_check(&ops, &registers, 7),
-    )
+    let dense = dense_check(ops, &registers, 7);
+    (r, dense)
+}
+
+/// Qubit ids of the tiny circuit's layout, and ids no builder of this file reaches.
+const CONTROL: u32 = 0;
+const OUTER: u32 = 1 + SYS as u32;
+const INNER0: u32 = OUTER + U_O;
+const FRESH: u32 = 900;
+
+fn raw(kind: K, t: u32, c1: u32, cond: u32) -> Op {
+    let mut o = Op::new(kind);
+    (o.q_target, o.q_control1, o.c_condition) = (t, c1, cond);
+    o
+}
+
+/// A fresh ancilla (0, so the measurement leaves no phase) measured into bit `bit`.
+fn outcome(q: u32, bit: u32) -> Op {
+    let mut h = Op::new(K::Hmr);
+    (h.q_target, h.c_target) = (q, bit);
+    h
+}
+
+/// The tiny circuit followed by `tail`.
+fn tiny_then(tail: &[Op]) -> Vec<Op> {
+    let mut ops = tiny(Mutant::None);
+    ops.extend_from_slice(tail);
+    ops
+}
+
+/// The conditions at the end of the stream, each on its own: an ancilla that is never freed
+/// and holds the outer bit; the outer uniform bit flipped on the control-1 lanes; and the inner
+/// register restored at the `Reflect` but left wrong after the second pass. The dense
+/// simulation rejects each on some lane.
+#[test]
+fn registers_and_ancillas_wrong_at_the_end_are_refused() {
+    let left = tiny_then(&[raw(K::CX, FRESH, OUTER, NONE)]);
+    let flipped = tiny_then(&[raw(K::CX, OUTER, CONTROL, NONE)]);
+    for (what, ops, kind, qubit, dense_says) in [
+        (
+            "ancilla left",
+            left,
+            "ancilla-not-clean",
+            FRESH,
+            "dirty ancilla",
+        ),
+        (
+            "outer bit flipped",
+            flipped,
+            "registers-not-restored",
+            OUTER,
+            "registers not restored",
+        ),
+        (
+            "inner bit wrong after the second pass",
+            tiny(Mutant::InnerLeftWrong),
+            "registers-not-restored",
+            INNER0,
+            "registers not restored",
+        ),
+    ] {
+        let (r, dense) = refused_ops(&ops, what);
+        let o = r.obstruction.clone().unwrap();
+        assert_eq!(o.kind, kind, "{what}: {o}");
+        assert!(
+            o.reason.starts_with(&format!("qubit q{qubit} ")) && o.op.is_none(),
+            "{what}: {o}"
+        );
+        assert!(!r.registers_restored && !r.outcome_independent, "{what}");
+        let e = dense.unwrap_err();
+        assert!(e.contains(dense_says), "{what}: {e}");
+    }
+}
+
+/// The comparisons of the normal form that no other test reaches: the `Z` frame, the control
+/// of a `SpinSwap`, the control of a system `X`, and the sign of a rotation's angle (its bits
+/// are `Mutant::AngleDefect`'s). Each mutant restores its registers and
+/// keeps the outcomes out of the operator; only Hermiticity fails, and the dense simulation
+/// confirms it.
+#[test]
+fn frame_and_control_mismatches_are_refused_at_the_comparison() {
+    for (m, kind, names) in [
+        (
+            Mutant::LoneFrameZ,
+            "frame-mismatch",
+            "the Z left on system qubit 3",
+        ),
+        (Mutant::SwapControl, "control-mismatch", "the SpinSwap"),
+        (
+            Mutant::XControl,
+            "control-mismatch",
+            "the X on system qubit 1",
+        ),
+        (
+            Mutant::NoInverseRotation,
+            "angle-mismatch",
+            "the sign of the angle of the Givens on modes (0, 2)",
+        ),
+    ] {
+        let (r, dense) = refused_ops(&tiny(m), &format!("{m:?}"));
+        assert!(r.registers_restored && r.outcome_independent, "{m:?}");
+        let o = r.obstruction.clone().unwrap();
+        assert_eq!(o.kind, kind, "{m:?}: {o}");
+        assert!(o.reason.contains(names), "{m:?}: {o}");
+        let e = dense.unwrap_err();
+        assert!(e.contains("differs from L(g, b, a)"), "{m:?}: {e}");
+    }
+}
+
+/// Lane semantics a certificate rests on and no obstruction kind names. Each case is a pair:
+/// a stream the check must refuse, and the same ops arranged to cancel, which it certifies.
+/// The dense simulation agrees with both verdicts.
+///
+/// - An op's own condition inside a condition block acts where both hold, not where its own
+///   bit holds.
+/// - A conditioned `Swap` exchanges its qubits where the condition holds.
+/// - A conditioned `Neg` is a sign where the condition holds.
+/// - A phase on a qubit that holds an outcome is an outcome-dependent sign.
+/// - A conditioned `Hmr` clears its qubit where the condition holds and leaves it elsewhere.
+#[test]
+fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantics() {
+    let (a, b) = (FRESH, FRESH + 1);
+    let (q, x, y) = (FRESH, FRESH + 1, FRESH + 2);
+    let push = |bit| raw(K::PushCondition, NONE, NONE, bit);
+    let pop = Op::new(K::PopCondition);
+    let z_if = raw(K::Z, CONTROL, NONE, b);
+    let two_outcomes = [outcome(q, a), outcome(q, b)];
+    // Z on the control where `b` holds, then again where `a` and `b` hold: the sign left is
+    // (-1)^(c b (1 + a)). Read with the block ignored, the two cancel.
+    let block_wrong = [&two_outcomes[..], &[z_if, push(a), z_if, pop]].concat();
+    let block_right = [&two_outcomes[..], &[push(a), z_if, z_if, pop]].concat();
+    // x holds the outer bit; the swap moves it to y where the outcome is 1; the uncompute on x
+    // then leaves both set there. Swapped back first, it clears.
+    let copy = raw(K::CX, x, OUTER, NONE);
+    let swap = raw(K::Swap, y, x, a);
+    let swap_wrong = [outcome(q, a), copy, swap, copy];
+    let swap_right = [outcome(q, a), copy, swap, swap, copy];
+    let neg = raw(K::Neg, NONE, NONE, a);
+    let neg_wrong = [outcome(q, a), neg];
+    let neg_right = [outcome(q, a), neg, neg];
+    // The outcome copied into x, a Z on x, and the copy undone.
+    let (set, z) = (raw(K::X, x, NONE, a), raw(K::Z, x, NONE, NONE));
+    let held_wrong = [outcome(q, a), set, z, set];
+    let held_right = [outcome(q, a), set, z, z, set];
+    // x holds the outer bit and is measured where the outcome `a` is 1, with the phase fixed
+    // there. Where `a` is 0 it still holds the outer bit, until a copy under `not a` clears it.
+    let (c, not_a) = (FRESH + 2, FRESH + 3);
+    let mut measure = outcome(x, c);
+    measure.c_condition = a;
+    let fix = [push(a), raw(K::Z, OUTER, NONE, c), pop];
+    let mut one = Op::new(K::BitStore1);
+    one.c_target = not_a;
+    let mut flip = Op::new(K::BitInvert);
+    (flip.c_target, flip.c_condition) = (not_a, a);
+    let clear = [one, flip, raw(K::CX, x, OUTER, not_a)];
+    let hmr_wrong = [&[outcome(q, a), copy, measure][..], &fix].concat();
+    let hmr_right = [&hmr_wrong[..], &clear].concat();
+    for (what, wrong, right, kind, dense_says) in [
+        (
+            "own condition in a block",
+            &block_wrong[..],
+            &block_right[..],
+            "outcome-phase",
+            "depends on the outcomes",
+        ),
+        (
+            "conditioned Swap",
+            &swap_wrong[..],
+            &swap_right[..],
+            "ancilla-not-clean",
+            "dirty ancilla",
+        ),
+        (
+            "conditioned Neg",
+            &neg_wrong[..],
+            &neg_right[..],
+            "outcome-phase",
+            "depends on the outcomes",
+        ),
+        (
+            "phase on a qubit that holds an outcome",
+            &held_wrong[..],
+            &held_right[..],
+            "outcome-phase",
+            "depends on the outcomes",
+        ),
+        (
+            "conditioned Hmr",
+            &hmr_wrong[..],
+            &hmr_right[..],
+            "ancilla-not-clean",
+            "dirty ancilla",
+        ),
+    ] {
+        let (r, dense) = refused_ops(&tiny_then(wrong), what);
+        let o = r.obstruction.clone().unwrap();
+        assert_eq!(o.kind, kind, "{what}: {o}");
+        let e = dense.unwrap_err();
+        assert!(e.contains(dense_says), "{what}: {e}");
+        let ops = tiny_then(right);
+        let (r, registers) = check_ops(&ops, Budget::default());
+        assert!(r.certified, "{what}: {}", r.summary());
+        dense_check(&ops, &registers, 9).unwrap_or_else(|e| panic!("{what}: {e}"));
+    }
 }
 
 /// (1) The tiny circuit is certified, twice with identical reports, and the dense simulation
@@ -940,6 +1186,20 @@ fn what_the_rule_set_does_not_cover_is_refused() {
         .collect();
     let r = certify(&none, &l, Some(inner), &registers, Budget::default());
     assert_eq!(r.obstruction.unwrap().kind, "structure");
+    // A Reflect inside a condition block, even one whose bit is the constant 1.
+    let one = ops
+        .iter()
+        .find(|o| o.kind == K::BitStore1)
+        .unwrap()
+        .c_target;
+    let at = ops.iter().position(|o| o.kind == K::Reflect).unwrap();
+    let mut blocked = ops.clone();
+    blocked.insert(at + 1, Op::new(K::PopCondition));
+    blocked.insert(at, raw(K::PushCondition, NONE, NONE, one));
+    let r = certify(&blocked, &l, Some(inner), &registers, Budget::default());
+    let o = r.obstruction.unwrap();
+    assert_eq!(o.kind, "structure", "{o}");
+    assert!(o.reason.contains("Reflect inside a condition block"), "{o}");
     let mut bad = ops.clone();
     let mut h = Op::new(K::Hmr);
     (h.q_target, h.c_target) = (0, 0);
@@ -1045,11 +1305,13 @@ fn emit(b: &mut Builder, e: Elem, reg: Reg, adjoint: bool) {
     }
 }
 
-/// A random nested step that is Hermitian by construction: `W_out^dagger [copy] R [copy]
-/// W_out`, each copy `W^dagger P W` with `P` Hermitian (or anti-Hermitian with the pass-flag
-/// sign), every `W` a random list of controlled Paulis, Givens and SpinSwaps, controls drawn
-/// from the lane's bits and from ANDs of them, the angle register loaded by a random lookup and
-/// erased by measurement or by recomputation.
+/// A random nested step that is Hermitian by construction: `W_out^dagger E^dagger [copy] R
+/// [copy] E W_out`, each copy `W^dagger P W` with `P` Hermitian (or anti-Hermitian with the
+/// pass-flag sign), every `W` a random list of controlled Paulis, Givens and SpinSwaps, controls
+/// drawn from the lane's bits and from ANDs of them, the angle register loaded by a random
+/// lookup and erased by measurement or by recomputation. `E` is optional and holds what the
+/// copies do not: ops with a condition of their own inside a condition block, and a conditioned
+/// `Swap`, on constant bits or on a fresh measurement outcome.
 fn random_step(r: &mut Rng) -> Vec<Op> {
     let mut b = Builder::new(SYS);
     b.declare_uniform(U_O + W);
@@ -1095,6 +1357,16 @@ fn random_step(r: &mut Rng) -> Vec<Op> {
         .filter(|&q| r.chance(30) && Some(q) != core_x)
         .collect();
     let seed = r.next();
+    // `E`. One more Hmr only where the copies leave room among the enumerated records.
+    let extras = Extras {
+        block: r.chance(45).then(|| r.below(3)),
+        swap: r.chance(45).then(|| r.chance(70)),
+        outcome: !measured_erase && r.chance(60),
+        picks: [r.below(3), r.below(3), r.below(3)],
+        ctl: outer_pool[r.below(3)],
+        sys: [sys_q(r), sys_q(r)],
+    };
+    let live = extras.before(&mut b);
     b.nested_inner(inner_reg, |b| {
         let mut r = Rng(seed | 1);
         let r = &mut r;
@@ -1187,6 +1459,7 @@ fn random_step(r: &mut Rng) -> Vec<Op> {
         }
         b.x(pass);
     });
+    extras.after(&mut b, &live);
     b.segment(SEG_UNPREPARE);
     for &x in &w_out {
         emit(&mut b, x, reg, false);
@@ -1196,6 +1469,136 @@ fn random_step(r: &mut Rng) -> Vec<Op> {
         b.free(q);
     }
     b.finish()
+}
+
+/// The part of a random step outside its inner copies that uses the condition stack and
+/// `Swap` (`random_step`).
+struct Extras {
+    /// A block holding ops with a condition of their own: two conditioned `Neg`s (0), a
+    /// conditioned `Z` on a lane bit before the copies and again after them (1), or the same
+    /// with a conditioned `X` on a system qubit (2).
+    block: Option<usize>,
+    /// A conditioned `Swap` of a copy of a lane bit with a clean ancilla, and a system `Z`
+    /// controlled on the XOR of the two (`true`: the same for either outcome of the swap) or on
+    /// the first of them.
+    swap: Option<bool>,
+    /// Whether a measurement outcome is among the condition bits.
+    outcome: bool,
+    picks: [usize; 3],
+    ctl: Qubit,
+    sys: [usize; 2],
+}
+
+/// What `Extras::before` leaves for `Extras::after`: the condition bits, constants first, and
+/// the swap's ancillas.
+struct ExtrasLive {
+    bits: Vec<Bit>,
+    swap: Option<[Qubit; 3]>,
+}
+
+impl Extras {
+    /// Bit `k` of the gadgets. `constant`: one of the two constant bits, so that no outcome
+    /// reaches a system op of a circuit meant to be certified.
+    fn bit(&self, live: &ExtrasLive, k: usize, constant: bool) -> Bit {
+        let n = if constant { 2 } else { live.bits.len() };
+        live.bits[self.picks[k] % n]
+    }
+
+    fn block(&self, b: &mut Builder, live: &ExtrasLive) {
+        let Some(kind) = self.block else { return };
+        b.push_condition(self.bit(live, 0, kind == 2));
+        let own = self.bit(live, 1, kind == 2);
+        match kind {
+            0 => {
+                let mut neg = Op::new(K::Neg);
+                neg.c_condition = own.0;
+                b.emit(neg);
+                b.emit(neg);
+            }
+            1 => b.z_if(self.ctl, own),
+            _ => {
+                let s = b.system(self.sys[0]);
+                b.cx_if(self.ctl, s, own);
+            }
+        }
+        b.pop_condition();
+    }
+
+    fn swap_if(&self, b: &mut Builder, live: &ExtrasLive, x: Qubit, y: Qubit, sum: bool) {
+        let mut swap = Op::new(K::Swap);
+        (swap.q_control1, swap.q_target) = (x.0, y.0);
+        swap.c_condition = self.bit(live, 2, !sum).0;
+        b.emit(swap);
+    }
+
+    fn before(&self, b: &mut Builder) -> ExtrasLive {
+        let mut live = ExtrasLive {
+            bits: Vec::new(),
+            swap: None,
+        };
+        if self.block.is_none() && self.swap.is_none() {
+            return live;
+        }
+        let one = b.new_bit();
+        let mut store = Op::new(K::BitStore1);
+        store.c_target = one.0;
+        b.emit(store);
+        live.bits = vec![one, cleared_bit(b)];
+        if self.outcome {
+            let h = b.alloc();
+            live.bits.push(b.hmr(h));
+        }
+        self.block(b, &live);
+        if let Some(sum) = self.swap {
+            let [x, y, t] = [b.alloc(), b.alloc(), b.alloc()];
+            b.cx(self.ctl, x);
+            self.swap_if(b, &live, x, y, sum);
+            if sum {
+                b.cx(x, t);
+                b.cx(y, t);
+            }
+            let s = b.system(self.sys[1]);
+            b.cz(if sum { t } else { x }, s);
+            live.swap = Some([x, y, t]);
+        }
+        live
+    }
+
+    fn after(&self, b: &mut Builder, live: &ExtrasLive) {
+        if let (Some(sum), Some([x, y, t])) = (self.swap, live.swap) {
+            let s = b.system(self.sys[1]);
+            b.cz(if sum { t } else { x }, s);
+            if sum {
+                b.cx(y, t);
+                b.cx(x, t);
+            }
+            self.swap_if(b, live, x, y, sum);
+            b.cx(self.ctl, x);
+            for q in [x, y, t] {
+                b.free(q);
+            }
+        }
+        if !live.bits.is_empty() {
+            self.block(b, live);
+        }
+    }
+}
+
+/// Whether `ops` holds a conditioned `Swap`, and whether it holds an op with a condition of its
+/// own inside a condition block.
+fn uses_extras(ops: &[Op]) -> (bool, bool) {
+    let (mut depth, mut swap, mut own) = (0, false, false);
+    for o in ops {
+        match o.kind {
+            K::PushCondition => depth += 1,
+            K::PopCondition => depth -= 1,
+            _ => {
+                swap |= o.kind == K::Swap && (depth > 0 || o.c_condition != NONE);
+                own |= depth > 0 && o.c_condition != NONE;
+            }
+        }
+    }
+    (swap, own)
 }
 
 /// One random edit, applied to both inner copies alike when it falls inside the first.
@@ -1283,6 +1686,7 @@ fn certified_random_circuits_are_hermitian_on_every_lane() {
     let mut r = Rng(0x9E37_79B9_7F4A_7C15);
     let (mut clean, mut clean_certified, mut edited, mut edited_certified) = (0, 0, 0, 0);
     let (mut refused_and_wrong, mut refused_checked, mut full) = (0, 0, 0);
+    let (mut with_swap, mut with_own) = (0, 0);
     for case in 0..800 {
         let mut ops = random_step(&mut r);
         let is_edited = case % 2 == 1;
@@ -1312,6 +1716,9 @@ fn certified_random_circuits_are_hermitian_on_every_lane() {
             *certified += 1;
             let hmr = ops.iter().filter(|o| o.kind == K::Hmr).count();
             full += usize::from(hmr <= ALL_RECORDS);
+            let (swap, own) = uses_extras(&ops);
+            with_swap += usize::from(swap);
+            with_own += usize::from(own);
             dense_check(&ops, &compiled.registers, r.next()).unwrap_or_else(|e| {
                 panic!("case {case}: certified, but the dense simulation disagrees: {e}")
             });
@@ -1328,7 +1735,8 @@ fn certified_random_circuits_are_hermitian_on_every_lane() {
     println!(
         "clean {clean_certified}/{clean} certified; edited {edited_certified}/{edited} certified; \
          {refused_and_wrong}/{refused_checked} refused edits fail the dense simulation; every \
-         outcome record enumerated for {full} certified circuits"
+         outcome record enumerated for {full} certified circuits; {with_swap} of them hold a \
+         conditioned Swap and {with_own} an op with its own condition inside a block"
     );
     assert_eq!(full, clean_certified + edited_certified);
     // The fuzz is not vacuous: most constructed circuits are certified, some edited ones are,
@@ -1344,6 +1752,11 @@ fn certified_random_circuits_are_hermitian_on_every_lane() {
     assert!(
         refused_and_wrong >= 10,
         "{refused_and_wrong}/{refused_checked}"
+    );
+    // The certified circuits reach the condition stack and the conditioned Swap.
+    assert!(
+        with_swap >= 100 && with_own >= 100,
+        "{with_swap} {with_own}"
     );
 }
 

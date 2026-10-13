@@ -6,7 +6,7 @@
 //! order. A site executes on a lane when its whole mask is 1 there: the base mask after the
 //! `Push`, or `base & own condition` for a conditioned op.
 //!
-//! Three pieces, none of which runs outside the mode:
+//! Four pieces, none of which runs outside the mode:
 //!
 //! - [`SiteCounts`] / [`CoverageSink`]: the engines count, per site, the lanes on which it
 //!   executed, split by the sampled control bit. The counts come from the masks that gate the
@@ -19,6 +19,11 @@
 //!   executes exactly on the solutions of its system.
 //! - [`Directed`]: an outcome stream that is uniform on the solution space of one system. Free
 //!   variables keep their raw stream bits; each pivot is set from the earlier ones.
+//! - [`qubit_outcomes`]: a second static pass, independent of the first, that finds the ops
+//!   through which an outcome can act without a site: a qubit written under a classical
+//!   condition holds a function of the outcomes, and an op that reads it (as a control, a phase
+//!   operand, an angle bit, a measured or freed qubit) is steered by the outcomes although it
+//!   carries no condition. Sites do not see such ops, so the mode refuses a stream that has one.
 //!
 //! The static pass grants one thing only: a `Dead` site needs no executions. Everything else it
 //! says is checked against the engines' counts by `score::coverage`, which refuses on any
@@ -38,9 +43,20 @@ pub const STRATUM_LANES: usize = 1024;
 pub const MAX_STRATA: usize = 1024;
 /// Most rows a tracked system may have; a deeper conjunction is `Opaque`.
 pub const MAX_RANK: usize = 64;
+/// Most variables one equation may have; a longer one makes its value `Opaque`. Parities of
+/// outcomes in the ledger's circuits are far shorter (their site tables do not change with this
+/// cap).
+pub const MAX_ROW: usize = 1 << 12;
 /// Work budget of the static pass, in variable entries touched. Past it every value is
-/// `Opaque`, so a forged stream costs bounded time and can only be refused.
+/// `Opaque`. It bounds the pass's time only; [`HELD_CAP`] and [`MAX_ROW`] bound its memory.
 const WORK_CAP: u64 = 1 << 31;
+/// Memory budget of the static pass, in [`weight`] units (one per variable entry, eight per
+/// equation) summed over every classical bit and every open condition block. A value that
+/// would take the total past it is stored as `Opaque`. With [`MAX_ROW`] this bounds what the
+/// pass holds at about 64 MiB of variable entries whatever the stream (the per-bit and per-op
+/// tables aside, which are linear in the stream), so a forged stream costs bounded time and
+/// memory and can only be refused.
+const HELD_CAP: u64 = 1 << 24;
 
 /// One equation over the outcome variables: the XOR of `vars` equals `rhs`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -120,6 +136,11 @@ pub struct Analysis {
     pub hmr_ops: usize,
     /// The work budget ran out; later sites are `Opaque`.
     pub capped: bool,
+    /// A value was dropped to `Opaque` because an equation passed [`MAX_ROW`] variables or the
+    /// pass would have held more than its memory budget.
+    pub memory_capped: bool,
+    /// Most [`weight`] units the pass held at once (at most the memory budget).
+    pub peak_held: u64,
 }
 
 impl SimOp {
@@ -185,14 +206,62 @@ fn pivot(r: &Row) -> u32 {
     r.vars.last().copied().unwrap_or(0)
 }
 
+/// What a value costs the memory budget: one unit per variable entry and eight per equation.
+/// Every holder is charged in full, so shared systems are counted more than once and the sum
+/// is an upper bound.
+fn weight(v: &Value) -> u64 {
+    match v {
+        Value::Conj(s) => s.iter().map(|r| r.vars.len() as u64 + 8).sum(),
+        Value::Zero | Value::Opaque => 0,
+    }
+}
+
+/// What [`Pass::insert`] did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Insert {
+    /// The row was added (or was implied already); the system is reduced.
+    Done,
+    /// The system became inconsistent.
+    Inconsistent,
+    /// An equation passed [`MAX_ROW`] variables; the system is to be discarded.
+    TooLong,
+}
+
 struct Pass {
     bits: Vec<Value>,
     work: u64,
     capped: bool,
+    /// [`weight`] of every value in `bits` and of every saved path condition.
+    held: u64,
+    peak_held: u64,
+    memory_capped: bool,
     one: Rc<System>,
 }
 
 impl Pass {
+    fn new() -> Self {
+        Self {
+            bits: Vec::new(),
+            work: 0,
+            capped: false,
+            held: 0,
+            peak_held: 0,
+            memory_capped: false,
+            one: Rc::new(System::new()),
+        }
+    }
+
+    /// Charges `w` to the memory budget. `false`: it does not fit, and nothing was charged.
+    fn hold(&mut self, w: u64) -> bool {
+        if self.held + w > HELD_CAP {
+            self.memory_capped = true;
+            return false;
+        }
+        self.held += w;
+        self.peak_held = self.peak_held.max(self.held);
+        true
+    }
+
     fn spend(&mut self, n: usize) {
         self.work += n as u64 + 1;
         if self.work > WORK_CAP {
@@ -204,26 +273,38 @@ impl Pass {
         self.bits.get(b as usize).cloned().unwrap_or(Value::Zero)
     }
 
-    fn set(&mut self, b: u32, v: Value) {
+    fn set(&mut self, b: u32, mut v: Value) {
         let i = b as usize;
         if self.bits.len() <= i {
             self.bits.resize(i + 1, Value::Zero);
         }
+        self.held -= weight(&self.bits[i]);
+        if !self.hold(weight(&v)) {
+            v = Value::Opaque;
+        }
         self.bits[i] = v;
     }
 
-    /// Adds `row` to the reduced system `s`, keeping it reduced. `false`: the system became
-    /// inconsistent.
-    fn insert(&mut self, s: &mut System, mut row: Row) -> bool {
+    /// Adds `row` to the reduced system `s`, keeping it reduced. No equation is left longer
+    /// than [`MAX_ROW`]: the first that would be stops the insertion.
+    fn insert(&mut self, s: &mut System, mut row: Row) -> Insert {
         for r in s.iter() {
             if row.vars.binary_search(&pivot(r)).is_ok() {
                 self.work += (row.vars.len() + r.vars.len()) as u64;
                 row.vars = xor_vars(&row.vars, &r.vars);
                 row.rhs ^= r.rhs;
+                if row.vars.len() > MAX_ROW {
+                    self.memory_capped = true;
+                    return Insert::TooLong;
+                }
             }
         }
         if row.vars.is_empty() {
-            return !row.rhs;
+            return if row.rhs {
+                Insert::Inconsistent
+            } else {
+                Insert::Done
+            };
         }
         // The new pivot is below the pivot of any row that contains it, and `row` holds no
         // other pivot, so clearing it from those rows keeps every row's pivot and the form.
@@ -233,11 +314,15 @@ impl Pass {
                 self.work += (row.vars.len() + r.vars.len()) as u64;
                 r.vars = xor_vars(&r.vars, &row.vars);
                 r.rhs ^= row.rhs;
+                if r.vars.len() > MAX_ROW {
+                    self.memory_capped = true;
+                    return Insert::TooLong;
+                }
             }
         }
         let at = s.partition_point(|r| pivot(r) < p);
         s.insert(at, row);
-        true
+        Insert::Done
     }
 
     /// The conjunction of two values (exact, or `Opaque`).
@@ -258,8 +343,10 @@ impl Pass {
                 let mut s: System = (**x).clone();
                 self.spend(s.iter().map(|r| r.vars.len()).sum());
                 for row in y.iter() {
-                    if !self.insert(&mut s, row.clone()) {
-                        return Value::Zero;
+                    match self.insert(&mut s, row.clone()) {
+                        Insert::Done => {}
+                        Insert::Inconsistent => return Value::Zero,
+                        Insert::TooLong => return Value::Opaque,
                     }
                     self.spend(0);
                     if s.len() > MAX_RANK || self.capped {
@@ -325,6 +412,10 @@ impl Pass {
                     match (vars.is_empty(), rhs) {
                         (true, true) => Value::Zero,
                         (true, false) => Value::Conj(Rc::clone(&self.one)),
+                        _ if vars.len() > MAX_ROW => {
+                            self.memory_capped = true;
+                            Value::Opaque
+                        }
                         _ => Value::Conj(Rc::new(vec![Row { vars, rhs }])),
                     }
                 }
@@ -360,14 +451,8 @@ impl Pass {
 
 /// Runs the pass. `on_site(ordinal, system)` is called for every `Affine` site.
 fn pass(ops: &[SimOp], mut on_site: impl FnMut(usize, &Rc<System>)) -> Analysis {
-    let one = Rc::new(System::new());
-    let mut p = Pass {
-        bits: Vec::new(),
-        work: 0,
-        capped: false,
-        one: Rc::clone(&one),
-    };
-    let top = Value::Conj(one);
+    let mut p = Pass::new();
+    let top = Value::Conj(Rc::clone(&p.one));
     let mut out = Analysis::default();
     // Cumulative path conditions: each entry is the conjunction of every bit pushed so far,
     // taken at the time of its `Push` (a later write to the bit does not change the mask).
@@ -377,11 +462,19 @@ fn pass(ops: &[SimOp], mut on_site: impl FnMut(usize, &Rc<System>)) -> Analysis 
         p.spend(0);
         if matches!(op, SimOp::Pop) {
             base = stack.pop().unwrap_or_else(|| top.clone());
+            p.held -= weight(&base);
             continue;
         }
         let (q, depth) = match *op {
             SimOp::Push { bit } => {
-                stack.push(base.clone());
+                // The saved condition is charged to the memory budget; one that does not fit
+                // is saved as `Opaque`, which the block's end then restores.
+                let saved = if p.hold(weight(&base)) {
+                    base.clone()
+                } else {
+                    Value::Opaque
+                };
+                stack.push(saved);
                 base = p.conj(&base, &p.bit(bit));
                 (base.clone(), stack.len())
             }
@@ -415,6 +508,8 @@ fn pass(ops: &[SimOp], mut on_site: impl FnMut(usize, &Rc<System>)) -> Analysis 
         }
     }
     out.capped = p.capped;
+    out.memory_capped = p.memory_capped;
+    out.peak_held = p.peak_held;
     out
 }
 
@@ -424,43 +519,240 @@ pub fn analyze(ops: &[SimOp]) -> Analysis {
     pass(ops, |_, _| {})
 }
 
-/// [`systems`] found more distinct systems than its cap.
+/// Why [`systems`] gave up.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TooMany;
+pub enum Unplanned {
+    /// More distinct systems than the cap.
+    TooMany,
+    /// The distinct systems together pass the memory budget of the static pass.
+    TooLarge,
+}
 
 /// The distinct systems of the `Affine` sites `wanted` (ascending site ordinals), each with the
 /// wanted sites that have it, in order of first appearance. Collection stops once there are
-/// more than `max` systems, so memory is bounded whatever the stream.
+/// more than `max` systems or the systems collected weigh more than the pass's memory budget,
+/// so memory is bounded whatever the stream.
 ///
 /// # Errors
-/// There are more than `max` distinct systems.
+/// There are more than `max` distinct systems, or they are too large together.
 pub fn systems(
     ops: &[SimOp],
     wanted: &[usize],
     max: usize,
-) -> Result<Vec<(System, Vec<usize>)>, TooMany> {
+) -> Result<Vec<(System, Vec<usize>)>, Unplanned> {
     let mut groups: Vec<(System, Vec<usize>)> = Vec::new();
     let mut index: HashMap<Rc<System>, usize> = HashMap::new();
     let mut next = 0;
+    let mut held = 0u64;
     pass(ops, |site, s| {
         if wanted.get(next) != Some(&site) {
             return;
         }
         next += 1;
-        if groups.len() > max {
+        if groups.len() > max || held > HELD_CAP {
             return;
         }
         let n = groups.len();
         let g = *index.entry(Rc::clone(s)).or_insert(n);
         if g == n {
+            held += s.iter().map(|r| r.vars.len() as u64 + 8).sum::<u64>();
             groups.push(((**s).clone(), Vec::new()));
         }
         groups[g].1.push(site);
     });
+    if held > HELD_CAP {
+        return Err(Unplanned::TooLarge);
+    }
     if groups.len() > max {
-        return Err(TooMany);
+        return Err(Unplanned::TooMany);
     }
     Ok(groups)
+}
+
+/// One op that reads a qubit holding a function of the outcomes ([`qubit_outcomes`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OutcomeRead {
+    /// Index of the reading op in the lowered stream; `u32::MAX` for the end of the stream,
+    /// whose per-lane checks read every qubit.
+    pub op: u32,
+    /// The qubit read.
+    pub qubit: u32,
+    /// Index, in the lowered stream, of the conditioned op the qubit's mark goes back to.
+    pub source: u32,
+}
+
+/// What [`qubit_outcomes`] found.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct QubitOutcomes {
+    /// Ops that write a non-system qubit while a classical condition is in force (their own or
+    /// an enclosing block's).
+    pub conditioned_writes: u64,
+    /// Ops that read a marked qubit, the end of the stream counted once per qubit still marked.
+    pub reads: u64,
+    /// The first of them, in stream order (at most [`QubitOutcomes::KEPT`]).
+    pub first: Vec<OutcomeRead>,
+    kept: usize,
+}
+
+impl QubitOutcomes {
+    /// Reads kept in `first`.
+    pub const KEPT: usize = 8;
+}
+
+/// The mark of qubit `q` (`NONE`: not marked).
+fn get(mark: &[u32], q: u32) -> u32 {
+    mark.get(q as usize).copied().unwrap_or(NONE)
+}
+
+fn put(mark: &mut Vec<u32>, q: u32, v: u32) {
+    if q == NONE || (v == NONE && mark.len() <= q as usize) {
+        return;
+    }
+    if mark.len() <= q as usize {
+        mark.resize(q as usize + 1, NONE);
+    }
+    mark[q as usize] = v;
+}
+
+/// Records that `op` reads `q` if `q` is marked. Returns `q`'s mark.
+fn read(out: &mut QubitOutcomes, mark: &[u32], op: u32, q: u32) -> u32 {
+    let source = if q == NONE { NONE } else { get(mark, q) };
+    if source != NONE {
+        out.reads += 1;
+        if out.first.len() < out.kept {
+            out.first.push(OutcomeRead {
+                op,
+                qubit: q,
+                source,
+            });
+        }
+    }
+    source
+}
+
+/// Finds the ops that an outcome can steer without a site.
+///
+/// A non-system qubit is *marked* from the op that writes it while any classical condition is
+/// in force (`X`, `CX`, `CCX`, `Swap`, `Hmr`, or a `Reflect` inside a block): from there on its
+/// value may depend on the outcomes. A mark spreads to the target of an `X`-type gate one of
+/// whose controls is marked and moves with a `Swap`. Only an `Hmr` with no condition in force
+/// removes it, because that sets the qubit to 0 on every lane; `R` does not, because it checks
+/// the qubit and leaves it as it is. An op *reads* a marked qubit when the qubit is one of its
+/// controls, an operand of its phase, a bit of its angle register, the control of its
+/// `SpinSwap`, the qubit it measures or frees, or an inner qubit at the `Reflect`; the checks at
+/// the end of the stream read every qubit.
+///
+/// The rule uses no knowledge of what a condition evaluates to: a condition on a bit that is
+/// always 1 marks as any other does. It is sound in one direction only. With no reads reported,
+/// every qubit an op reads holds, on every lane and for every outcome record, a function of the
+/// lane alone (by induction over the ops: an unmarked qubit is written only by ops that no
+/// condition gates and whose controls are unmarked, and the system register never controls a
+/// non-system qubit, `compile::lower_system`). A read reported is not a finding that the
+/// circuit is wrong: a fix-up `X` conditioned on an outcome marks its qubit although the value
+/// it leaves may well be the same for every outcome.
+///
+/// `registers` are the compiled registers (what `Givens` reads) and `inner` the inner uniform
+/// qubits of a nested lane map (empty otherwise).
+#[must_use]
+pub fn qubit_outcomes(ops: &[SimOp], registers: &[Vec<u32>], inner: &[u32]) -> QubitOutcomes {
+    marked_reads(ops, registers, inner, QubitOutcomes::KEPT)
+}
+
+/// [`qubit_outcomes`] keeping the first `kept` reads.
+fn marked_reads(
+    ops: &[SimOp],
+    registers: &[Vec<u32>],
+    inner: &[u32],
+    kept: usize,
+) -> QubitOutcomes {
+    // Per qubit: the op its mark goes back to, or `NONE`.
+    let mut mark: Vec<u32> = Vec::new();
+    let mut out = QubitOutcomes {
+        kept,
+        ..QubitOutcomes::default()
+    };
+    let mut depth = 0usize;
+    for (i, op) in ops.iter().enumerate() {
+        let i = i as u32;
+        let conditioned = depth > 0 || op.cond() != NONE;
+        match *op {
+            SimOp::Push { .. } => depth += 1,
+            SimOp::Pop => depth = depth.saturating_sub(1),
+            SimOp::Neg { .. } | SimOp::Bit { .. } | SimOp::SysS { .. } => {}
+            SimOp::X { t, .. } => {
+                if conditioned {
+                    out.conditioned_writes += 1;
+                    put(&mut mark, t, i);
+                }
+            }
+            SimOp::Cx { c: a, t, .. } | SimOp::Ccx { a, t, .. } => {
+                let b = match *op {
+                    SimOp::Ccx { b, .. } => b,
+                    _ => NONE,
+                };
+                // Both controls are read; the mark the target takes is the first one's.
+                let from = [a, b].map(|c| read(&mut out, &mark, i, c));
+                let from = if from[0] != NONE { from[0] } else { from[1] };
+                if conditioned {
+                    out.conditioned_writes += 1;
+                    put(&mut mark, t, i);
+                } else if from != NONE {
+                    put(&mut mark, t, from);
+                }
+            }
+            SimOp::Swap { a, b, .. } => {
+                if conditioned {
+                    out.conditioned_writes += 1;
+                    put(&mut mark, a, i);
+                    put(&mut mark, b, i);
+                } else {
+                    let (ma, mb) = (get(&mark, a), get(&mark, b));
+                    put(&mut mark, a, mb);
+                    put(&mut mark, b, ma);
+                }
+            }
+            SimOp::Phase { q, .. } => {
+                for x in q {
+                    read(&mut out, &mark, i, x);
+                }
+            }
+            SimOp::Sys { ctrl, .. } => {
+                for x in ctrl {
+                    read(&mut out, &mark, i, x);
+                }
+            }
+            SimOp::Hmr { t, .. } => {
+                read(&mut out, &mark, i, t);
+                if conditioned {
+                    out.conditioned_writes += 1;
+                    put(&mut mark, t, i);
+                } else {
+                    put(&mut mark, t, NONE);
+                }
+            }
+            SimOp::Reset { t } | SimOp::SpinSwap { c: t, .. } => {
+                read(&mut out, &mark, i, t);
+            }
+            SimOp::Givens { reg, .. } => {
+                for &x in registers.get(reg as usize).map_or(&[][..], Vec::as_slice) {
+                    read(&mut out, &mark, i, x);
+                }
+            }
+            SimOp::Reflect => {
+                for &x in inner {
+                    read(&mut out, &mark, i, x);
+                    if conditioned {
+                        put(&mut mark, x, i);
+                    }
+                }
+                out.conditioned_writes += u64::from(conditioned);
+            }
+        }
+    }
+    for q in 0..mark.len() as u32 {
+        read(&mut out, &mark, u32::MAX, q);
+    }
+    out
 }
 
 enum Event {
@@ -846,12 +1138,7 @@ mod tests {
     }
 
     fn random_system(r: &mut Rng, nvars: u32) -> System {
-        let mut p = Pass {
-            bits: Vec::new(),
-            work: 0,
-            capped: false,
-            one: Rc::new(System::new()),
-        };
+        let mut p = Pass::new();
         let mut s = System::new();
         for _ in 0..1 + r.below(6) {
             let vars: Vec<u32> = (0..nvars).filter(|_| r.below(3) == 0).collect();
@@ -860,7 +1147,7 @@ mod tests {
                 rhs: r.below(2) == 1,
             };
             let mut t = s.clone();
-            if p.insert(&mut t, row) {
+            if p.insert(&mut t, row) == Insert::Done {
                 s = t;
             }
         }
@@ -897,12 +1184,7 @@ mod tests {
 
     #[test]
     fn canonical_form_is_unique_and_inconsistency_is_found() {
-        let mut p = Pass {
-            bits: Vec::new(),
-            work: 0,
-            capped: false,
-            one: Rc::new(System::new()),
-        };
+        let mut p = Pass::new();
         let row = |vars: &[u32], rhs| Row {
             vars: vars.to_vec(),
             rhs,
@@ -911,17 +1193,17 @@ mod tests {
         let mut a = System::new();
         let mut b = System::new();
         for r in &rows {
-            assert!(p.insert(&mut a, r.clone()));
+            assert_eq!(p.insert(&mut a, r.clone()), Insert::Done);
         }
         for r in rows.iter().rev() {
-            assert!(p.insert(&mut b, r.clone()));
+            assert_eq!(p.insert(&mut b, r.clone()), Insert::Done);
         }
         assert_eq!(a, b);
         assert_eq!(canonical_bytes(&a), canonical_bytes(&b));
         // v0 ^ v2 = 1 follows from the first two rows; its negation is inconsistent.
-        assert!(p.insert(&mut a.clone(), row(&[0, 2], true)));
+        assert_eq!(p.insert(&mut a.clone(), row(&[0, 2], true)), Insert::Done);
         assert_eq!(a.len(), 3);
-        assert!(!p.insert(&mut a, row(&[0, 2], false)));
+        assert_eq!(p.insert(&mut a, row(&[0, 2], false)), Insert::Inconsistent);
     }
 
     /// A conjunction deeper than `MAX_RANK` is `Opaque`, never `Dead` or a truncated system.
@@ -945,6 +1227,432 @@ mod tests {
                 assert_eq!(s.class, Class::Opaque);
             }
         }
+    }
+
+    /// The engines' semantics on qubits for one outcome vector: every qubit an op reads, as
+    /// `(op, qubit, value)`, the end of the stream as op `u32::MAX`. `init` is the lane: the
+    /// qubits' initial values.
+    fn reads_of(ops: &[SimOp], init: u8, outcomes: u64) -> Vec<(u32, u32, bool)> {
+        let mut q: Vec<bool> = (0..8).map(|k| init >> k & 1 == 1).collect();
+        let mut bits = [false; 16];
+        let mut stack = Vec::new();
+        let (mut base, mut hmr) = (true, 0);
+        let mut out = Vec::new();
+        for (i, op) in ops.iter().enumerate() {
+            let i = i as u32;
+            let c = op.cond();
+            let m = base && (c == NONE || bits[c as usize]);
+            let mut see = |q: &[bool], x: u32| {
+                if x != NONE {
+                    out.push((i, x, q[x as usize]));
+                }
+            };
+            match *op {
+                SimOp::Push { bit } => {
+                    stack.push(base);
+                    base &= bits[bit as usize];
+                }
+                SimOp::Pop => base = stack.pop().unwrap_or(true),
+                SimOp::X { t, .. } => q[t as usize] ^= m,
+                SimOp::Cx { c, t, .. } => {
+                    see(&q, c);
+                    q[t as usize] ^= m && q[c as usize];
+                }
+                SimOp::Ccx { a, b, t, .. } => {
+                    see(&q, a);
+                    see(&q, b);
+                    q[t as usize] ^= m && q[a as usize] && q[b as usize];
+                }
+                SimOp::Swap { a, b, .. } => {
+                    if m {
+                        q.swap(a as usize, b as usize);
+                    }
+                }
+                SimOp::Phase { q: qs, .. } => qs.iter().for_each(|&x| see(&q, x)),
+                SimOp::Sys { ctrl, .. } => ctrl.iter().for_each(|&x| see(&q, x)),
+                SimOp::Hmr { t, bit, .. } => {
+                    see(&q, t);
+                    if m {
+                        bits[bit as usize] = outcomes >> hmr & 1 == 1;
+                        q[t as usize] = false;
+                    }
+                    hmr += 1;
+                }
+                SimOp::Reset { t } | SimOp::SpinSwap { c: t, .. } => see(&q, t),
+                SimOp::Bit { bit, kind, .. } if m => {
+                    bits[bit as usize] = match kind {
+                        0 => !bits[bit as usize],
+                        1 => false,
+                        _ => true,
+                    };
+                }
+                _ => {}
+            }
+        }
+        out.extend((0..8).map(|x| (u32::MAX, x, q[x as usize])));
+        out
+    }
+
+    /// A random program over eight qubits and a few classical bits, with every op kind that
+    /// reads or writes a non-system qubit, conditioned or not, inside and outside blocks.
+    fn random_qubit_program(r: &mut Rng) -> Vec<SimOp> {
+        let nbits = 2 + r.below(4) as u32;
+        let (mut ops, mut depth, mut hmr) = (Vec::new(), 0, 0);
+        // Most ops carry no condition, so that some programs have no marked read at all.
+        let cond = |r: &mut Rng| {
+            if r.below(4) == 0 {
+                r.below(u64::from(nbits)) as u32
+            } else {
+                NONE
+            }
+        };
+        // Three distinct qubits.
+        let three = |r: &mut Rng| {
+            let a = r.below(8) as u32;
+            let b = (a + 1 + r.below(7) as u32) % 8;
+            let c = (0..8).find(|&x| x != a && x != b).unwrap_or(0);
+            (a, b, (c + r.below(6) as u32) % 8)
+        };
+        for _ in 0..4 + r.below(24) {
+            let (a, b, c) = three(r);
+            let c = if c == a || c == b { NONE } else { c };
+            let bit = r.below(u64::from(nbits)) as u32;
+            match r.below(14) {
+                0 | 1 if hmr < 6 => {
+                    hmr += 1;
+                    ops.push(SimOp::Hmr {
+                        t: a,
+                        bit,
+                        cond: cond(r),
+                    });
+                }
+                2 => ops.push(SimOp::X {
+                    t: a,
+                    cond: cond(r),
+                }),
+                3 | 4 => ops.push(SimOp::Cx {
+                    c: a,
+                    t: b,
+                    cond: cond(r),
+                }),
+                5 if c != NONE => ops.push(SimOp::Ccx {
+                    a,
+                    b,
+                    t: c,
+                    cond: cond(r),
+                }),
+                6 => ops.push(SimOp::Swap {
+                    a,
+                    b,
+                    cond: cond(r),
+                }),
+                7 => ops.push(SimOp::Phase {
+                    q: [a, b, c],
+                    k: 4,
+                    cond: cond(r),
+                }),
+                8 => ops.push(SimOp::Sys {
+                    q: 0,
+                    z: r.below(2) == 0,
+                    ctrl: [a, c],
+                    cond: cond(r),
+                }),
+                9 => ops.push(SimOp::Reset { t: a }),
+                10 => ops.push(SimOp::SpinSwap {
+                    c: a,
+                    cond: cond(r),
+                    dagger: false,
+                }),
+                11 if depth < 3 => {
+                    depth += 1;
+                    ops.push(SimOp::Push { bit });
+                }
+                12 if depth > 0 => {
+                    depth -= 1;
+                    ops.push(SimOp::Pop);
+                }
+                _ => ops.push(SimOp::Bit {
+                    bit,
+                    kind: r.below(3) as u8,
+                    cond: cond(r),
+                }),
+            }
+        }
+        ops.extend((0..depth).map(|_| SimOp::Pop));
+        ops
+    }
+
+    /// Soundness of [`qubit_outcomes`]: over every outcome vector of random programs and several
+    /// lanes, a qubit whose value at a read differs between two outcome vectors is reported as a
+    /// read of a marked qubit. So a program with no reads reported has none that depends on the
+    /// outcomes. The converse is not asserted: a marked qubit may hold the same value for every
+    /// outcome.
+    #[test]
+    fn every_outcome_dependent_qubit_read_is_reported() {
+        let mut r = Rng(0x2545_f491_4f6c_dd1d);
+        let (mut dependent, mut clean, mut clean_with_writes, mut spurious) = (0, 0, 0, 0u64);
+        for _ in 0..6000 {
+            let ops = random_qubit_program(&mut r);
+            let found = marked_reads(&ops, &[], &[], usize::MAX);
+            assert_eq!(found.reads as usize, found.first.len());
+            let short = qubit_outcomes(&ops, &[], &[]);
+            assert_eq!(
+                (short.reads, short.conditioned_writes),
+                (found.reads, found.conditioned_writes)
+            );
+            assert_eq!(
+                short.first[..],
+                found.first[..found.first.len().min(QubitOutcomes::KEPT)]
+            );
+            let reported: std::collections::HashSet<(u32, u32)> =
+                found.first.iter().map(|x| (x.op, x.qubit)).collect();
+            let n = ops
+                .iter()
+                .filter(|o| matches!(o, SimOp::Hmr { .. }))
+                .count();
+            let mut varies = std::collections::HashSet::new();
+            for _ in 0..4 {
+                let init = r.below(256) as u8;
+                let first = reads_of(&ops, init, 0);
+                for o in 1..1u64 << n {
+                    let run = reads_of(&ops, init, o);
+                    assert_eq!(run.len(), first.len());
+                    for (x, y) in run.iter().zip(&first) {
+                        assert_eq!((x.0, x.1), (y.0, y.1));
+                        if x.2 != y.2 {
+                            varies.insert((x.0, x.1));
+                        }
+                    }
+                }
+            }
+            for v in &varies {
+                assert!(
+                    reported.contains(v),
+                    "op {} reads q{}, which depends on the outcomes, unreported: {ops:?}",
+                    v.0,
+                    v.1
+                );
+            }
+            dependent += usize::from(!varies.is_empty());
+            clean += usize::from(found.reads == 0);
+            clean_with_writes += usize::from(found.reads == 0 && found.conditioned_writes > 0);
+            spurious += (reported.len() - varies.len()) as u64;
+        }
+        // The fuzz reaches programs with dependent reads, programs with none reported, and
+        // reports that are over-approximations.
+        assert!(
+            dependent > 1000 && clean > 300 && spurious > 1000,
+            "{dependent} {clean} {clean_with_writes} {spurious}"
+        );
+    }
+
+    /// The rules the fuzz does not reach, and the shape of the laundering the pass exists for.
+    #[test]
+    fn marks_follow_the_stated_rules() {
+        let hmr = |t, bit| SimOp::Hmr { t, bit, cond: NONE };
+        let x_if = |t, cond| SimOp::X { t, cond };
+        // Two outcomes copied into qubits, their AND in qubit 12, a phase controlled on it.
+        let laundered = [
+            hmr(20, 0),
+            hmr(21, 1),
+            x_if(10, 0),
+            x_if(11, 1),
+            SimOp::Ccx {
+                a: 10,
+                b: 11,
+                t: 12,
+                cond: NONE,
+            },
+            SimOp::Phase {
+                q: [12, 1, NONE],
+                k: 4,
+                cond: NONE,
+            },
+        ];
+        let got = qubit_outcomes(&laundered, &[], &[]);
+        assert_eq!(got.conditioned_writes, 2);
+        // The CCX reads both copies, the phase reads the AND, and three qubits stay marked.
+        assert_eq!(got.reads, 6);
+        let at = |i: usize| (got.first[i].op, got.first[i].qubit, got.first[i].source);
+        assert_eq!([at(0), at(1), at(2)], [(4, 10, 2), (4, 11, 3), (5, 12, 2)]);
+        assert_eq!(at(3), (u32::MAX, 10, 2));
+        // The same ops with the conditions removed: nothing is marked.
+        let plain: Vec<SimOp> = laundered
+            .iter()
+            .map(|o| match *o {
+                SimOp::X { t, .. } => x_if(t, NONE),
+                o => o,
+            })
+            .collect();
+        let none = qubit_outcomes(&plain, &[], &[]);
+        assert_eq!((none.conditioned_writes, none.reads), (0, 0));
+        // A conditioned write that nothing reads is still read by the checks at the end.
+        let left = qubit_outcomes(&[hmr(20, 0), x_if(10, 0)], &[], &[]);
+        assert_eq!((left.reads, left.first[0].op), (1, u32::MAX));
+        // A block marks as an own condition does; an unconditioned Hmr removes the mark (and is
+        // itself a read); R does not.
+        let block = |tail: SimOp| {
+            let ops = [
+                hmr(20, 0),
+                SimOp::Push { bit: 0 },
+                x_if(10, NONE),
+                SimOp::Pop,
+                tail,
+            ];
+            qubit_outcomes(&ops, &[], &[]).reads
+        };
+        assert_eq!(block(hmr(10, 1)), 1);
+        assert_eq!(block(SimOp::Reset { t: 10 }), 2);
+        // A marked angle bit is read by its Givens, and a marked inner qubit by the Reflect.
+        let givens = SimOp::Givens {
+            p: 0,
+            q: 1,
+            reg: 0,
+            cond: NONE,
+        };
+        let ops = [hmr(20, 0), x_if(10, 0), givens, SimOp::Reflect];
+        let got = qubit_outcomes(&ops, &[vec![9, 10]], &[10, 11]);
+        assert_eq!((got.first[0].op, got.first[1].op), (2, 3));
+        assert_eq!(got.reads, 3);
+    }
+
+    /// `n` outcomes in bits `0..n`, then bit `n` as their parity.
+    fn parity(n: u32) -> Vec<SimOp> {
+        let mut ops: Vec<SimOp> = (0..n)
+            .map(|b| SimOp::Hmr {
+                t: 0,
+                bit: b,
+                cond: NONE,
+            })
+            .collect();
+        ops.extend((0..n).map(|b| SimOp::Bit {
+            bit: n,
+            kind: 0,
+            cond: b,
+        }));
+        ops
+    }
+
+    /// An equation longer than `MAX_ROW` is `Opaque`, never truncated; one of exactly that
+    /// length is still followed.
+    #[test]
+    fn long_parities_become_opaque() {
+        for (n, want) in [
+            (MAX_ROW as u32, Class::Affine),
+            (MAX_ROW as u32 + 1, Class::Opaque),
+        ] {
+            let mut ops = parity(n);
+            ops.push(SimOp::Neg { cond: n });
+            let a = analyze(&ops);
+            let last = a.sites.last().unwrap();
+            assert_eq!(last.class, want, "{n} variables");
+            assert_eq!(a.memory_capped, want == Class::Opaque);
+            assert!(!a.capped);
+        }
+        // Two equations short enough on their own, one of which grows past the limit when the
+        // other is inserted: `A` is the parity of outcome `p` and the 3,000 after it, `B` of
+        // the 3,000 before `p` and `p`. In the block on `A` and `B`, reducing `A`'s row by
+        // `B`'s leaves 6,000 variables.
+        let half = 3000u32;
+        let (p, n) = (half, 2 * half + 1);
+        let hmr = |bit| SimOp::Hmr {
+            t: 0,
+            bit,
+            cond: NONE,
+        };
+        let into = |bit, from: std::ops::RangeInclusive<u32>| {
+            from.map(move |cond| SimOp::Bit { bit, kind: 0, cond })
+        };
+        let mut ops: Vec<SimOp> = (0..n).map(hmr).collect();
+        ops.extend(into(n, p..=2 * half));
+        ops.extend(into(n + 1, 0..=p));
+        ops.extend([SimOp::Push { bit: n }, SimOp::Push { bit: n + 1 }]);
+        ops.extend([SimOp::Pop, SimOp::Pop]);
+        let a = analyze(&ops);
+        let blocks: Vec<(Class, u8)> = a.sites[a.sites.len() - 2..]
+            .iter()
+            .map(|s| (s.class, s.rank))
+            .collect();
+        assert_eq!(blocks, [(Class::Affine, 1), (Class::Opaque, 0)]);
+        assert!(a.memory_capped);
+    }
+
+    /// A forged stream cannot make the pass hold more than its memory budget: many bits, each
+    /// with its own long equation, are followed until the budget is full and are `Opaque` from
+    /// there on; a deep stack of large path conditions is charged in the same way.
+    #[test]
+    fn the_pass_holds_at_most_its_memory_budget() {
+        let n = MAX_ROW as u32 - 1;
+        let copies = 3 * (HELD_CAP / u64::from(n)) as u32 / 2;
+        let mut ops = parity(n);
+        for k in 0..copies {
+            // b = parity, then b ^= 1: a row of its own, not shared with the parity bit.
+            let bit = n + 1 + k;
+            ops.push(SimOp::Bit {
+                bit,
+                kind: 0,
+                cond: n,
+            });
+            ops.push(SimOp::Bit {
+                bit,
+                kind: 0,
+                cond: NONE,
+            });
+        }
+        let first_site = ops.iter().filter(|o| o.is_site()).count();
+        ops.extend((0..copies).map(|k| SimOp::Neg { cond: n + 1 + k }));
+        let a = analyze(&ops);
+        assert!(a.memory_capped && !a.capped);
+        assert!(
+            a.peak_held <= HELD_CAP && a.peak_held > HELD_CAP / 2,
+            "{}",
+            a.peak_held
+        );
+        let class = |k: u32| a.sites[first_site + k as usize].class;
+        assert_eq!(
+            (class(0), class(copies - 1)),
+            (Class::Affine, Class::Opaque)
+        );
+        assert!(a.sites.iter().all(|s| s.class != Class::Dead));
+
+        // Two bits with long disjoint equations, pushed alternately: every push saves a path
+        // condition of two long rows.
+        let mut ops = parity(n);
+        let shift = n + 1;
+        ops.extend(parity(n).into_iter().map(|o| match o {
+            SimOp::Hmr { t, bit, cond } => SimOp::Hmr {
+                t,
+                bit: bit + shift,
+                cond,
+            },
+            SimOp::Bit { bit, kind, cond } => SimOp::Bit {
+                bit: bit + shift,
+                kind,
+                cond: cond + shift,
+            },
+            o => o,
+        }));
+        let depth = 3 * (HELD_CAP / (2 * u64::from(n))) as usize / 2;
+        let first_site = ops.iter().filter(|o| o.is_site()).count();
+        for d in 0..depth {
+            ops.push(SimOp::Push {
+                bit: if d % 2 == 0 { n } else { n + shift },
+            });
+        }
+        ops.extend((0..depth).map(|_| SimOp::Pop));
+        ops.push(SimOp::Neg { cond: n });
+        let a = analyze(&ops);
+        assert!(a.memory_capped && !a.capped);
+        assert!(a.peak_held <= HELD_CAP, "{}", a.peak_held);
+        // Every push is followed (the condition in force is never dropped, only saved copies),
+        // and the site after the last pop is followed again.
+        let ranks: Vec<(Class, u8)> = a.sites[first_site..]
+            .iter()
+            .map(|s| (s.class, s.rank))
+            .collect();
+        assert_eq!(ranks[0], (Class::Affine, 1));
+        assert!(ranks[1..depth].iter().all(|&x| x == (Class::Affine, 2)));
+        assert_eq!(ranks[depth], (Class::Affine, 1));
     }
 
     #[test]

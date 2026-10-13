@@ -9,8 +9,12 @@ pub const RESULTS_HEADER: &str =
     "unix_time\tcommit\tspec\tfamily_name\tfamily_axes\tlambda\ttoffoli\t\
 qubits\tscore\ttotal_toffoli_lit\tsamples\tstatus\tnote";
 
-/// `sampling_limits.measurement_outcomes` of a run in the outcome-coverage mode.
-pub const COVERED_OUTCOMES: &str = "drawn uniformly per lane; in addition every conditioned site not proved unreachable executed on validated control-1 lanes (metrics.outcome_coverage), a per-site count and not a bound over combinations of outcomes";
+/// `sampling_limits.measurement_outcomes` of a run in the outcome-coverage mode in which no op
+/// reads a qubit written under a classical condition.
+pub const COVERED_OUTCOMES: &str = "drawn uniformly per lane; in addition every classical-condition site not proved unreachable executed on validated control-1 lanes, and no op reads a qubit written under a classical condition (metrics.outcome_coverage); a per-site count and not a bound over combinations of outcomes";
+
+/// The same for a sites-only run in which some op does read such a qubit.
+pub const COVERED_SITES_ONLY: &str = "drawn uniformly per lane; in addition every classical-condition site not proved unreachable executed on validated control-1 lanes (metrics.outcome_coverage, sites only). Ops that read a qubit written under a classical condition are steered by outcomes without being sites and are not covered: a block they reach only on a rare outcome pattern is tested on few or no lanes. A per-site count and not a bound over combinations of outcomes";
 
 /// `sampling_limits.implied_error_bound_holds_if` of a run whose reflection check certified.
 pub const CERTIFIED_HERMITIAN: &str = "no further condition on the lanes' Hermiticity: metrics.reflection certifies that the step is Hermitian on every lane and outcome record, so the bound holds for the encoded operator at the confidence of wrong_weight_bound; it is still a bound from sampled lanes, far above chemical accuracy";
@@ -163,7 +167,12 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
     // unchanged.
     if let Some(c) = &ev.outcome_coverage {
         out["metrics"]["outcome_coverage"] = c.json.clone();
-        out["metrics"]["sampling_limits"]["measurement_outcomes"] = json!(COVERED_OUTCOMES);
+        out["metrics"]["sampling_limits"]["measurement_outcomes"] =
+            json!(if c.qubit_outcome_reads == 0 {
+                COVERED_OUTCOMES
+            } else {
+                COVERED_SITES_ONLY
+            });
     }
     // Reflection check only (spec/SAMPLING.md section 4): every other run's score.json is
     // unchanged. The bound's condition is replaced only when the certificate holds.

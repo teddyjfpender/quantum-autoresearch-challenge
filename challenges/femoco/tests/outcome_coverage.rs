@@ -2,7 +2,10 @@
 //! spec/DESIGN.md section 9) on the harness's toy spec: a block conditioned on a rare outcome
 //! pattern is accepted by uniform sampling and rejected by the mode; a block whose condition
 //! the static pass cannot follow is refused, not passed; honest circuits pass with the uniform
-//! run's metrics untouched; and nothing changes without the flag.
+//! run's metrics untouched; and nothing changes without the flag. A rare block reached through
+//! a qubit instead of a condition (no site is rare) is refused, or reported as not covered in
+//! the sites-only scope. With the `walk` feature the same is run on a nested lane map with the
+//! Gaussian tracker (the published construction on a 3-orbital spec).
 mod harness_common;
 
 use femoco_walk::circuit::{Op, OperationType as K, NONE};
@@ -11,7 +14,7 @@ use femoco_walk::fastsim;
 use femoco_walk::fiat_shamir::{self, AuditBeacon, Lane};
 use femoco_walk::lanemap::LaneMap;
 use femoco_walk::score::coverage::{COVERAGE_MIN, MAX_STRATA, STRATUM_LANES};
-use femoco_walk::score::{self, score_json, Evaluation, Inputs, Options};
+use femoco_walk::score::{self, score_json, Evaluation, Inputs, Options, OutcomeCoverage};
 use femoco_walk::sim::validate::{self, Context, Engine, Nested, Outcome};
 use femoco_walk::spec::EncodingSpec;
 use harness_common::{alias, build, declared_only, family, ops_file, Mutation, TestSpec, N};
@@ -116,6 +119,20 @@ fn eval_on(
     engine: Engine,
     coverage: bool,
 ) -> Result<Evaluation, String> {
+    let scope = if coverage {
+        OutcomeCoverage::Full
+    } else {
+        OutcomeCoverage::Off
+    };
+    eval_scope(ops, samples, engine, scope)
+}
+
+fn eval_scope(
+    ops: &[Op],
+    samples: usize,
+    engine: Engine,
+    scope: OutcomeCoverage,
+) -> Result<Evaluation, String> {
     let spec = TestSpec::new();
     let file = ops_file(ops);
     let lm = alias().to_bytes();
@@ -130,7 +147,7 @@ fn eval_on(
         check: &declared_only,
     };
     let opts = Options {
-        outcome_coverage: coverage,
+        outcome_coverage: scope,
         ..Options::default()
     };
     score::evaluate_opts(&inp, engine, None, opts)
@@ -257,7 +274,10 @@ fn honest_rare_block_passes_with_the_uniform_metrics_unchanged() {
         );
         assert_eq!(body(&ev, true), body(&base, false));
         let j = &score_json(&ev)["metrics"]["outcome_coverage"];
-        assert_eq!(j["mode"], "femoco-outcome-coverage-v1");
+        assert_eq!(j["mode"], "femoco-outcome-coverage-v2");
+        assert_eq!(j["scope"], "sites-and-qubit-outcomes");
+        assert_eq!(j["qubit_outcomes"]["reads"], 0);
+        assert_eq!(j["qubit_outcomes"]["covered"], true);
         assert_eq!(j["required_control_one_executions"], COVERAGE_MIN);
         assert_eq!(j["directed"]["strata"], c.directed_strata);
         assert_eq!(j["directed"]["lanes_per_stratum"], STRATUM_LANES);
@@ -286,6 +306,7 @@ fn common_branches_need_no_directed_lanes() {
         (64, 64, 0, 0)
     );
     assert_eq!(c.directed_strata, 0);
+    assert_eq!((c.conditioned_qubit_writes, c.qubit_outcome_reads), (0, 0));
     assert!(c.min_control_one.unwrap() > 800 && c.min_control_zero.unwrap() > 800);
     // An existing mutant is still rejected with its ordinary message.
     let bad = build(&TestSpec::new(), &alias(), Mutation::FlipSign(1));
@@ -384,6 +405,114 @@ fn proved_unreachable_blocks_are_exempt() {
             assert!(r[10..].iter().all(|&x| x == 0));
         }
     }
+}
+
+fn gate(kind: K, t: u32, c1: u32, c2: u32, cond: u32) -> Op {
+    let mut o = op(kind);
+    (o.q_target, o.q_control1, o.q_control2, o.c_condition) = (t, c1, c2, cond);
+    o
+}
+
+/// The rare block of `conjunction` with no rare site: the toy circuit, `n` measured bits, each
+/// copied into a qubit by one conditioned `X` (a site that runs on half the lanes), the AND of
+/// those qubits by unconditioned Toffolis (not sites), and the body controlled on the AND
+/// qubit with no classical condition. The body acts on the outcome pattern all-ones only,
+/// probability `2^-n`. Everything is uncomputed.
+fn laundered(n: u32, body: Body) -> Vec<Op> {
+    let mut ops = toy();
+    ops.extend(measured_bits(n, 0));
+    let a = |i: u32| Q0 + i;
+    let t = |i: u32| Q0 + 1000 + i;
+    let copy: Vec<Op> = (0..n)
+        .map(|i| gate(K::X, a(i), NONE, NONE, B0 + i))
+        .collect();
+    let mut chain = vec![gate(K::CCX, t(1), a(0), a(1), NONE)];
+    chain.extend((2..n).map(|i| gate(K::CCX, t(i), t(i - 1), a(i), NONE)));
+    ops.extend(copy.iter().copied());
+    ops.extend(chain.iter().copied());
+    match body {
+        Body::Honest => {}
+        Body::Sign => ops.push(gate(K::CZ, 0, t(n - 1), NONE, NONE)),
+        Body::Term => ops.push(gate(K::CCZ, 1, 0, t(n - 1), NONE)),
+    }
+    ops.extend(chain.iter().rev().copied());
+    ops.extend(copy.iter().copied());
+    ops
+}
+
+/// (l) A site is a classical condition only. The same wrong block reached through a qubit has
+/// no rare site: every conditioned op runs on half the lanes, uniform sampling never reaches
+/// the block, and the per-site rule alone passes it. The mode refuses the stream because an op
+/// reads a qubit written under a classical condition; the sites-only scope passes it and says
+/// that those ops are not covered.
+#[test]
+fn rare_block_reached_through_a_qubit_is_refused_not_passed() {
+    for wrong in [Body::Sign, Body::Term] {
+        // The body is wrong whenever it is reached: with two bits, on a quarter of the lanes.
+        let e = plain(&laundered(2, wrong)).unwrap_err();
+        assert!(e.contains(wrong.category()), "{e}");
+        assert_eq!(covered(&laundered(2, wrong)).unwrap_err(), e);
+        // With 24 bits no sampled lane reaches it.
+        let ops = laundered(24, wrong);
+        plain(&ops).unwrap();
+        // The first Toffoli of the AND chain (the toy circuit has Toffolis of its own).
+        let first_and = ops
+            .iter()
+            .position(|o| o.kind == K::CCX && o.q_control1 == Q0)
+            .unwrap();
+        let first_copy = ops
+            .iter()
+            .position(|o| o.kind == K::X && o.c_condition == B0)
+            .unwrap();
+        for engine in [validate::reference as Engine, sliced()] {
+            let e = eval_on(&ops, K_LANES, engine, true).unwrap_err();
+            assert!(
+                e.starts_with(&format!(
+                    "outcome-coverage: outcome-in-qubit: op {first_and} (CCX) reads qubit q{Q0}, \
+                     which may hold a measurement outcome since op {first_copy} (X) wrote a \
+                     qubit under a classical condition"
+                )),
+                "{wrong:?}: {e}"
+            );
+            // Sites only: this is the acceptance the per-site rule gives, with no stratum,
+            // because no site is rare. The report says what it leaves out.
+            let ev = eval_scope(&ops, K_LANES, engine, OutcomeCoverage::SitesOnly).unwrap();
+            let c = ev.outcome_coverage.as_ref().unwrap();
+            assert_eq!(
+                (c.directed_strata, c.opaque, c.proved_unreachable),
+                (0, 0, 0)
+            );
+            assert!(c.min_control_one.unwrap() >= COVERAGE_MIN);
+            assert_eq!(c.conditioned_qubit_writes, 48);
+            assert!(c.qubit_outcome_reads >= 48, "{}", c.qubit_outcome_reads);
+            let j = score_json(&ev);
+            let cov = &j["metrics"]["outcome_coverage"];
+            assert_eq!(cov["scope"], "sites-only");
+            assert_eq!(cov["qubit_outcomes"]["covered"], false);
+            assert_eq!(cov["qubit_outcomes"]["first_reads"][0]["op"], first_and);
+            let statement = cov["statement"].as_str().unwrap();
+            assert!(
+                statement.contains("is not exercised by this mode")
+                    && !statement.contains("no op reads a qubit"),
+                "{statement}"
+            );
+            let limits = j["metrics"]["sampling_limits"]["measurement_outcomes"]
+                .as_str()
+                .unwrap();
+            assert!(limits.contains("are not covered"), "{limits}");
+        }
+    }
+    // The refusal is not a finding: the same stream without the wrong op is refused too.
+    let honest = laundered(24, Body::Honest);
+    plain(&honest).unwrap();
+    assert!(covered(&honest)
+        .unwrap_err()
+        .contains("outcome-coverage: outcome-in-qubit"));
+    // A circuit that is wrong on its sampled lanes keeps its ordinary rejection: the refusal
+    // comes after the uniform lanes.
+    let mut bad = build(&TestSpec::new(), &alias(), Mutation::FlipSign(1));
+    bad.extend(laundered(24, Body::Honest).split_off(toy().len()));
+    assert_eq!(covered(&bad).unwrap_err(), plain(&bad).unwrap_err());
 }
 
 fn width<const W: usize>(
@@ -513,20 +642,23 @@ fn too_many_rare_conditions_are_refused() {
 /// (k) The ledger's circuits. Ignored: heavy, and the artifacts are built outside the test. Set
 /// `FEMOCO_COVERAGE_ROOTS` to `:`-separated directories, each holding one built circuit
 /// (`ops.bin`, `lanemap.bin`, `family.out.json`), and run through tools/heavy.sh. Each is
-/// evaluated at `2^19` lanes on the sliced engine in the mode; the circuits pinned below must
-/// pass with no directed strata and exactly the stated number of proved-unreachable sites.
+/// evaluated at `2^19` lanes on the sliced engine in the sites-only scope and again in the full
+/// scope; the circuits pinned below must pass the per-site rule with no directed strata and
+/// exactly the stated numbers of proved-unreachable sites and of qubit reads, and the full scope
+/// must pass exactly those with no such read.
 #[test]
 #[ignore = "heavy: needs built circuits (FEMOCO_COVERAGE_ROOTS); run through tools/heavy.sh"]
 fn ledger_circuits_pass_with_no_directed_strata() {
     use femoco_walk::{circuit::read_ops, sim, spec, taxonomy};
-    // (ops.bin SHA-256, proved-unreachable sites).
-    let pinned = [
+    // (ops.bin SHA-256, proved-unreachable sites, reads of a qubit written under a condition).
+    let pinned: [(&str, usize, u64); 3] = [
         (
             "95e8fe8982dca129be65f4d11e4bdce0eb1fd4173f9294687ad0dba8646e2ea9",
             100,
+            0,
         ),
-        ("a939d204", 4),
-        ("22ed4a76", 10),
+        ("a939d204", 4, 1_307_151),
+        ("22ed4a76", 10, 2_300_772),
     ];
     let roots = std::env::var("FEMOCO_COVERAGE_ROOTS").expect("FEMOCO_COVERAGE_ROOTS");
     let here = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -550,20 +682,272 @@ fn ledger_circuits_pass_with_no_directed_strata() {
             check: &check,
         };
         let digest = hex::encode(ops.sha256);
-        let opts = Options {
-            outcome_coverage: true,
-            ..Options::default()
+        let run = |scope| {
+            let opts = Options {
+                outcome_coverage: scope,
+                ..Options::default()
+            };
+            score::evaluate_opts(&inp, sliced(), None, opts)
         };
-        let ev = score::evaluate_opts(&inp, sliced(), None, opts)
-            .unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
+        let ev =
+            run(OutcomeCoverage::SitesOnly).unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
         let c = ev.outcome_coverage.unwrap();
         println!(
-            "{}: ops {digest}: {} sites, {} proved unreachable, {} opaque, min control-1 executions {:?}, {} strata, {:.1} s",
-            dir.display(), c.sites, c.proved_unreachable, c.opaque, c.min_control_one, c.directed_strata, ev.seconds
+            "{}: ops {digest}: {} sites, {} proved unreachable, {} opaque, min control-1 executions {:?}, {} strata, {} conditioned qubit writes, {} reads of such a qubit, {:.1} s",
+            dir.display(), c.sites, c.proved_unreachable, c.opaque, c.min_control_one, c.directed_strata,
+            c.conditioned_qubit_writes, c.qubit_outcome_reads, ev.seconds
         );
         assert_eq!(c.directed_strata, 0);
-        if let Some((_, dead)) = pinned.iter().find(|(d, _)| digest.starts_with(d)) {
+        // The full scope passes exactly the circuits in which no op reads a qubit written
+        // under a classical condition, and refuses the others for that reason.
+        let full = run(OutcomeCoverage::Full);
+        match &full {
+            Ok(_) => println!("  full scope: passes"),
+            Err(e) => println!("  full scope: {}", &e[..e.len().min(200)]),
+        }
+        assert_eq!(
+            full.is_ok(),
+            c.qubit_outcome_reads == 0,
+            "{}",
+            dir.display()
+        );
+        if let Err(e) = &full {
+            assert!(e.starts_with("outcome-coverage: outcome-in-qubit: "), "{e}");
+        }
+        if let Some((_, dead, reads)) = pinned.iter().find(|(d, ..)| digest.starts_with(d)) {
             assert_eq!(c.proved_unreachable, *dead, "{}", dir.display());
+            assert_eq!(c.qubit_outcome_reads, *reads, "{}", dir.display());
+        }
+    }
+}
+
+/// The mode on a nested lane map with the Gaussian tracker: the only kind of circuit on the
+/// ledger. A directed stratum is then an engine call with second-pass inner values and a
+/// tracker of its own.
+#[cfg(feature = "walk")]
+mod nested {
+    use super::*;
+    use femoco_walk::circuit::{read_ops, write_ops, Builder, OpsFile};
+    use femoco_walk::lanemap::sa_nested::SaNestedMap;
+    use femoco_walk::score::FamilyOut;
+    use femoco_walk::sim::givens_tracker;
+    use femoco_walk::spec::sa::{parse_payload, SaSpec};
+    use femoco_walk::taxonomy;
+    use femoco_walk::walk::sa_low::{self, Params, Tweaks};
+
+    const BETA: u32 = 8;
+
+    fn angles(seed: u64, count: usize) -> Vec<u32> {
+        let mut x = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        (0..count)
+            .map(|_| {
+                x ^= x << 13;
+                x ^= x >> 7;
+                x ^= x << 17;
+                (x % (1 << BETA)) as u32
+            })
+            .collect()
+    }
+
+    /// The 3-orbital exact sos-sa spec of `tests/sa_nested.rs`.
+    fn spec() -> SaSpec {
+        let n = 3;
+        let mut out = b"FEMOSAS1".to_vec();
+        for v in [1u32, n as u32, 1, 2, 2, BETA, 3] {
+            out.extend_from_slice(&v.to_le_bytes());
+        }
+        out.extend_from_slice(&(-2.5f64).to_le_bytes());
+        for x in [3.0f64, -1.0, 4.0] {
+            out.extend_from_slice(&x.to_le_bytes());
+        }
+        for a in angles(30, n * (n - 1)) {
+            out.extend_from_slice(&a.to_le_bytes());
+        }
+        for x in [2.0f64, -1.0, 1.0, 1.0, 2.0, -1.0] {
+            out.extend_from_slice(&x.to_le_bytes());
+        }
+        for a in angles(31, 2 * (n - 1)) {
+            out.extend_from_slice(&a.to_le_bytes());
+        }
+        parse_payload("test-sa-v1", &out).unwrap()
+    }
+
+    /// `sa-low2025` (Low et al.'s construction, with `SpinSwap`) at this spec's size.
+    const P: Params = Params {
+        outer: (3, 2),
+        inner: (2, 1),
+        outer_a: 1,
+        inner_a: 1,
+        swap: true,
+        chunks: 1,
+        outer_erase: false,
+        dense: false,
+        tw: Tweaks::OFF,
+        pareto: false,
+        lean: false,
+        carries: 0,
+        drop_alt: false,
+        narrow: femoco_walk::walk::sa_low::pareto::Narrow::OFF,
+    };
+
+    struct Fixture {
+        spec: SaSpec,
+        map: SaNestedMap,
+        ops: Vec<Op>,
+    }
+
+    fn fixture() -> Fixture {
+        let spec = spec();
+        let map = sa_low::lane_map(&spec, P).unwrap();
+        let mut b = Builder::new(2 * spec.n);
+        b.declare_uniform(map.uniform_bits());
+        let _ = sa_low::emit(&spec, &map, &mut b, P);
+        Fixture {
+            spec,
+            map,
+            ops: b.finish(),
+        }
+    }
+
+    fn file(ops: &[Op]) -> OpsFile {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("femoco-cov-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("ops.bin");
+        write_ops(ops, &path).unwrap();
+        let f = read_ops(&path).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        f
+    }
+
+    impl Fixture {
+        fn eval(
+            &self,
+            ops: &[Op],
+            samples: usize,
+            engine: Engine,
+            scope: OutcomeCoverage,
+        ) -> Result<Evaluation, String> {
+            let tp =
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("taxonomy/taxonomy.json");
+            let tax = taxonomy::load_taxonomy(&tp).unwrap();
+            let check = |f: &_, facts: &_| taxonomy::check(&tax, f, facts);
+            let fam = serde_json::to_vec(&FamilyOut {
+                family: sa_low::family(true),
+                spec: self.spec.id().to_string(),
+            })
+            .unwrap();
+            let file = file(ops);
+            let lm = self.map.to_bytes();
+            let inp = Inputs {
+                spec: &self.spec,
+                lanemap: &lm,
+                family: &fam,
+                ops: &file,
+                samples,
+                tracker: givens_tracker(&self.spec),
+                check: &check,
+            };
+            let opts = Options {
+                outcome_coverage: scope,
+                ..Options::default()
+            };
+            score::evaluate_opts(&inp, engine, None, opts)
+        }
+
+        /// The construction followed by `body` nested under `n` fresh measured bits.
+        fn with_rare_block(&self, n: u32, body: &[Op]) -> Vec<Op> {
+            let q0 = self.ops.iter().flat_map(Op::qubits).max().unwrap() + 1;
+            let b0 = 1 << 20;
+            let mut ops = self.ops.clone();
+            ops.extend((0..n).map(|i| hmr(q0 + i, b0 + i)));
+            ops.extend((0..n).map(|i| push(b0 + i)));
+            ops.extend(body.iter().copied());
+            ops.extend((0..n).map(|_| pop()));
+            ops
+        }
+    }
+
+    fn both() -> [(&'static str, Engine); 2] {
+        [("reference", validate::reference), ("sliced", sliced())]
+    }
+
+    /// An honest block behind 24 outcome conditions passes on both engines with the same site
+    /// table and the uniform run's `score.json`; a wrong one (a sign, or a wrong system
+    /// operator) is found by a directed lane, on both engines with the same message.
+    #[test]
+    fn rare_block_on_a_nested_lane_map_gets_directed_lanes_with_the_tracker() {
+        let fx = fixture();
+        let k = 1 << 11;
+        let honest = fx.with_rare_block(24, &[op(K::Neg), op(K::Neg)]);
+        let base = fx
+            .eval(&honest, k, validate::reference, OutcomeCoverage::Off)
+            .unwrap();
+        assert!(base.nested.is_some());
+        let mut tables = Vec::new();
+        for (name, engine) in both() {
+            let ev = fx
+                .eval(&honest, k, engine, OutcomeCoverage::Full)
+                .unwrap_or_else(|e| panic!("{name}: {e}"));
+            let c = ev.outcome_coverage.as_ref().unwrap();
+            // Ranks 3 to 24 cannot reach 256 control-1 executions on 2,048 uniform lanes.
+            assert!(
+                c.directed_strata >= 21,
+                "{name}: {} strata",
+                c.directed_strata
+            );
+            assert!(c.min_control_one.unwrap() >= COVERAGE_MIN);
+            assert_eq!(c.qubit_outcome_reads, 0);
+            assert_eq!(body(&ev, true), body(&base, false), "{name}");
+            tables.push(c.table.clone());
+        }
+        assert_eq!(tables[0], tables[1]);
+        // The walk control is qubit 0; system qubit 0 is qubit 1.
+        for (wrong, category) in [
+            (gate(K::Z, 0, NONE, NONE, NONE), "sign flipped"),
+            (gate(K::CZ, 1, 0, NONE, NONE), "tracker"),
+        ] {
+            let ops = fx.with_rare_block(24, &[wrong]);
+            fx.eval(&ops, k, validate::reference, OutcomeCoverage::Off)
+                .unwrap_or_else(|e| panic!("uniform sampling rejected: {e}"));
+            let mut seen = Vec::new();
+            for (name, engine) in both() {
+                let e = fx.eval(&ops, k, engine, OutcomeCoverage::Full).unwrap_err();
+                assert!(
+                    e.starts_with("outcome-coverage (directed lanes for op ")
+                        && e.contains(category),
+                    "{name}: {e}"
+                );
+                seen.push(e);
+            }
+            assert_eq!(seen[0], seen[1], "the engines differ");
+        }
+    }
+
+    /// The published construction at lane counts too small for its common branches: most sites
+    /// then need directed lanes. It passes at each count, on both engines with the same site
+    /// table, and its uniform metrics are those of the run without the flag.
+    #[test]
+    fn published_construction_passes_at_small_lane_counts_through_directed_lanes() {
+        let fx = fixture();
+        for k in [8, 64, 512] {
+            let base = fx
+                .eval(&fx.ops, k, validate::reference, OutcomeCoverage::Off)
+                .unwrap();
+            let mut seen = Vec::new();
+            for (name, engine) in both() {
+                let ev = fx
+                    .eval(&fx.ops, k, engine, OutcomeCoverage::Full)
+                    .unwrap_or_else(|e| panic!("{name} at {k} lanes: {e}"));
+                let c = ev.outcome_coverage.as_ref().unwrap();
+                assert!(c.directed_strata > 0, "{name} at {k} lanes");
+                assert!(c.min_control_one.unwrap() >= COVERAGE_MIN);
+                assert_eq!((c.conditioned_qubit_writes, c.qubit_outcome_reads), (0, 0));
+                assert_eq!(body(&ev, true), body(&base, false), "{name} at {k} lanes");
+                seen.push((c.table.clone(), c.directed_strata));
+            }
+            assert_eq!(seen[0], seen[1], "{k} lanes");
         }
     }
 }

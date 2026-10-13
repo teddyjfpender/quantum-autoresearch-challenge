@@ -32,19 +32,27 @@
 //! `validate::VERDICT_UNCHECKED`), for the equivalence harness (tools/fastsim/equivalence.sh).
 //!
 //! Outcome coverage (spec/SAMPLING.md section 2.3, spec/DESIGN.md section 9): `--outcome-coverage`
-//! (no value; opt-in). Measurement outcomes are drawn uniformly per lane, so a block conditioned
-//! on a rare outcome pattern runs on few or no sampled lanes. With this flag the engine counts,
-//! per conditioned site (each `PushCondition` block and each op with a condition of its own), the
-//! lanes on which the site executed; sites the ordinary lanes leave short get directed lanes
-//! (1,024 per distinct condition, outcomes uniform on the solutions of that condition, every
-//! per-lane check applied); and the run is refused unless every site not proved unreachable
-//! executed on at least 256 control-1 lanes that passed. A refusal names the op. The result is
-//! `metrics.outcome_coverage` in `score.json`. Toffoli, qubit and every other count and bound
-//! still come from the ordinary uniform lanes only: directed lanes are used to reject and to
-//! count executions, nothing else. It is a per-site statement; it does not cover combinations of
-//! outcomes across sites and does not certify an energy error. `--dump-coverage FILE` (with the
-//! flag) writes the whole site table whose SHA-256 `score.json` carries. Without the flag no
-//! code of the mode runs and every output is what it was before the mode existed.
+//! or `--outcome-coverage=sites` (opt-in). Measurement outcomes are drawn uniformly per lane, so
+//! a block conditioned on a rare outcome pattern runs on few or no sampled lanes. With this flag
+//! the engine counts, per conditioned site (each `PushCondition` block and each op with a
+//! condition of its own), the lanes on which the site executed; sites the ordinary lanes leave
+//! short get directed lanes (1,024 per distinct condition, outcomes uniform on the solutions of
+//! that condition, every per-lane check applied); and the run is refused unless every site not
+//! proved unreachable executed on at least 256 control-1 lanes that passed. A refusal names the
+//! op. The result is `metrics.outcome_coverage` in `score.json`. Toffoli, qubit and every other
+//! count and bound still come from the ordinary uniform lanes only: directed lanes are used to
+//! reject and to count executions, nothing else.
+//!
+//! A site is a classical condition only. An outcome copied into a qubit by a conditioned write
+//! steers later ops as a quantum control without any site, so `--outcome-coverage` also refuses
+//! a circuit in which an op reads a qubit written under a classical condition
+//! (`outcome-coverage: outcome-in-qubit: ...`). That refusal is not a finding that the circuit
+//! is wrong. `--outcome-coverage=sites` applies the per-site rule alone, reports those reads and
+//! states that they are not covered. Either way it is a per-site statement; it does not cover
+//! combinations of outcomes across sites and does not certify an energy error.
+//! `--dump-coverage FILE` (with the flag) writes the whole site table whose SHA-256 `score.json`
+//! carries. Without the flag no code of the mode runs and every output is what it was before
+//! the mode existed.
 //!
 //! Reflection check (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6):
 //! `--reflection-check MODE`, opt-in, `MODE` = `report` or `require`. After every sampled lane
@@ -63,7 +71,7 @@
 use femoco_walk::circuit::read_ops;
 use femoco_walk::fiat_shamir::{self, quicknet, AuditBeacon, Digests};
 use femoco_walk::score::{
-    self, append_results_row, score_json, Inputs, ReflectionCheck, ResultsRow,
+    self, append_results_row, score_json, Inputs, OutcomeCoverage, ReflectionCheck, ResultsRow,
 };
 use femoco_walk::sim::validate::{self, Engine};
 use femoco_walk::{equiv, sim, spec, taxonomy};
@@ -90,7 +98,7 @@ struct Args {
     server_seed: Option<[u8; 32]>,
     engine: Option<(String, Engine)>,
     dump_verdicts: Option<PathBuf>,
-    outcome_coverage: bool,
+    outcome_coverage: OutcomeCoverage,
     dump_coverage: Option<PathBuf>,
     reflection: ReflectionCheck,
 }
@@ -109,7 +117,7 @@ fn args() -> Result<Args, String> {
         server_seed: None,
         engine: None,
         dump_verdicts: None,
-        outcome_coverage: false,
+        outcome_coverage: OutcomeCoverage::Off,
         dump_coverage: None,
         reflection: ReflectionCheck::Off,
     };
@@ -158,8 +166,17 @@ fn args() -> Result<Args, String> {
                 a.engine = Some((name, e));
             }
             "--dump-verdicts" => a.dump_verdicts = Some(val()?.into()),
-            "--outcome-coverage" if inline.is_none() => a.outcome_coverage = true,
-            "--outcome-coverage" => return Err("--outcome-coverage takes no value".into()),
+            "--outcome-coverage" => {
+                a.outcome_coverage = match inline.as_deref() {
+                    None => OutcomeCoverage::Full,
+                    Some("sites") => OutcomeCoverage::SitesOnly,
+                    Some(other) => {
+                        return Err(format!(
+                            "--outcome-coverage={other}: expected no value or =sites"
+                        ))
+                    }
+                };
+            }
             "--dump-coverage" => a.dump_coverage = Some(val()?.into()),
             "--reflection-check" => {
                 a.reflection = match val()?.as_str() {
@@ -190,7 +207,7 @@ fn args() -> Result<Args, String> {
                 .into(),
         );
     }
-    if a.dump_coverage.is_some() && !a.outcome_coverage {
+    if a.dump_coverage.is_some() && a.outcome_coverage == OutcomeCoverage::Off {
         return Err("--dump-coverage needs --outcome-coverage".into());
     }
     if a.server_seed.is_some() && given.iter().any(|&g| g) {
@@ -432,8 +449,14 @@ fn run(
         .map_or(validate::reference as Engine, |e| e.1);
     let mut probe = score::Probe::default();
     let probe_ref = a.dump_verdicts.is_some().then_some(&mut probe);
-    if a.outcome_coverage {
-        println!("  coverage    : outcome-coverage mode (spec/SAMPLING.md section 2.3)");
+    match a.outcome_coverage {
+        OutcomeCoverage::Off => {}
+        OutcomeCoverage::Full => {
+            println!("  coverage    : outcome-coverage mode (spec/SAMPLING.md section 2.3)");
+        }
+        OutcomeCoverage::SitesOnly => println!(
+            "  coverage    : outcome-coverage mode, sites only (spec/SAMPLING.md section 2.3)"
+        ),
     }
     if a.reflection != ReflectionCheck::Off {
         println!("  reflection  : static Hermiticity check (spec/SAMPLING.md section 4)");
@@ -602,6 +625,16 @@ fn main() {
                     c.min_control_one.map_or("n/a".to_string(), |n| n.to_string()),
                     c.directed_strata,
                     c.lanes_per_stratum
+                );
+                println!(
+                    "  coverage    : {} conditioned qubit writes, {} reads of such a qubit{}",
+                    c.conditioned_qubit_writes,
+                    c.qubit_outcome_reads,
+                    if c.qubit_outcome_reads == 0 {
+                        ""
+                    } else {
+                        " (not sites: not covered)"
+                    }
                 );
             }
             if let Some(r) = &ev.reflection {

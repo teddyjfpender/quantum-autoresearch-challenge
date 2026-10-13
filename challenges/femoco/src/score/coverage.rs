@@ -20,18 +20,41 @@
 //! - A site whose condition the static pass cannot follow gets no directed lanes; if the uniform
 //!   lanes leave it short the run is refused.
 //!
+//! **What a site is not.** A site is a classical condition. An outcome can also be copied into a
+//! qubit by a conditioned write and then act as a quantum control, with no condition on the op
+//! it steers; such an op is not a site, and a block reached that way on a rare outcome pattern
+//! leaves every site well exercised. `sim::condition::qubit_outcomes` finds the ops that read a
+//! qubit written under a classical condition. The mode ([`Scope::Full`]) refuses a stream that
+//! has one; [`Scope::SitesOnly`] applies the per-site rule alone and reports them, and its
+//! statement says that they are not covered.
+//!
 //! Directed lanes are used for rejection and for these counts only. Their tallies are dropped,
 //! so every cost figure and every bound of `score.json` is that of the uniform run.
 use crate::circuit::{Op, OperationType as K, NONE};
 use crate::sim::compile::SimOp;
-use crate::sim::condition::{self, Analysis, Class, System};
+use crate::sim::condition::{self, Analysis, Class, QubitOutcomes, System};
 pub use crate::sim::condition::{COVERAGE_MIN, MAX_STRATA, STRATUM_LANES};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-/// `metrics.outcome_coverage.mode`.
-pub const MODE: &str = "femoco-outcome-coverage-v1";
+/// `metrics.outcome_coverage.mode`. `v2` added the refusal of outcomes read from qubits and the
+/// `scope` and `qubit_outcomes` keys.
+pub const MODE: &str = "femoco-outcome-coverage-v2";
+
+/// How much of the mode runs (`eval_circuit --outcome-coverage[=sites]`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Scope {
+    /// The mode does not run and no output changes.
+    #[default]
+    Off,
+    /// The per-site rule only. Ops that read a qubit written under a classical condition are
+    /// reported, not refused; the run's statement says they are not covered.
+    SitesOnly,
+    /// The per-site rule, and a refusal when any op reads a qubit written under a classical
+    /// condition.
+    Full,
+}
 
 /// What a passing run in the mode adds to an `Evaluation`.
 #[derive(Clone, Debug)]
@@ -48,6 +71,11 @@ pub struct CoverageReport {
     /// `None` when there is no such site.
     pub min_control_one: Option<u64>,
     pub min_control_zero: Option<u64>,
+    /// Ops that write a non-system qubit under a classical condition, and ops that read a qubit
+    /// so written (`sim::condition::qubit_outcomes`). The second is 0 on every run with
+    /// [`Scope::Full`].
+    pub conditioned_qubit_writes: u64,
+    pub qubit_outcome_reads: u64,
     /// `metrics.outcome_coverage`.
     pub json: Value,
     /// The whole site table (`eval_circuit --dump-coverage`): per site, in stream order, `u64`
@@ -62,12 +90,24 @@ pub(crate) struct Plan {
     pub(crate) analysis: Analysis,
     /// Per site: the index of its op in the raw stream.
     raw: Vec<u32>,
+    scope: Scope,
+    qubits: QubitOutcomes,
+    /// The first reads of `qubits`: the reading op in the raw stream (`None`: the end of the
+    /// stream), the qubit, and the raw op its mark goes back to.
+    reads: Vec<(Option<usize>, u32, usize)>,
 }
 
 impl Plan {
-    /// Runs the static pass over the lowered stream `ops` and ties each site to its op in the
-    /// raw stream `raw` (for messages and the report only).
-    pub(crate) fn new(raw: &[Op], ops: &[SimOp]) -> Result<Self, String> {
+    /// Runs the static passes over the lowered stream `ops` and ties each site to its op in the
+    /// raw stream `raw` (for messages and the report only). `registers` are the compiled
+    /// registers and `inner` the inner uniform qubits of a nested lane map (empty otherwise).
+    pub(crate) fn new(
+        raw: &[Op],
+        ops: &[SimOp],
+        registers: &[Vec<u32>],
+        inner: &[u32],
+        scope: Scope,
+    ) -> Result<Self, String> {
         let internal = |what: &str| format!("outcome-coverage: internal error: {what}; refusing");
         // The ops `sim::compile` lowers to nothing.
         let kept: Vec<usize> = (0..raw.len())
@@ -90,7 +130,45 @@ impl Plan {
             }
             at.push(u32::try_from(i).map_err(|_| internal("op index above 2^32"))?);
         }
-        Ok(Self { analysis, raw: at })
+        let qubits = condition::qubit_outcomes(ops, registers, inner);
+        let reads = qubits
+            .first
+            .iter()
+            .map(|r| {
+                let op = (r.op != u32::MAX).then(|| kept[r.op as usize]);
+                (op, r.qubit, kept[r.source as usize])
+            })
+            .collect();
+        Ok(Self {
+            analysis,
+            raw: at,
+            scope,
+            qubits,
+            reads,
+        })
+    }
+
+    /// The refusal of [`Scope::Full`] when an op reads a qubit written under a classical
+    /// condition; `None` when there is no such op or the scope is sites only.
+    fn outcome_in_qubit(&self, raw: &[Op]) -> Option<String> {
+        let &(op, qubit, source) = self.reads.first()?;
+        if self.scope != Scope::Full {
+            return None;
+        }
+        let reader = match op {
+            Some(i) => format!("op {i} ({}) reads", raw[i].kind.name()),
+            None => "the checks at the end of the stream read".to_string(),
+        };
+        Some(format!(
+            "outcome-coverage: outcome-in-qubit: {reader} qubit q{qubit}, which may hold a \
+             measurement outcome since op {source} ({}) wrote a qubit under a classical \
+             condition; {} such read(s) in all. An op steered by an outcome through a qubit is \
+             not a conditioned site, so the per-site counts cannot show that it was exercised; \
+             refusing (--outcome-coverage=sites applies the per-site rule alone and reports \
+             these reads as not covered)",
+            raw[source].kind.name(),
+            self.qubits.reads
+        ))
     }
 
     pub(crate) fn sites(&self) -> usize {
@@ -158,6 +236,10 @@ pub(crate) fn settle(
     if let Some(e) = dead_executed(&s0, "the uniform run") {
         return Err(e);
     }
+    // Before any stratum: a stream the mode cannot cover is refused whatever its sites show.
+    if let Some(e) = plan.outcome_in_qubit(raw) {
+        return Err(e);
+    }
     let live = |i: usize| sites[i].class != Class::Dead;
     let short: Vec<usize> = (0..sites.len())
         .filter(|&i| live(i) && s0[i][0] < COVERAGE_MIN)
@@ -178,11 +260,15 @@ pub(crate) fn settle(
     let groups = if short.is_empty() {
         Vec::new()
     } else {
-        condition::systems(ops, &short, MAX_STRATA).map_err(|condition::TooMany| {
-            format!(
+        condition::systems(ops, &short, MAX_STRATA).map_err(|why| match why {
+            condition::Unplanned::TooMany => format!(
                 "outcome-coverage: more than {MAX_STRATA} distinct rare outcome conditions need \
                  directed lanes (the cap is {MAX_STRATA} strata of {STRATUM_LANES} lanes); refusing"
-            )
+            ),
+            condition::Unplanned::TooLarge => "outcome-coverage: the rare outcome conditions \
+                 that need directed lanes are together larger than the static pass's memory \
+                 budget; refusing"
+                .to_string(),
         })?
     };
     if groups.iter().map(|g| g.1.len()).sum::<usize>() != short.len() {
@@ -277,8 +363,13 @@ pub(crate) fn settle(
         .take(8)
         .collect();
     let delta = crate::score::DELTA;
+    let q = &plan.qubits;
+    // `Scope::Full` returned above unless there is no read, so a run that reaches this point
+    // with reads is sites only.
+    let uncovered = q.reads > 0;
     let json = json!({
         "mode": MODE,
+        "scope": if plan.scope == Scope::Full { "sites-and-qubit-outcomes" } else { "sites-only" },
         "document": "spec/SAMPLING.md section 2.3",
         "required_control_one_executions": COVERAGE_MIN,
         "sites": sites.len(),
@@ -292,6 +383,7 @@ pub(crate) fn settle(
             "affine_rank_histogram": ranks,
             "max_rank": max_rank,
             "work_cap_reached": plan.analysis.capped,
+            "memory_cap_reached": plan.analysis.memory_capped,
             "classes": "affine: the site executes exactly on the solutions of a GF(2)-linear system of that rank over the Hmr outcomes, so with probability 2^-rank under uniform outcomes; opaque: the condition is not followed by the static pass; proved_unreachable: the condition is 0 for every outcome vector, so the site never executes and is exempt",
         },
         "uniform": {
@@ -308,6 +400,18 @@ pub(crate) fn settle(
             "max_strata": MAX_STRATA,
             "outcomes": "uniform on the solutions of one site condition per stratum; lanes and free outcome bits derive from the run's measurement key",
         },
+        "qubit_outcomes": {
+            "conditioned_qubit_writes": q.conditioned_writes,
+            "reads": q.reads,
+            "first_reads": plan.reads.iter().map(|&(op, qubit, source)| json!({
+                "op": op,
+                "kind": op.map(|i| raw[i].kind.name()),
+                "qubit": qubit,
+                "written_under_condition_at_op": source,
+            })).collect::<Vec<_>>(),
+            "covered": !uncovered,
+            "rule": "a non-system qubit written while a classical condition is in force (X, CX, CCX, Swap, Hmr) may hold a function of the outcomes; the mark spreads through the controls of X-type gates and moves with Swap, and only an unconditioned Hmr removes it. reads: ops with such a qubit as a control, a phase operand, an angle bit, a SpinSwap control or the qubit measured or freed, plus each qubit still marked at the end of the stream (op null). With no reads, every qubit an op reads is a function of the lane alone for every outcome record. A read is not a finding that the circuit is wrong",
+        },
         "min_control_one_executions": min_one,
         "min_control_zero_executions": min_zero,
         "control_one_executions_log2_histogram": log2
@@ -320,9 +424,7 @@ pub(crate) fn settle(
         "per_site_bound_meaning": "ln(1/delta) / min_control_one_executions with delta = 1e-6, single draw: for any one site, with confidence 1 - delta, at most this fraction of the control-1 (lane, outcome) pairs that execute the site fail. Per site; no union bound over sites and no allowance for re-drawn seeds",
         "site_table_sha256": hex::encode(Sha256::digest(&table)),
         "site_table_format": "per site in stream order: u64 op index, u8 class (0 proved unreachable, 1 affine, 2 opaque), u8 rank, u64 control-1 executions, u64 control-0 executions, little-endian (eval_circuit --dump-coverage)",
-        "statement": format!(
-            "Establishes: every conditioned site (each PushCondition block and each op with a condition of its own) that is not proved unreachable executed on at least {COVERAGE_MIN} control-1 lanes that passed every per-lane check. Does not establish: anything about combinations of branch outcomes across sites beyond what uniform sampling gives; a smaller f_bound or implied error bound; anything about unsampled uniform-register values; an energy error. Control-0 executions are reported, not required. Toffoli, qubit and all other counts and bounds come from the uniform lanes only."
-        ),
+        "statement": statement(q.reads),
     });
     Ok(CoverageReport {
         sites: sites.len(),
@@ -333,9 +435,48 @@ pub(crate) fn settle(
         lanes_per_stratum: STRATUM_LANES,
         min_control_one: min_one,
         min_control_zero: min_zero,
+        conditioned_qubit_writes: q.conditioned_writes,
+        qubit_outcome_reads: q.reads,
         json,
         table: Arc::new(table),
     })
+}
+
+/// `metrics.outcome_coverage.statement` of a passing run in which `reads` ops read a qubit
+/// written under a classical condition (0 on every run with [`Scope::Full`]).
+fn statement(reads: u64) -> String {
+    let sites = format!(
+        "every classical-condition site (each PushCondition block and each op with a condition \
+         of its own) that is not proved unreachable executed on at least {COVERAGE_MIN} \
+         control-1 lanes that passed every per-lane check"
+    );
+    let (qubits, not_covered) = if reads == 0 {
+        (
+            "; and no op reads a qubit written under a classical condition, so on every lane \
+             and for every outcome record each qubit an op reads is a function of the lane \
+             alone, and an outcome acts on the step only through the conditions of the counted \
+             sites and the signs of the measurements themselves"
+                .to_string(),
+            String::new(),
+        )
+    } else {
+        (
+            String::new(),
+            format!(
+                " anything about the {reads} op(s) that read a qubit written under a classical \
+                 condition (qubit_outcomes): an outcome copied into a qubit steers them as a \
+                 quantum control, they are not sites, and a block reached that way only on a \
+                 rare outcome pattern is not exercised by this mode;"
+            ),
+        )
+    };
+    format!(
+        "Establishes: {sites}{qubits}. Does not establish:{not_covered} anything about \
+         combinations of branch outcomes across sites beyond what uniform sampling gives; a \
+         smaller f_bound or implied error bound; anything about unsampled uniform-register \
+         values; an energy error. Control-0 executions are reported, not required. Toffoli, \
+         qubit and all other counts and bounds come from the uniform lanes only."
+    )
 }
 
 #[cfg(test)]
@@ -370,7 +511,7 @@ mod tests {
     #[test]
     fn enough_uniform_executions_pass_without_strata() {
         let (raw, ops) = one_block();
-        let plan = Plan::new(&raw, &ops).unwrap();
+        let plan = Plan::new(&raw, &ops, &[], &[], Scope::Full).unwrap();
         assert_eq!(plan.analysis.sites[0].class, Class::Affine);
         let r = settle(&plan, &raw, &ops, vec![[300, 290]], (1200, 600), &mut never).unwrap();
         assert_eq!((r.sites, r.directed_strata), (1, 0));
@@ -382,7 +523,7 @@ mod tests {
     #[test]
     fn a_short_site_gets_its_own_stratum_and_must_reach_the_floor() {
         let (raw, ops) = one_block();
-        let plan = Plan::new(&raw, &ops).unwrap();
+        let plan = Plan::new(&raw, &ops, &[], &[], Scope::Full).unwrap();
         let mut calls = 0;
         let mut run = |s: &System| {
             calls += 1;
@@ -413,12 +554,145 @@ mod tests {
         );
     }
 
+    /// `one_block` followed by a `Neg` conditioned on a bit that is stored 0: a second site,
+    /// proved unreachable.
+    fn block_and_dead_site() -> (Vec<Op>, Vec<SimOp>) {
+        let (mut raw, mut ops) = one_block();
+        let mut store = Op::new(K::BitStore0);
+        store.c_target = 1;
+        let mut neg = Op::new(K::Neg);
+        neg.c_condition = 1;
+        raw.extend([store, neg]);
+        ops.extend([
+            SimOp::Bit {
+                bit: 1,
+                kind: 1,
+                cond: NONE,
+            },
+            SimOp::Neg { cond: 1 },
+        ]);
+        (raw, ops)
+    }
+
+    /// The guard on directed lanes: a site classified unreachable that executes on a lane of
+    /// another site's stratum refuses the run, as it does on the uniform lanes.
+    #[test]
+    fn an_unreachable_site_that_executes_in_a_stratum_is_refused() {
+        let (raw, ops) = block_and_dead_site();
+        let plan = Plan::new(&raw, &ops, &[], &[], Scope::Full).unwrap();
+        let classes: Vec<Class> = plan.analysis.sites.iter().map(|s| s.class).collect();
+        assert_eq!(classes, [Class::Affine, Class::Dead]);
+        let stratum = |dead: [u64; 2]| {
+            move |_: &System| -> Result<Stratum, String> {
+                Ok(Stratum {
+                    lanes: 1024,
+                    counts: vec![[500, 524], dead],
+                })
+            }
+        };
+        let uniform = vec![[10, 12], [0, 0]];
+        let r = settle(
+            &plan,
+            &raw,
+            &ops,
+            uniform.clone(),
+            (40, 20),
+            &mut stratum([0, 0]),
+        )
+        .unwrap();
+        assert_eq!((r.directed_strata, r.proved_unreachable), (1, 1));
+        for dead in [[1, 0], [0, 3]] {
+            let e = settle(
+                &plan,
+                &raw,
+                &ops,
+                uniform.clone(),
+                (40, 20),
+                &mut stratum(dead),
+            )
+            .unwrap_err();
+            assert!(
+                e.contains("internal error")
+                    && e.contains("op 5 (NEG, depth 1, bit 1) is classified unreachable")
+                    && e.contains("the directed lanes for op 1"),
+                "{e}"
+            );
+        }
+    }
+
+    /// A stream in which an op reads a qubit written under a classical condition: refused in
+    /// the full scope before any stratum runs; passed with the reads reported, and the
+    /// statement narrowed, in the sites-only scope.
+    #[test]
+    fn an_outcome_read_from_a_qubit_is_refused_or_reported() {
+        let (mut raw, mut ops) = one_block();
+        let mut x = Op::new(K::X);
+        (x.q_target, x.c_condition) = (20, 0);
+        let mut cz = Op::new(K::CZ);
+        (cz.q_target, cz.q_control1) = (20, 21);
+        raw.extend([x, cz, x]);
+        let x_if = SimOp::X { t: 20, cond: 0 };
+        ops.extend([
+            x_if,
+            SimOp::Phase {
+                q: [20, 21, NONE],
+                k: 4,
+                cond: NONE,
+            },
+            x_if,
+        ]);
+        let counts = vec![[300, 290]; 3];
+        let full = Plan::new(&raw, &ops, &[], &[], Scope::Full).unwrap();
+        let e = settle(&full, &raw, &ops, counts.clone(), (1200, 600), &mut never).unwrap_err();
+        assert!(
+            e.starts_with(
+                "outcome-coverage: outcome-in-qubit: op 5 (CZ) reads qubit q20, which may hold \
+                 a measurement outcome since op 4 (X) wrote a qubit under a classical condition; \
+                 2 such read(s) in all."
+            ),
+            "{e}"
+        );
+        // The refusal comes before a stratum is drawn.
+        let short = vec![[10, 12], [300, 290], [300, 290]];
+        let e = settle(&full, &raw, &ops, short, (1200, 600), &mut never).unwrap_err();
+        assert!(e.contains("outcome-in-qubit"), "{e}");
+        let sites = Plan::new(&raw, &ops, &[], &[], Scope::SitesOnly).unwrap();
+        let r = settle(&sites, &raw, &ops, counts, (1200, 600), &mut never).unwrap();
+        assert_eq!((r.conditioned_qubit_writes, r.qubit_outcome_reads), (2, 2));
+        let j = &r.json;
+        assert_eq!(j["scope"], "sites-only");
+        assert_eq!(j["qubit_outcomes"]["covered"], false);
+        assert_eq!(j["qubit_outcomes"]["first_reads"][0]["op"], 5);
+        assert_eq!(
+            j["qubit_outcomes"]["first_reads"][0]["written_under_condition_at_op"],
+            4
+        );
+        // The qubit is still marked at the end: read by the end-of-stream checks.
+        assert!(j["qubit_outcomes"]["first_reads"][1]["op"].is_null());
+        let s = j["statement"].as_str().unwrap();
+        assert!(
+            s.contains("Does not establish: anything about the 2 op(s) that read a qubit")
+                && !s.contains("no op reads a qubit"),
+            "{s}"
+        );
+        // Without such a read the statement makes the stronger claim, in either scope.
+        let (raw, ops) = one_block();
+        for scope in [Scope::Full, Scope::SitesOnly] {
+            let plan = Plan::new(&raw, &ops, &[], &[], scope).unwrap();
+            let r = settle(&plan, &raw, &ops, vec![[300, 290]], (1200, 600), &mut never).unwrap();
+            let s = r.json["statement"].as_str().unwrap();
+            assert!(s.contains("no op reads a qubit written under a classical condition"));
+            assert_eq!(r.json["qubit_outcomes"]["covered"], true);
+            assert_eq!(r.json["mode"], "femoco-outcome-coverage-v2");
+        }
+    }
+
     /// The guards on the static pass: a wrong classification refuses, it never certifies.
     #[test]
     fn a_wrong_static_classification_is_refused() {
         let (raw, ops) = one_block();
         // Classified unreachable, but the engine saw it execute.
-        let mut plan = Plan::new(&raw, &ops).unwrap();
+        let mut plan = Plan::new(&raw, &ops, &[], &[], Scope::Full).unwrap();
         plan.analysis.sites[0].class = Class::Dead;
         let e = settle(&plan, &raw, &ops, vec![[3, 1]], (8, 4), &mut never).unwrap_err();
         assert!(
@@ -426,7 +700,7 @@ mod tests {
             "{e}"
         );
         // Directed at a system the site does not execute on.
-        let plan = Plan::new(&raw, &ops).unwrap();
+        let plan = Plan::new(&raw, &ops, &[], &[], Scope::Full).unwrap();
         let mut off = |_: &System| {
             Ok(Stratum {
                 lanes: 1024,
@@ -439,7 +713,7 @@ mod tests {
             "{e}"
         );
         // Classified opaque and short: refused, with no stratum.
-        let mut plan = Plan::new(&raw, &ops).unwrap();
+        let mut plan = Plan::new(&raw, &ops, &[], &[], Scope::Full).unwrap();
         plan.analysis.sites[0].class = Class::Opaque;
         let e = settle(&plan, &raw, &ops, vec![[3, 1]], (8, 4), &mut never).unwrap_err();
         assert!(

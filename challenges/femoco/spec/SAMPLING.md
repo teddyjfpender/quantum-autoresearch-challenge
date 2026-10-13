@@ -97,8 +97,8 @@ a run of `T` steps with probability about `T f`. At the default bound that is 0.
 and 0.90 (Li). It scales with `T`, not `T^2`.
 
 **The outcome-coverage mode** (`eval_circuit --outcome-coverage`, opt-in; DESIGN.md section 9)
-checks that every conditioned block was actually run. A *site* is each `PushCondition` block
-and each op with a condition of its own. In the mode:
+checks that every block under a classical condition was actually run. A *site* is each
+`PushCondition` block and each op with a condition of its own. In the mode:
 
 - The engine counts, per site, the lanes on which the site executed, separately for control 1
   and control 0. The counts are taken from the masks that gate the ops and are read only after
@@ -114,6 +114,29 @@ and each op with a condition of its own. In the mode:
 - The run is refused unless every site not proved unreachable has at least 256 control-1
   executions on lanes that passed. A site whose condition is not followed and that the uniform
   lanes leave short is refused, not passed (`unexercised`, with the op index).
+- The run is also refused if an outcome can steer an op without a site (next paragraph).
+
+**A site is a classical condition, and nothing else.** An outcome can be copied into a qubit by
+a conditioned write (`X a if m`) and then act as a quantum control. The ops it steers carry no
+condition and are not sites. The rare block above can be rewritten this way: copy each of `n`
+outcomes into a qubit (`n` conditioned `X`, each a site that runs on half the lanes), take the
+AND of the qubits with unconditioned Toffolis, and control the block on the AND qubit. The
+block still runs on a fraction `2^-n` of lanes, but no site is rare, no directed lanes are
+drawn, and the per-site rule passes. The rewrite costs about `2n` Cliffords and `n` Toffolis.
+
+So the mode has a second static pass (`sim::condition::qubit_outcomes`). It marks every
+non-system qubit that is written while a classical condition is in force (the op's own or an
+enclosing block's), spreads the mark to the target of an `X`-type gate with a marked control,
+and moves it with a `Swap`. Only an `Hmr` with no condition in force removes a mark, because
+it sets the qubit to 0 on every lane; `R` does not, because it checks the qubit and leaves it
+as it is. An op *reads* a marked qubit when the qubit is one of its controls, an operand of its
+phase, a bit of its angle register, the qubit it measures or frees, or is still marked at the
+end of the stream. The run is refused if any op reads a marked qubit
+(`outcome-coverage: outcome-in-qubit: op I ...`). The rule knows nothing about what a condition
+evaluates to, so it does not depend on the first static pass.
+
+`--outcome-coverage=sites` applies the per-site rule alone. It reports the reads
+(`metrics.outcome_coverage.qubit_outcomes`) and does not refuse them.
 
 **What a pass establishes.** For every conditioned site not proved unreachable, at least 256
 control-1 lanes on which that site executed went through the full per-lane checks and passed.
@@ -124,8 +147,22 @@ executes cannot pass. A block wrong on a fraction `q` of its executions escapes 
 probability `(1 - q)^256`, which is below `1e-6` even against `2^40` re-drawn seeds once `q`
 exceeds about 16%.
 
+And no op reads a qubit written under a classical condition. It follows, by induction over the
+ops, that on every lane and for every outcome record each qubit an op reads holds a function of
+the lane alone. An outcome then acts on the step only through the conditions of the counted
+sites and through the signs the measurements themselves add. A sites-only pass that reports
+reads establishes the first paragraph only.
+
 **What it does not establish.**
 
+- A sites-only pass says nothing about the ops that read a marked qubit. A rare block reached
+  through a qubit is what it cannot see, and such a run's `statement` and
+  `sampling_limits.measurement_outcomes` say so.
+- The qubit rule refuses honest circuits. A fix-up `X` under an outcome, or any gate inside a
+  condition block that writes a qubit, marks the qubit although the value it leaves may be the
+  same for every outcome. Showing that it is needs the outcomes followed through the qubits,
+  which the reflection check of section 4.1 does symbolically. A refusal here is not a finding
+  that the circuit is wrong.
 - It is a statement per site. Two blocks that are each right but wrong together on a rare joint
   outcome pattern are covered only as far as uniform sampling covers the pattern.
 - It does not lower `f_bound` or the `T f` figure above for defects spread thinly over common
@@ -137,17 +174,35 @@ exceeds about 16%.
   test checks them against every outcome vector of random programs, and the run is refused if
   an exempt site executes on any lane or a directed site misses a lane of its own stratum. An
   error in the rules that these guards also miss would exempt a live block.
+- The qubit rule has no such guard at run time. It rests on its own short rule set and on a
+  test of the same kind: over every outcome vector of random programs, each read whose value
+  differs between two outcome vectors is reported.
 - Directed lanes use outcome patterns chosen by the evaluator. The harness already requires
   every sampled lane to be right for whatever outcomes it is given, so this is the same
   standard; a circuit that relies on outcomes being correlated would fail the mode.
 - An honest circuit with a rare condition that is not a conjunction of affine forms (a product
   of outcomes, say) is refused until the static pass is extended. That is a refusal to certify,
   not a finding that the circuit is wrong.
+- The static pass works within fixed budgets: `2^31` entries touched, 4,096 outcomes per
+  equation, `2^24` entries held at once. Past them a condition is not followed. That can turn
+  a pass into a refusal and never the reverse. The budgets bound the pass's time and memory
+  on a forged stream (`tests/adversarial_coverage_memory.rs`).
 
 The Toffoli and qubit counts, `samples` and every bound still come from the uniform lanes only.
-Measured at `2^19` lanes, the Low et al. baseline and the best Reiher and Li circuits of the
-ledger have 777,724, 86,433 and 182,524 sites, of which 100, 4 and 10 are proved unreachable;
-every other site runs on about a half or a quarter of the lanes, so none needs directed lanes.
+
+**What the ledger's circuits get**, measured at `2^19` lanes:
+
+| Circuit | Sites | Proved unreachable | Conditioned qubit writes | Reads of a marked qubit | Mode | `=sites` |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| reiher/est-low-r (Low et al. baseline) | 777,724 | 100 | 0 | 0 | passes | passes |
+| reiher/outer-hi-reconstruct-r1 (best Reiher) | 86,433 | 4 | 124,390 | 1,307,151 | refused | passes |
+| li/composed-alias-m8 (best Li) | 182,524 | 10 | 310,801 | 2,300,772 | refused | passes |
+
+Every site not proved unreachable runs on about a half or a quarter of the lanes, so none needs
+directed lanes. The two headline circuits run whole gate sequences inside condition blocks, so
+outcomes reach their qubits and the mode refuses both (`outcome-in-qubit`). For them only the
+per-site statement is available, and it does not exclude a rare block reached through a qubit.
+The baseline writes no qubit under a condition and passes the mode as it stands.
 
 ## 3. What a row therefore says
 
@@ -157,11 +212,39 @@ every other site runs on about a half or a quarter of the lanes, so none needs d
   conditioned block was executed. The first holds only for a run whose reflection check
   certified (section 4, item 2: `metrics.reflection.status` is `certified`). The last holds
   only for a run made in the outcome-coverage mode (2.3), whose `score.json` then carries
-  `metrics.outcome_coverage`. Ledger rows are made with neither flag today.
+  `metrics.outcome_coverage`, and then for blocks under a classical condition, site by site.
+  It covers blocks reached through a qubit only when that run reports no read of a marked
+  qubit (`qubit_outcomes.covered: true`), which every pass that is not sites-only does. Ledger
+  rows are made with neither flag today.
 
 For comparing circuits built by the same builders under the same rule, which is what the
 board does, this is the standard the challenge started from (every drawn lane passes). It is
 not sufficient for a claim about a ground-state energy.
+
+### 3.1 The evaluator's version
+
+The outcome-coverage mode and the reflection check are opt-in. With the flags absent no code
+of either runs, and a run's `score.json` differs from the one `main` writes by the block
+`metrics.sampling_limits` alone, which an earlier commit of this work added to every run.
+`tests/outcome_coverage.rs` pins the toy circuit's `score.json`; on the three circuits of 2.3
+the two evaluators were compared at `2^19` lanes on the sliced engine and agree on every other
+key, the wall clock aside. The *verifier digest* is not an output of a run. It is a hash over
+every trusted file (`python3 challenge.py verifier-digest femoco`), and this work changes
+trusted files. So:
+
+- Every row of `results.tsv` and `evaluator.lock.json` carry the digest of the evaluator that
+  made them (`077abe9f...`). The evaluator after this work has another. Rows are not edited.
+- After a merge, `challenge.py revalidate` reports `verifier_sha256` as differing for every
+  existing row, and the judge and re-validation workflows build the evaluator from source
+  until the release workflow has cut a binary for the new digest and regenerated the lock
+  ([spec/VALIDATION.md](../../../spec/VALIDATION.md)).
+- A headline row that is to be compared under the new evaluator has to be re-validated under
+  it. Its counts are not expected to change (they did not on the three circuits above), but
+  the digest the row carries will.
+- VALIDATION.md ties any change of the evaluator to a new contract epoch. Whether this one
+  starts an epoch or keeps `femoco-sa-est-v1` is a maintainer decision at merge and is not
+  made here: no spec, acceptance rule, score or flag-absent output changes, but the judge's
+  identity does.
 
 ## 4. Closing the gaps
 
@@ -183,8 +266,12 @@ In order of strength.
 4. **Coverage of conditioned blocks.** Implemented as the opt-in outcome-coverage mode of 2.3:
    every conditioned site not proved unreachable must execute on at least 256 control-1 lanes
    that pass, with directed lanes for the sites uniform outcomes rarely reach, and uniform
-   outcomes alone for the cost count. This removes the case of 2.3 in which a block is never or
-   almost never run. It does not remove the `T f` figure for defects on common branches, and it
+   outcomes alone for the cost count; and no op may read a qubit written under a classical
+   condition. For a circuit the mode passes, this removes the case of 2.3 in which a block
+   under a classical condition is never or almost never run, and the second rule excludes the
+   same block reached through a quantum control. A sites-only pass removes the first only, and
+   the two headline circuits get no more than that. It does not remove the `T f` figure for
+   defects on common branches, and it
    is per site, not per combination of outcomes. All-zero, all-one and biased outcome strata
    were measured and rejected: on the three circuits above they reach fewer sites than uniform
    outcomes do (all-one leaves 5,636 to 11,769 sites unexecuted that uniform reaches), and their
@@ -277,10 +364,16 @@ recorded row.
 (`tests/reflection.rs`): the normal form and the adjoint it builds are compared with dense
 matrices on random words of system ops; on about 500 random circuits it certifies, a dense
 simulation of every lane and every outcome record finds exactly what the certificate says
-(the converse is never asserted); one mutant per rule is refused with that rule's reason; and
-a rotation whose compute and uncompute disagree on one uniform value, the construction of
-2.2, passes the sampled check at 64 lanes and is refused. This is testing, not a proof of the
-implementation.
+(the converse is never asserted); and a rotation whose compute and uncompute disagree on one
+uniform value, the construction of 2.2, passes the sampled check at 64 lanes and is refused.
+Each of the sixteen obstruction kinds of DESIGN.md section 16.6 has a circuit that is refused
+with that kind, and so have four lane-semantics rules that no kind names (an op's own
+condition inside a condition block, a conditioned `Swap`, a conditioned `Neg`, a phase on a
+qubit that holds an outcome), each paired with a variant that cancels and is certified. The
+random circuits include conditioned `Swap`s and ops with a condition of their own inside
+blocks. The tests were themselves tested: 30 single-rule alterations of the check (a
+comparison skipped, a rule made a no-op) were applied one at a time in a scratch copy, and
+each makes at least one test fail. This is testing, not a proof of the implementation.
 
 **Status.** Opt-in and report-only by default. With `--reflection-check report` a run passes
 or fails exactly as without the flag. With `require`, a circuit that is not certified is a

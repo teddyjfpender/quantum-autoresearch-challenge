@@ -4,7 +4,7 @@
 pub mod coverage;
 mod report;
 
-pub use coverage::CoverageReport;
+pub use coverage::{CoverageReport, Scope as OutcomeCoverage};
 pub use report::{append_results_row, sa_score_lambda, score_json, ResultsRow};
 
 use crate::circuit::{OpsFile, SEG_INNER_BEGIN, SEG_INNER_END};
@@ -139,12 +139,13 @@ const REFLECTION_FAMILIES: [&str; 2] = ["df-nested-alias-v1", lanemap::sa_nested
 /// Opt-in parts of an evaluation. The default is the ordinary run.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Options {
-    /// `eval_circuit --outcome-coverage` (spec/SAMPLING.md section 2.3): count the executions
-    /// of every conditioned site, add directed lanes for the sites the uniform lanes leave
-    /// short, and refuse unless every site not proved unreachable has
-    /// `coverage::COVERAGE_MIN` validated control-1 executions. Costs and bounds still come
+    /// `eval_circuit --outcome-coverage[=sites]` (spec/SAMPLING.md section 2.3): count the
+    /// executions of every conditioned site, add directed lanes for the sites the uniform lanes
+    /// leave short, and refuse unless every site not proved unreachable has
+    /// `coverage::COVERAGE_MIN` validated control-1 executions; with `Full`, refuse also when
+    /// an op reads a qubit written under a classical condition. Costs and bounds still come
     /// from the uniform lanes only.
-    pub outcome_coverage: bool,
+    pub outcome_coverage: OutcomeCoverage,
     /// `eval_circuit --reflection-check MODE`: after every sampled lane has passed, run the
     /// static certificate `sim::reflection::certify`. It reads the op stream only, never a
     /// lane, and changes no count or bound.
@@ -368,8 +369,14 @@ pub fn evaluate_opts(
     };
     let k = inp.samples.max(1);
     let plan = match opts.outcome_coverage {
-        true => Some(coverage::Plan::new(&inp.ops.ops, &compiled.ops)?),
-        false => None,
+        OutcomeCoverage::Off => None,
+        scope => Some(coverage::Plan::new(
+            &inp.ops.ops,
+            &compiled.ops,
+            &compiled.registers,
+            &inner.map(|i| i.qubits(&layout)).unwrap_or_default(),
+            scope,
+        )?),
     };
     let sink = plan.as_ref().map(|p| CoverageSink::new(p.sites()));
     let reference = |s: u64| lm.reference_op(inp.spec, s);
