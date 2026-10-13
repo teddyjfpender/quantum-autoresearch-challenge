@@ -56,7 +56,7 @@
 //!
 //! Reflection check (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6):
 //! `--reflection-check MODE`, opt-in, `MODE` = `report` or `require`. After every sampled lane
-//! has passed, a static analysis of the op stream (`sim::reflection`, rule set `reflection-v1`)
+//! has passed, a static analysis of the op stream (`sim::reflection`, rule set `reflection-v2`)
 //! tries to prove, for every lane and every measurement-outcome record and without reading a
 //! sampled lane, that the step restores its registers, that its system operator does not depend
 //! on the outcomes, and that the step is Hermitian. The result is `metrics.reflection` in

@@ -617,7 +617,7 @@ not match the loaded spec. The default build writes:
   that those ops are not covered. Nothing else in `score.json`
   differs from the same run without the flag, apart from `eval_seconds`.
 - `metrics.reflection` is present only on a run with `--reflection-check` (section 16.6):
-  `version` (`reflection-v1`), `rule_set`, `status` (`certified` or `not certified`) and the
+  `version` (`reflection-v2`), `rule_set`, `status` (`certified` or `not certified`) and the
   same as the boolean `certified`, `obstruction` (`null`, or `op`, `op_kind`, `kind`,
   `reason`), the three stage flags `registers_restored`, `outcome_independent` and
   `hermitian` (`false` means not established), `counts` (ops read, measurements, resets and
@@ -996,7 +996,8 @@ item count has `keep = 0`, and every `keep` is below `2^mu`.
 ### 16.6 The reflection check
 
 `eval_circuit --reflection-check report|require` (opt-in; `src/sim/reflection.rs`, polynomials in
-`src/sim/reflection/poly.rs`, rule set `reflection-v1`). It runs after every sampled lane has
+`src/sim/reflection/poly.rs`, decision diagrams in `src/sim/reflection/bdd.rs`, rule set
+`reflection-v2`). It runs after every sampled lane has
 passed, reads the op stream and the compiled registers only, and changes no count or bound. With
 `report` its result goes to `metrics.reflection` and the run passes or fails as without the flag.
 With `require` a step that is not certified is rejected with
@@ -1018,6 +1019,10 @@ bits, 0 for ancillas) and per classical bit (0); the condition stack as polynomi
 holding the product of its bit, as it was at the push, with the enclosing frames; the lane's sign
 `(-1)^Phi` with `Phi` held as one polynomial per product of outcomes; and a log of system ops.
 A wire read as an operand of a product is sealed first if its polynomial has more than 3 terms.
+At a `PopCondition`, a wire the block wrote gets back the polynomial it held at the push when
+the cheap rung of the zero test shows the two are equal. That changes the form and not the
+value: the wire no longer names the block's condition, so what reads it later does not inherit
+a dependence on an outcome that is not there.
 
 **Rules.** With `cond` the product of the enclosing blocks and the op's own `c_condition`:
 
@@ -1038,17 +1043,36 @@ A wire read as an operand of a product is sealed first if its polynomial has mor
 
 At the end of the stream the control and outer uniform wires must be proven equal to their
 `Initial` symbols, the inner wires to their `Second` symbols and every other non-system wire to
-0, and the coefficient of every product of outcomes in `Phi` must be proven 0. No bracket shape
-is matched: an AND erasure, a lookup erasure fixed through parity bits, and fix-ups that are
-deferred, merged or placed after the `Reflect` all pass by the same test.
+0. No bracket shape is matched: an AND erasure, a lookup erasure fixed through parity bits, and
+fix-ups that are deferred, merged or placed after the `Reflect` all pass by the same tests.
+
+**Outcome independence.** Everything the lane operator is made of (the sign `Phi` with the
+normal form's crossing sign, each logged control, each angle bit, each frame entry) must be
+proven independent of every measurement outcome, as a function. For a polynomial `p` and each
+outcome `m` it reads, directly or through a sealed definition, the check forms `p` with `m = 1`
+plus `p` with `m = 0` (sealed symbols that read `m` are replaced by the seals of their
+restricted definitions) and requires the zero test to prove it 0. A Boolean function that no
+single variable changes is constant in all of them, so `p` then equals `p` with every outcome
+set to 0, a polynomial that names no outcome anywhere, and that form is used from there on. A
+coefficient of a product of outcomes in `Phi` that the cheap rung proves 0 is dropped first.
+This is a test of the function and not of how it is written: an outcome may sit in a qubit, be
+used as a control and be undone, as long as the result does not depend on it.
 
 **The zero test.** "Proven" means one of: the polynomial has no monomials; substituting sealed
 symbols by their definitions, newest first, with cancellation, leaves no monomials (first with a
-limit of `2^12` monomials held, last with `2^19`); or, when the polynomial depends on at most 20
-primary symbols, it evaluates to 0 on every assignment of them. Each is sound, and they agree
-where two decide. Anything else is "not proven" and stops the check. All work is counted in
-polynomial operations against a fixed budget (`2^30`), never in time, so the verdict is
-deterministic.
+limit of `2^12` monomials held, last with `2^19`); when the polynomial depends on at most 20
+primary symbols, it evaluates to 0 on every assignment of them; or its reduced ordered binary
+decision diagram is the constant 0. The diagram is built over the primary symbols, in the order
+a depth-first walk first meets them, from the diagrams of the sealed symbols it depends on. The
+form is canonical for a fixed variable order, so a function is 0 exactly when its diagram is
+the 0 node. The store holds at most `2^24` nodes; nodes no symbol names are collected when it
+is half full, then the diagrams the test at hand no longer reads, and a store that still
+overflows gives "not proven". Each rung is sound, and they agree where two decide. Anything
+else is "not proven" and stops the check. All work is counted in polynomial and diagram
+operations against a fixed budget, never in time, so the verdict is deterministic. When a
+polynomial is found nonzero and its diagram fits, the refusal carries one assignment on which it
+is 1, checked by plain evaluation, and the fraction of assignments on which it is 1; the
+assignment can be replayed on the lane engine.
 
 **Hermiticity.** Write the lane's logged system ops, in time order, in a normal form: move every
 `Z` to the end, keeping a symbolic `Z` frame `zf`. A `Z` with control `c` on `q` adds `c` to
@@ -1061,8 +1085,8 @@ identities, checked against dense matrices in `tests/reflection.rs`: `Z_p G_pq(t
 is then `(-1)^sign Z^frame E_n ... E_1`. Its adjoint is the frame followed by the `E_i` reversed
 and inverted (`X` unchanged, the Givens angle's sign flipped, `F` and `F^dagger` exchanged),
 brought to the same normal form. The *twin* of a polynomial exchanges each inner bit's `Initial`
-and `Second` symbols; a sealed symbol maps to the sealed symbol of its mapped definition, and
-reaching an `Outcome` symbol is an obstruction. The step is certified when the adjoint's normal
+and `Second` symbols; a sealed symbol maps to the sealed symbol of its mapped definition (no `Outcome` symbol is left
+to meet after the step above). The step is certified when the adjoint's normal
 form equals the twin of the lane operator's, element by element: the same kind and qubits, equal
 controls, every angle bit and the angle's sign equal, equal frames and equal signs, each equality
 decided by the zero test.

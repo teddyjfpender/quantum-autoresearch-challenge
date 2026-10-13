@@ -968,6 +968,8 @@ fn frame_and_control_mismatches_are_refused_at_the_comparison() {
 /// - A conditioned `Neg` is a sign where the condition holds.
 /// - A phase on a qubit that holds an outcome is an outcome-dependent sign.
 /// - A conditioned `Hmr` clears its qubit where the condition holds and leaves it elsewhere.
+/// - An outcome that reaches the sign through a sealed value is judged as a function: it is
+///   certified when the sign does not change with the outcome and refused when it does.
 #[test]
 fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantics() {
     let (a, b) = (FRESH, FRESH + 1);
@@ -1006,7 +1008,32 @@ fn conditions_in_blocks_and_conditioned_swaps_and_signs_follow_the_lane_semantic
     let clear = [one, flip, raw(K::CX, x, OUTER, not_a)];
     let hmr_wrong = [&[outcome(q, a), copy, measure][..], &fix].concat();
     let hmr_right = [&hmr_wrong[..], &clear].concat();
+    // The outcome XORed into a qubit that also holds two lane bits and a 1, so the qubit's value
+    // is sealed when it is read. Its Z is a sign in the outcome and in the lane bits; the lane
+    // part is undone by two Zs and a Neg, and the outcome part by a conditioned Neg. The sign's
+    // dependence on the outcome sits inside a sealed definition, and only the test of the
+    // function (the sign at a = 1 against the sign at a = 0) can find that it cancels.
+    let mix = [
+        raw(K::X, x, NONE, a),
+        raw(K::CX, x, OUTER, NONE),
+        raw(K::CX, x, CONTROL, NONE),
+        raw(K::X, x, NONE, NONE),
+    ];
+    let lane_part = [
+        raw(K::Z, OUTER, NONE, NONE),
+        raw(K::Z, CONTROL, NONE, NONE),
+        raw(K::Neg, NONE, NONE, NONE),
+    ];
+    let sealed_wrong = [&[outcome(q, a)][..], &mix, &[z], &lane_part, &mix].concat();
+    let sealed_right = [&[outcome(q, a)][..], &mix, &[z], &lane_part, &[neg], &mix].concat();
     for (what, wrong, right, kind, dense_says) in [
+        (
+            "outcome inside a sealed value",
+            &sealed_wrong[..],
+            &sealed_right[..],
+            "outcome-phase",
+            "depends on the outcomes",
+        ),
         (
             "own condition in a block",
             &block_wrong[..],
@@ -1071,7 +1098,7 @@ fn tiny_circuit_is_certified_and_dense_simulation_agrees() {
     assert_eq!(r.counts.compared, 10);
     assert!(r.counts.measurements > 0 && r.counts.outcome_phases_proved > 0);
     let j = r.json();
-    assert_eq!(j["version"], "reflection-v1");
+    assert_eq!(j["version"], "reflection-v2");
     assert_eq!(j["status"], "certified");
     assert!(j["obstruction"].is_null());
     assert!(j["statement"]
@@ -2009,7 +2036,7 @@ mod sa {
             let m = j["metrics"].as_object_mut().unwrap();
             let refl = m.remove("reflection").unwrap();
             assert_eq!(refl["status"], "certified");
-            assert_eq!(refl["version"], "reflection-v1");
+            assert_eq!(refl["version"], "reflection-v2");
             let s = m["sampling_limits"].as_object_mut().unwrap();
             assert_eq!(s.remove("hermitian_on_every_lane").unwrap(), "certified");
             assert_eq!(

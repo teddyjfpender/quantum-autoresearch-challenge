@@ -480,6 +480,103 @@ fn guard_band_coarse_commutator() {
     all_picks(|| gadget("coarse", 1 << 12, vec![]), 14);
 }
 
+/// Outcome-coverage site counts through a pass the fast engine runs twice. Every lane passes
+/// and many lie inside the guard band, so a folding engine executes the pass, declines to
+/// accept it and falls back. The counts of the declined execution must be dropped: an engine
+/// that kept them would report each execution twice. The circuit is the fine gadget with one
+/// conditioned op (a `Z` on a measured, zeroed ancilla), which runs on half the lanes.
+#[test]
+fn site_counts_are_not_doubled_by_a_guard_band_fallback() {
+    let g = calibrate(gadget("fine", 1, vec![]));
+    let mut ops = circuit(&g);
+    let ancilla = reg(BETA);
+    let mut m = op(K::Hmr, ancilla, NONE);
+    m.c_target = 0;
+    let mut z = op(K::Z, ancilla, NONE);
+    z.c_condition = 0;
+    ops.extend([m, z]);
+    let layout = Layout {
+        system: N,
+        uniform: U,
+    };
+    let factory = gaussian::factory(BETA).expect("beta 32");
+    let tracker: Option<&dyn TrackerFactory> = Some(factory);
+    let compiled = compile_nested(&ops, &layout, tracker, None).expect("compiles");
+    // The passing low values nearest the threshold, control 0 or control 1 without the flip.
+    let mut near: Vec<(f64, u64)> = (0..1u64 << LOW)
+        .map(|s| (off(&g, s, false).max(off(&g, s, true)), s))
+        .filter(|&(o, _)| o <= AD_TOL)
+        .collect();
+    near.sort_by(|x, y| (AD_TOL - x.0).total_cmp(&(AD_TOL - y.0)));
+    assert!(
+        AD_TOL - near[0].0 <= 1e-14,
+        "no lane within 1e-14 of AD_TOL"
+    );
+    let mut rng = Rng::new(29);
+    let lanes: Vec<Lane> = (0..2048)
+        .map(|i| Lane {
+            c: rng.chance(0.5),
+            s: near[i % 512].1,
+        })
+        .collect();
+    let mut key = [0u8; 32];
+    key[0] = 7;
+    let reference = |_s: u64| {
+        SystemOp::Monomial(Monomial {
+            phase: 0,
+            majoranas: vec![],
+        })
+    };
+    let uniform_after = |s: u64| s;
+    let ctx = Context {
+        compiled: &compiled,
+        layout,
+        hmr_key: key,
+        reference: &reference,
+        uniform_after: &uniform_after,
+        tracker,
+        coverage: None,
+        directed: None,
+    };
+    // The folding engine itself, whatever `FEMOCO_EQUIV_ENGINE` names, and that candidate too.
+    let mut engines = vec![(
+        "sliced".to_string(),
+        equiv::harness_engine("sliced").expect("the sliced engine"),
+    )];
+    let cand = equiv_common::candidate();
+    if cand.0 != "sliced" {
+        engines.push(cand);
+    }
+    for (name, engine) in engines {
+        let diffs = equiv::compare_site_counts(engine, &equiv::env_threads(), &ctx, None, &lanes);
+        let fell_back = equiv::engine_counters(&name)
+            .iter()
+            .any(|(k, v)| k.contains("guard") && *v > 0);
+        assert!(
+            name != "sliced" || fell_back,
+            "the sliced engine never fell back, so the case tests nothing"
+        );
+        for (t, d) in &diffs {
+            assert!(d.is_empty(), "engine {name} @{t}: {}", d.join("; "));
+        }
+    }
+    // The reference's own counts: the one site ran on the lanes whose outcome was 1.
+    let sink = femoco_walk::sim::condition::CoverageSink::new(1);
+    let counted = Context {
+        coverage: Some(&sink),
+        ..ctx
+    };
+    let out = femoco_walk::sim::validate::reference(&counted, None, &lanes, None);
+    assert!(out.rejection().is_none(), "a lane failed");
+    let [c0, c1] = sink.finish().expect("counts")[0];
+    let ones = lanes.iter().filter(|l| l.c).count() as u64;
+    assert!(
+        c0 + c1 > 512 && c0 + c1 < 1536,
+        "site ran on {c0} + {c1} lanes"
+    );
+    assert!(c1 <= ones && c0 <= lanes.len() as u64 - ones);
+}
+
 /// The cases can see an unguarded fold: `selftest-unguarded` (the reference tracker with its
 /// residual read `equiv::UNGUARDED_ERROR` low, the size of the prototype's folding error) must
 /// differ from the reference on the near-threshold cases where the fast path decides.

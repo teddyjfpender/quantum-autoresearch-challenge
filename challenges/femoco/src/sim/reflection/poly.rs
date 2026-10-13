@@ -11,6 +11,7 @@
 //! [`Arena::work`] (monomial operations, never wall clock), so a run is deterministic; when the
 //! count passes the limit the arena is `exhausted`, further products return zero, and the caller
 //! must refuse to certify.
+use super::bdd::{self, Bdd};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::rc::Rc;
 
@@ -19,6 +20,7 @@ pub type Sym = u32;
 pub type Mono = u32;
 pub const ONE: Mono = 0;
 const NO_SYM: u32 = u32::MAX;
+const NO_NODE: bdd::Node = u32::MAX;
 
 /// What a symbol stands for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -147,6 +149,8 @@ pub struct Limits {
     pub table_bits: u32,
     /// Most monomials the expansion rung may hold.
     pub expand: usize,
+    /// Most nodes the decision-diagram rung may hold (0 switches the rung off).
+    pub bdd_nodes: usize,
 }
 
 /// Most `u64` words of truth tables one zero test may hold (128 MiB).
@@ -168,6 +172,7 @@ pub struct Rungs {
     pub syntactic: u64,
     pub truth_table: u64,
     pub expansion: u64,
+    pub decision_diagram: u64,
     pub undecided: u64,
 }
 
@@ -192,6 +197,16 @@ pub struct Arena {
     limit: u64,
     pub exhausted: bool,
     pub rungs: Rungs,
+    /// The decision diagrams of the zero test's last complete rung, kept between tests.
+    bdd: Bdd,
+    /// Per symbol: its diagram in `bdd`, or `NO_NODE`.
+    diagram: Vec<bdd::Node>,
+    /// Per primary symbol: its level in `bdd`'s variable order, or `NO_SYM`. Levels are given
+    /// in order of first use ([`Arena::order`]).
+    level: Vec<u32>,
+    levels: u32,
+    /// The store is collected when it holds more nodes than this.
+    collect_at: usize,
 }
 
 impl Arena {
@@ -215,6 +230,11 @@ impl Arena {
             limit,
             exhausted: false,
             rungs: Rungs::default(),
+            bdd: Bdd::new(0),
+            diagram: Vec::new(),
+            level: Vec::new(),
+            levels: 0,
+            collect_at: 0,
         }
     }
 
@@ -257,6 +277,8 @@ impl Arena {
         self.kinds.push(kind);
         self.defs.push(def);
         self.mark.push(0);
+        self.diagram.push(NO_NODE);
+        self.level.push(NO_SYM);
         self.single.push(0);
         let m = self.intern(&[s]);
         self.single[s as usize] = m;
@@ -418,7 +440,11 @@ impl Arena {
     /// 3. *truth table*: if `p` depends, through its sealed symbols, on at most
     ///    `lim.table_bits` primary symbols, it is evaluated on every assignment of them
     ///    (complete);
-    /// 4. expansion again with the limit `lim.expand`. Past it, or past the arena's work
+    /// 4. *decision diagram*: `p` and the sealed symbols it depends on are built as reduced
+    ///    ordered binary decision diagrams over the primary symbols, in the order the symbols
+    ///    were made. The form is canonical, so `p` is zero exactly when its diagram is the
+    ///    constant 0 (complete, within `lim.bdd_nodes` nodes);
+    /// 5. expansion again with the limit `lim.expand`. Past it, or past the arena's work
     ///    limit, the answer is `Unknown`.
     ///
     /// The rungs agree wherever two of them decide, so their order affects cost only.
@@ -438,6 +464,11 @@ impl Arena {
                 self.rungs.truth_table += 1;
                 return self.table(p, &primaries, &sealed);
             }
+        }
+        let v = self.diagram_rung(p, lim.bdd_nodes);
+        if v != Verdict::Unknown {
+            self.rungs.decision_diagram += 1;
+            return v;
         }
         let v = self.expand(p, lim.expand);
         match v {
@@ -556,6 +587,305 @@ impl Arena {
         }
     }
 
+    /// Rung 4: decision diagrams. Diagrams of symbols are kept between tests while there is
+    /// room. When the store is half full, the diagrams this test no longer needs are dropped
+    /// and their nodes collected; a later test that needs one builds it again. What is kept
+    /// affects cost only: a diagram is a canonical form of its function under the fixed
+    /// variable order, however it was reached.
+    fn diagram_rung(&mut self, p: &Poly, nodes: usize) -> Verdict {
+        if nodes == 0 {
+            return Verdict::Unknown;
+        }
+        if self.bdd.limit() != nodes.max(2) {
+            self.forget_diagrams(nodes);
+        }
+        // A store that overflows is emptied and the test tried once more from nothing, so the
+        // answer does not depend on what earlier tests left in it.
+        for _ in 0..2 {
+            let fresh = self.bdd.is_empty();
+            match self.diagram_of(p) {
+                Some(r) if !self.bdd.overflowed && !self.exhausted => {
+                    return if r == bdd::FALSE {
+                        Verdict::Zero
+                    } else {
+                        Verdict::Nonzero
+                    };
+                }
+                _ => self.forget_diagrams(nodes),
+            }
+            if fresh || self.exhausted {
+                break;
+            }
+        }
+        Verdict::Unknown
+    }
+
+    /// Whether `p`, as a function, depends on the primary symbol `x`: whether `x` labels a node
+    /// of its decision diagram. `None` when the diagram does not fit the limits. Counted as a
+    /// zero test decided by the diagram rung (it decides `p` at `x = 1` plus `p` at `x = 0`).
+    pub fn depends_on(&mut self, p: &Poly, x: Sym, lim: &Limits) -> Option<bool> {
+        if lim.bdd_nodes == 0 {
+            return None;
+        }
+        if self.bdd.limit() != lim.bdd_nodes.max(2) {
+            self.forget_diagrams(lim.bdd_nodes);
+        }
+        for _ in 0..2 {
+            let fresh = self.bdd.is_empty();
+            match self.diagram_of(p) {
+                Some(r) if !self.bdd.overflowed && !self.exhausted => {
+                    self.rungs.decision_diagram += 1;
+                    let level = self.level[x as usize];
+                    // A symbol without a level is one no diagram has met.
+                    return Some(level != NO_SYM && self.bdd.reads(r, level));
+                }
+                _ => self.forget_diagrams(lim.bdd_nodes),
+            }
+            if fresh || self.exhausted {
+                break;
+            }
+        }
+        None
+    }
+
+    /// For a polynomial the zero test found nonzero: one assignment of primary symbols on
+    /// which it is 1 (symbols not listed are free), and the fraction of all assignments on
+    /// which it is 1. `None` when the diagram does not fit the limits. For messages only.
+    pub fn witness(&mut self, p: &Poly, lim: &Limits) -> Option<(Vec<(Sym, bool)>, f64)> {
+        if lim.bdd_nodes == 0 {
+            return None;
+        }
+        if self.bdd.limit() != lim.bdd_nodes.max(2) {
+            self.forget_diagrams(lim.bdd_nodes);
+        }
+        let root = self.diagram_of(p);
+        let Some(r) = root.filter(|&r| !self.bdd.overflowed && !self.exhausted && r != bdd::FALSE)
+        else {
+            if self.bdd.overflowed {
+                self.forget_diagrams(lim.bdd_nodes);
+            }
+            return None;
+        };
+        let mut sym = vec![NO_SYM; self.levels as usize];
+        for (s, &l) in self.level.iter().enumerate() {
+            if l != NO_SYM {
+                sym[l as usize] = s as Sym;
+            }
+        }
+        let path = self.bdd.witness(r);
+        // The assignment is checked by plain evaluation before it is shown to anyone.
+        let ones: Vec<Sym> = path
+            .iter()
+            .filter(|&&(_, v)| v)
+            .map(|&(l, _)| sym[l as usize])
+            .collect();
+        if self.value_at(p, &ones) != Some(true) {
+            return None;
+        }
+        Some((
+            path.iter().map(|&(l, v)| (sym[l as usize], v)).collect(),
+            self.bdd.density(r),
+        ))
+    }
+
+    /// The value of `p` where the primary symbols in `ones` are 1 and every other primary
+    /// symbol is 0, by evaluating definitions oldest first. It uses none of the zero test's
+    /// rungs. `None` when the arena runs out of work.
+    pub fn value_at(&mut self, p: &Poly, ones: &[Sym]) -> Option<bool> {
+        let (_, sealed) = self.cone(p, usize::MAX)?;
+        let mut value: HashMap<Sym, bool> = ones.iter().map(|&s| (s, true)).collect();
+        let eval = |a: &Self, value: &HashMap<Sym, bool>, q: &Poly| {
+            q.terms().iter().fold(false, |x, &m| {
+                x ^ a.monos[m as usize]
+                    .iter()
+                    .all(|s| value.get(s).copied().unwrap_or(false))
+            })
+        };
+        for s in sealed {
+            let d = self.defs[s as usize].clone()?;
+            self.tick(d.len());
+            let v = eval(self, &value, &d);
+            value.insert(s, v);
+        }
+        (!self.exhausted).then(|| eval(self, &value, p))
+    }
+
+    /// Empties the diagram store and forgets the variable order.
+    fn forget_diagrams(&mut self, nodes: usize) {
+        self.bdd = Bdd::new(nodes);
+        self.collect_at = self.bdd.limit() / 2;
+        self.diagram.fill(NO_NODE);
+        self.level.fill(NO_SYM);
+        self.levels = 0;
+    }
+
+    /// The diagram of `p`, building those of the sealed symbols it needs, oldest first (a
+    /// definition names older symbols only). `None`, or a meaningless node with
+    /// `bdd.overflowed` set, when a limit is passed.
+    fn diagram_of(&mut self, p: &Poly) -> Option<bdd::Node> {
+        let build = self.order(p);
+        // Per sealed symbol this test reads: the position in `build` of its last reader
+        // (`usize::MAX` for `p` itself).
+        let mut last: HashMap<Sym, usize> = HashMap::new();
+        for (i, &s) in build.iter().enumerate() {
+            let d = self.defs[s as usize].clone()?;
+            self.tick(d.len());
+            for &m in d.terms() {
+                for &t in self.monos[m as usize].iter() {
+                    if self.defs[t as usize].is_some() {
+                        last.insert(t, i);
+                    }
+                }
+            }
+        }
+        for &m in p.terms() {
+            for &t in self.monos[m as usize].iter() {
+                if self.defs[t as usize].is_some() {
+                    last.insert(t, usize::MAX);
+                }
+            }
+        }
+        if self.exhausted {
+            return None;
+        }
+        // Make room first: when the store is half full, drop what this test does not read.
+        if self.bdd.len() > self.bdd.limit() / 2 {
+            for (t, n) in self.diagram.iter_mut().enumerate() {
+                if self.defs[t].is_some() && !last.contains_key(&(t as Sym)) {
+                    *n = NO_NODE;
+                }
+            }
+            self.bdd
+                .collect(self.diagram.iter_mut().filter(|n| **n != NO_NODE));
+            let (live, limit) = (self.bdd.len(), self.bdd.limit());
+            self.tick(live / TABLE_WORDS_PER_TICK);
+            self.collect_at = live + (limit - live.min(limit)) / 2;
+        }
+        for (i, &s) in build.iter().enumerate() {
+            let d = self.defs[s as usize].clone()?;
+            let n = self.diagram_of_terms(&d)?;
+            self.diagram[s as usize] = n;
+            if self.bdd.len() > self.collect_at {
+                // First what no symbol names. If the store is still more than half full, also
+                // the diagrams this test no longer reads.
+                self.bdd
+                    .collect(self.diagram.iter_mut().filter(|n| **n != NO_NODE));
+                if self.bdd.len() > self.bdd.limit() / 2 {
+                    for (t, n) in self.diagram.iter_mut().enumerate() {
+                        let read_later = last.get(&(t as Sym)).is_some_and(|&j| j > i);
+                        if self.defs[t].is_some() && !read_later {
+                            *n = NO_NODE;
+                        }
+                    }
+                    self.bdd
+                        .collect(self.diagram.iter_mut().filter(|n| **n != NO_NODE));
+                }
+                let (live, limit) = (self.bdd.len(), self.bdd.limit());
+                self.tick(live / TABLE_WORDS_PER_TICK);
+                self.collect_at = live + (limit - live.min(limit)) / 2;
+            }
+        }
+        self.diagram_of_terms(p)
+    }
+
+    /// Gives a level to every primary symbol `p` depends on that has none: the next free
+    /// levels, in the order a depth-first walk of `p` first meets them (a sealed symbol's
+    /// definition is walked where the symbol stands). Symbols that are used together are then
+    /// close in the variable order, which is what keeps the diagrams of arithmetic small.
+    /// The order affects cost only: any order gives a canonical form. Returns the sealed
+    /// symbols met that have no diagram, ascending. The walk does not enter a symbol that has
+    /// one: its primaries have their levels already.
+    fn order(&mut self, p: &Poly) -> Vec<Sym> {
+        self.epoch += 1;
+        let epoch = self.epoch;
+        let mut build = Vec::new();
+        // A frame is a polynomial and the position of the next symbol to visit in it.
+        let mut stack: Vec<(Rc<Poly>, usize, usize)> = vec![(Rc::new(p.clone()), 0, 0)];
+        while let Some((poly, t, i)) = stack.pop() {
+            let Some(&m) = poly.terms().get(t) else {
+                continue;
+            };
+            let syms = self.monos[m as usize].clone();
+            let Some(&s) = syms.get(i) else {
+                stack.push((poly, t + 1, 0));
+                continue;
+            };
+            stack.push((poly, t, i + 1));
+            if self.mark[s as usize] == epoch {
+                continue;
+            }
+            self.mark[s as usize] = epoch;
+            self.tick(1);
+            match self.defs[s as usize].clone() {
+                Some(d) if self.diagram[s as usize] == NO_NODE => {
+                    build.push(s);
+                    stack.push((d, 0, 0));
+                }
+                Some(_) => {}
+                None if self.level[s as usize] == NO_SYM => {
+                    self.level[s as usize] = self.levels;
+                    self.levels += 1;
+                }
+                None => {}
+            }
+        }
+        build.sort_unstable();
+        build
+    }
+
+    /// The diagram of `p`, every sealed symbol of which already has one.
+    fn diagram_of_terms(&mut self, p: &Poly) -> Option<bdd::Node> {
+        let (work, limit) = (std::cell::Cell::new(self.work), self.limit);
+        let mut tick = || {
+            work.set(work.get().saturating_add(1));
+            work.get() <= limit
+        };
+        let mut sum = bdd::FALSE;
+        for &m in p.terms() {
+            let mut product = bdd::TRUE;
+            for &s in self.monos[m as usize].iter() {
+                let v = match self.diagram[s as usize] {
+                    NO_NODE if self.defs[s as usize].is_some() => {
+                        self.bdd.overflowed = true;
+                        bdd::FALSE
+                    }
+                    NO_NODE => {
+                        let v = self.bdd.var(self.level[s as usize]);
+                        self.diagram[s as usize] = v;
+                        v
+                    }
+                    v => v,
+                };
+                product = self.bdd.apply(bdd::Op::And, product, v, &mut tick);
+            }
+            sum = self.bdd.apply(bdd::Op::Xor, sum, product, &mut tick);
+            if self.bdd.overflowed {
+                break;
+            }
+            // A long sum leaves its partial sums behind: collect them, keeping every diagram
+            // a symbol holds and the sum so far.
+            if self.bdd.len() > self.collect_at {
+                self.bdd.collect(
+                    self.diagram
+                        .iter_mut()
+                        .filter(|n| **n != NO_NODE)
+                        .chain(std::iter::once(&mut sum)),
+                );
+                let (live, limit) = (self.bdd.len(), self.bdd.limit());
+                work.set(
+                    work.get()
+                        .saturating_add((live / TABLE_WORDS_PER_TICK) as u64),
+                );
+                self.collect_at = live + (limit - live.min(limit)) / 2;
+            }
+        }
+        self.work = work.get();
+        if self.work > self.limit {
+            self.exhausted = true;
+        }
+        (!self.bdd.overflowed && !self.exhausted).then_some(sum)
+    }
+
     /// `m` without the symbol `x`.
     fn without(&mut self, m: Mono, x: Sym) -> Mono {
         let syms = self.monos[m as usize].clone();
@@ -565,6 +895,18 @@ impl Arena {
 
     /// Rung 3: substitution of sealed symbols, newest first.
     fn expand(&mut self, p: &Poly, limit: usize) -> Verdict {
+        self.expand_within(p, limit, usize::MAX)
+    }
+
+    /// The zero test's cheapest rung alone, for callers that only want to simplify: `Zero`
+    /// when substituting definitions cancels everything within `steps` monomial products and
+    /// `limit` monomials held, else `Unknown`. It counts no rung.
+    pub fn cancels(&mut self, p: &Poly, limit: usize, steps: usize) -> bool {
+        p.is_zero() || self.expand_within(p, limit, steps) == Verdict::Zero
+    }
+
+    /// [`Arena::expand`], giving up after `steps` monomial products.
+    fn expand_within(&mut self, p: &Poly, limit: usize, mut steps: usize) -> Verdict {
         let mut set: BTreeSet<Mono> = p.terms().iter().copied().collect();
         // Monomials by their newest sealed symbol. A list may name monomials that have since
         // left `set`, or name one twice; both are filtered when the list is taken.
@@ -587,9 +929,10 @@ impl Arena {
                 }
                 let rest = self.without(m, x);
                 self.tick(d.len());
-                if self.exhausted {
+                if self.exhausted || steps < d.len() {
                     return Verdict::Unknown;
                 }
+                steps -= d.len();
                 for &dm in d.terms() {
                     let n = self.mono_mul(rest, dm);
                     if !set.remove(&n) {
@@ -620,6 +963,7 @@ mod tests {
     const LIM: Limits = Limits {
         table_bits: 20,
         expand: 1 << 19,
+        bdd_nodes: 1 << 20,
     };
 
     fn arena() -> (Arena, Vec<Poly>) {
@@ -711,8 +1055,17 @@ mod tests {
         let small = Limits {
             table_bits: 8,
             expand: 1 << 8,
+            bdd_nodes: 0,
         };
         assert_eq!(a.is_zero(&d, &small), Verdict::Unknown);
+        // The decision diagram decides both without tables or a large expansion.
+        let diagrams = Limits {
+            bdd_nodes: 1 << 12,
+            ..small
+        };
+        assert_eq!(a.is_zero(&d, &diagrams), Verdict::Zero);
+        assert_eq!(a.is_zero(&e, &diagrams), Verdict::Nonzero);
+        assert_eq!(a.rungs.decision_diagram, 2);
     }
 
     /// The two complete rungs agree with direct evaluation on random sealed polynomials.
@@ -725,6 +1078,7 @@ mod tests {
             x ^= x << 17;
             x % n
         };
+        let mut decided = 0u32;
         for round in 0..200u32 {
             let mut a = Arena::new(u64::MAX);
             let n: u32 = 3 + (round % 3);
@@ -780,8 +1134,35 @@ mod tests {
                 assert_eq!(a.expand(&d, usize::MAX), want, "round {round}");
                 let (primaries, sealed) = a.cone(&d, 20).unwrap();
                 assert_eq!(a.table(&d, &primaries, &sealed), want, "round {round}");
+                assert_eq!(a.diagram_rung(&d, 1 << 16), want, "round {round}");
+                for x in 0..n {
+                    let t = truth[i] ^ truth[j];
+                    let flipped =
+                        (0..1u64 << n).fold(0u64, |f, at| f | (t >> (at ^ 1 << x) & 1) << at);
+                    assert_eq!(
+                        a.depends_on(&d, x, &LIM),
+                        Some(flipped != t),
+                        "round {round}"
+                    );
+                }
+                // A store too small to hold everything collects on the way, or gives up; it
+                // never answers wrongly.
+                let tight = a.diagram_rung(&d, 24);
+                assert!(tight == want || tight == Verdict::Unknown, "round {round}");
+                decided += u32::from(tight == want);
+                if tight == Verdict::Nonzero {
+                    let lim = Limits {
+                        bdd_nodes: 1 << 16,
+                        ..LIM
+                    };
+                    let (at, density) = a.witness(&d, &lim).expect("a witness");
+                    let ones: Vec<Sym> = at.iter().filter(|x| x.1).map(|x| x.0).collect();
+                    assert_eq!(a.value_at(&d, &ones), Some(true));
+                    assert!(density > 0.0 && density <= 1.0);
+                }
             }
         }
+        assert!(decided > 1000, "the tight store decided {decided} tests");
     }
 
     #[test]

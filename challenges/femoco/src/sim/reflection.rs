@@ -41,6 +41,7 @@
 //! **Not established.** That the step encodes the spec's operator: a step can be Hermitian and
 //! wrong, and that stays a sampled statement. The certificate also says nothing about executed
 //! gate counts.
+pub mod bdd;
 pub mod poly;
 
 use super::compile::{Layout, MAX_BITS, MAX_QUBITS};
@@ -49,18 +50,22 @@ use crate::circuit::{Op, OperationType as K, NONE};
 use poly::{Arena, Kind, Limits, Mono, Poly, Sym, Verdict, ONE};
 use serde_json::json;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// The rule set's name and version. The sealing threshold, the zero test's rungs and their
 /// limits decide which true identities are found, so they belong to the version: change any of
 /// them and this string must change.
-pub const VERSION: &str = "reflection-v1";
+pub const VERSION: &str = "reflection-v2";
 /// A wire read as an operand of a product is sealed when its polynomial has more terms.
 const CAP: usize = 3;
 const NO_SYM: Sym = u32::MAX;
+/// The cheap cancellation test (`poly::Arena::cancels`): monomials held, monomial products.
+const CHEAP: (usize, usize) = (1 << 12, 1 << 16);
 
-/// Deterministic work limits (counts of monomial operations; never wall clock). The default
-/// work limit is about 60 times what the Low et al. baseline on the Reiher instance needs
-/// (1.7e7); memory is bounded besides by `poly`'s cap on interned monomials.
+/// Deterministic work limits (counts of polynomial and decision-diagram operations; never wall
+/// clock). The Low et al. baseline on the Reiher instance needs about 3.3e7; the default work
+/// limit, about 130 times that, is some seven minutes on a laptop core. Memory is bounded
+/// besides by `poly`'s cap on interned monomials and by the node limit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Budget {
     /// Total work of the run (`poly::Arena::work`).
@@ -69,14 +74,17 @@ pub struct Budget {
     pub expand: usize,
     /// Truth tables are used for a zero test over at most this many primary symbols.
     pub table_bits: u32,
+    /// Most nodes the decision-diagram rung of the zero test may hold (about 50 bytes each).
+    pub bdd_nodes: usize,
 }
 
 impl Default for Budget {
     fn default() -> Self {
         Self {
-            work: 1 << 30,
+            work: 1 << 32,
             expand: 1 << 19,
             table_bits: 20,
+            bdd_nodes: 1 << 24,
         }
     }
 }
@@ -124,6 +132,7 @@ pub struct Counts {
     pub zero_syntactic: u64,
     pub zero_truth_table: u64,
     pub zero_expansion: u64,
+    pub zero_decision_diagram: u64,
     pub zero_undecided: u64,
 }
 
@@ -210,6 +219,7 @@ impl Report {
                     "syntactic": c.zero_syntactic,
                     "truth_table": c.zero_truth_table,
                     "expansion": c.zero_expansion,
+                    "decision_diagram": c.zero_decision_diagram,
                     "undecided": c.zero_undecided,
                 },
             },
@@ -244,6 +254,14 @@ enum Sys {
     F { dagger: bool, c: Poly },
 }
 
+/// A symbol under a restriction of outcomes: a constant or a symbol.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Cut {
+    Zero,
+    One,
+    Sym(Sym),
+}
+
 struct Engine<'a> {
     a: Arena,
     lim: Limits,
@@ -262,13 +280,22 @@ struct Engine<'a> {
     /// The condition stack: per open block the product of its bit (as it was at the push) and
     /// every enclosing block's.
     stack: Vec<Poly>,
+    /// Per open block: the wires written inside it, with the value each held at the push.
+    saved: Vec<HashMap<u32, Poly>>,
     /// The lane's sign is `(-1)^Phi`, `Phi = sum_mu mu * phi[mu]` over products `mu` of
     /// outcomes; `phi[ONE]` is the part with no outcome.
     phi: HashMap<Mono, Poly>,
     log: Vec<(usize, Sys)>,
     reflected: bool,
     twin: Vec<Sym>,
+    /// Per symbol: the `Outcome` symbols it depends on, through definitions (ascending).
+    outcomes: Vec<Option<Rc<[Sym]>>>,
+    /// `(symbol, outcome, value)`: the symbol with that outcome set to that value; the outcome
+    /// `NO_SYM` stands for every outcome at once. Only symbols that depend on the outcome.
+    cut: HashMap<(Sym, Sym, bool), Cut>,
     counts: Counts,
+    /// Where the check is, for the refusal when the work budget runs out.
+    stage: String,
     registers_restored: bool,
     outcome_independent: bool,
     hermitian: bool,
@@ -436,7 +463,7 @@ pub fn certify(
             "the rule set covers nested lane maps whose control-1 lanes keep their uniform value",
         );
     };
-    if budget.table_bits > 24 || l.first_ancilla() >= MAX_QUBITS {
+    if budget.table_bits > 24 || budget.bdd_nodes > 1 << 26 || l.first_ancilla() >= MAX_QUBITS {
         return Report::refused(budget, "budget", "limits outside the supported range");
     }
     if inner
@@ -463,6 +490,7 @@ pub fn certify(
             zero_syntactic: r.syntactic,
             zero_truth_table: r.truth_table,
             zero_expansion: r.expansion,
+            zero_decision_diagram: r.decision_diagram,
             zero_undecided: r.undecided,
             ..e.counts
         },
@@ -493,6 +521,7 @@ impl<'a> Engine<'a> {
             lim: Limits {
                 table_bits: budget.table_bits,
                 expand: budget.expand,
+                bdd_nodes: budget.bdd_nodes,
             },
             l: *l,
             first,
@@ -504,10 +533,14 @@ impl<'a> Engine<'a> {
             second: Vec::new(),
             stack: Vec::new(),
             phi: HashMap::new(),
+            saved: Vec::new(),
             log: Vec::new(),
             reflected: false,
             twin: Vec::new(),
+            outcomes: Vec::new(),
+            cut: HashMap::new(),
             counts: Counts::default(),
+            stage: "in the op stream".into(),
             registers_restored: false,
             outcome_independent: false,
             hermitian: false,
@@ -518,7 +551,10 @@ impl<'a> Engine<'a> {
         obstruct(
             at,
             "budget",
-            "the work budget is exhausted; nothing is certified".into(),
+            format!(
+                "the work budget is exhausted {}; nothing is certified",
+                self.stage
+            ),
         )
     }
 
@@ -530,6 +566,7 @@ impl<'a> Engine<'a> {
             }
             self.counts.ops += 1;
         }
+        self.stage = "in the end-of-stream register and sign checks".into();
         let checked = self
             .finish()
             .and_then(|()| self.phases())
@@ -542,11 +579,38 @@ impl<'a> Engine<'a> {
         checked
     }
 
+    /// The refusal for a polynomial found nonzero, with one assignment on which it is 1 when
+    /// the decision diagram fits: enough to replay the lane on the lane engine.
+    fn counterexample(&mut self, p: &Poly) -> String {
+        let base = "it is 1 for some lane or outcome record";
+        let Some((at, density)) = self.a.witness(p, &self.lim) else {
+            return base.into();
+        };
+        let (mut start, mut second, mut outcomes) = (Vec::new(), Vec::new(), Vec::new());
+        for (s, v) in at {
+            let v = u8::from(v);
+            match self.a.kind(s) {
+                Kind::Initial(q) => start.push(format!("q{q}={v}")),
+                Kind::Second(q) => second.push(format!("q{q}={v}")),
+                Kind::Outcome(i) => outcomes.push(format!("op {i}={v}")),
+                Kind::Sealed => {}
+            }
+        }
+        format!(
+            "{base}: on a fraction {density:e} of the assignments of its bits; for example \
+             wires at the start [{}], inner wires after the Reflect [{}], HMR outcomes [{}], \
+             every other bit free",
+            start.join(" "),
+            second.join(" "),
+            outcomes.join(" ")
+        )
+    }
+
     /// `Ok` when `p` is proven identically zero; otherwise why not.
     fn prove_zero(&mut self, p: &Poly) -> Result<(), String> {
         match self.a.is_zero(p, &self.lim) {
             Verdict::Zero => Ok(()),
-            Verdict::Nonzero => Err("it is 1 for some lane or outcome record".into()),
+            Verdict::Nonzero => Err(self.counterexample(p)),
             Verdict::Unknown => {
                 // For the reader of the refusal: how wide the unproven identity is.
                 let (primaries, sealed) = self.a.support(p);
@@ -554,6 +618,39 @@ impl<'a> Engine<'a> {
                     "not proven within the work limits (the identity involves {primaries} lane \
                      and outcome bits through {sealed} sealed definitions)"
                 ))
+            }
+        }
+    }
+
+    /// Called before a write to the wire `q`: every open block that has not seen `q` written
+    /// keeps the value it holds now.
+    fn touch(&mut self, q: u32) {
+        for block in &mut self.saved {
+            block
+                .entry(q)
+                .or_insert_with(|| self.val[q as usize].clone());
+        }
+    }
+
+    /// At a pop: a wire the block wrote and provably left as it found it gets its old
+    /// polynomial back. The two are equal as functions, so nothing changes but the form: the
+    /// old one does not name the block's condition, and whatever reads the wire later does not
+    /// inherit a dependence on an outcome that is not there. A wire not proven restored (by
+    /// the cheap rung of the zero test) keeps the polynomial it has.
+    fn restore(&mut self) {
+        let Some(block) = self.saved.pop() else {
+            return;
+        };
+        let mut wires: Vec<(u32, Poly)> = block.into_iter().collect();
+        wires.sort_unstable_by_key(|w| w.0);
+        for (q, old) in wires {
+            if self.val[q as usize] == old {
+                continue;
+            }
+            let mut d = self.val[q as usize].clone();
+            self.a.add(&mut d, &old);
+            if self.a.cancels(&d, CHEAP.0, CHEAP.1) {
+                self.val[q as usize] = old;
             }
         }
     }
@@ -670,11 +767,13 @@ impl<'a> Engine<'a> {
             K::PushCondition => {
                 let c = self.cond(op.c_condition);
                 self.stack.push(c);
+                self.saved.push(HashMap::new());
             }
             K::PopCondition => {
                 if self.stack.pop().is_none() {
                     return no("structure", "pop on an empty condition stack");
                 }
+                self.restore();
             }
             K::BitInvert | K::BitStore0 | K::BitStore1 => {
                 let c = self.cond(op.c_condition);
@@ -707,6 +806,7 @@ impl<'a> Engine<'a> {
                 match sys(t) {
                     Some(q) => self.log.push((i, Sys::X { q, c: p })),
                     None => {
+                        self.touch(t);
                         let mut v = std::mem::take(&mut self.val[t as usize]);
                         self.a.add(&mut v, &p);
                         self.val[t as usize] = v;
@@ -738,6 +838,8 @@ impl<'a> Engine<'a> {
                     return no("unsupported-op", "Swap on a system qubit");
                 }
                 let c = self.cond(op.c_condition);
+                self.touch(t);
+                self.touch(c1);
                 if c.is_one() {
                     self.val.swap(t as usize, c1 as usize);
                 } else if !c.is_zero() {
@@ -761,6 +863,7 @@ impl<'a> Engine<'a> {
                 // On the lanes where `c` holds: sign (-1)^(m v), the qubit becomes 0, the bit m.
                 let m = self.a.primary(Kind::Outcome(i));
                 let m = self.a.sym_poly(m);
+                self.touch(t);
                 let v = self.rd(t);
                 let cm = self.a.mul(&c, &m);
                 self.add_phase(&cm, &v);
@@ -920,38 +1023,237 @@ impl<'a> Engine<'a> {
         Ok(())
     }
 
-    /// Every coefficient of a product of outcomes in the lane's sign is identically zero.
+    /// Folds the lane's sign into one polynomial, `phi[ONE]`. A coefficient of a product of
+    /// outcomes that the cheap rung of the zero test proves identically zero contributes
+    /// nothing and is dropped; any other is multiplied by its outcomes and kept, for
+    /// [`Engine::settle`] to judge with the rest of the sign.
     fn phases(&mut self) -> Result<(), Obstruction> {
         let mut keys: Vec<Mono> = self.phi.keys().copied().filter(|&k| k != ONE).collect();
         keys.sort_unstable();
+        let mut sign = self.phi.remove(&ONE).unwrap_or_default();
         for k in keys {
             let p = self.phi.remove(&k).unwrap_or_default();
-            if let Err(why) = self.prove_zero(&p) {
-                let hmr: Vec<usize> = self
-                    .a
-                    .syms(k)
-                    .iter()
-                    .filter_map(|&s| match self.a.kind(s) {
-                        Kind::Outcome(i) => Some(i),
-                        _ => None,
-                    })
-                    .collect();
-                return Err(Obstruction {
-                    op: hmr.first().copied(),
-                    name: Some(K::Hmr.name()),
-                    kind: "outcome-phase",
-                    reason: format!(
-                        "the lane's sign depends on the outcomes of the HMR ops {hmr:?}: their \
-                         phase coefficient is not cancelled: {why}"
-                    ),
-                });
+            if self.a.cancels(&p, CHEAP.0, CHEAP.1) {
+                self.counts.outcome_phases_proved += 1;
+                continue;
             }
-            self.counts.outcome_phases_proved += 1;
+            let kp = self.a.mul(&Poly::from_terms(vec![k]), &p);
+            self.a.add(&mut sign, &kp);
         }
         if self.a.exhausted {
             return Err(self.budget(None));
         }
+        self.phi.insert(ONE, sign);
         Ok(())
+    }
+
+    /// The `Outcome` symbols `s` depends on, through definitions.
+    fn outcomes_of(&mut self, s: Sym) -> Rc<[Sym]> {
+        let mut todo = vec![s];
+        while let Some(&x) = todo.last() {
+            if self.outcomes.len() < self.a.symbols() as usize {
+                self.outcomes.resize(self.a.symbols() as usize, None);
+            }
+            if self.outcomes[x as usize].is_some() {
+                todo.pop();
+                continue;
+            }
+            let set: Vec<Sym> = match (self.a.kind(x), self.a.def(x)) {
+                (Kind::Outcome(_), _) => vec![x],
+                (_, None) => Vec::new(),
+                (_, Some(def)) => {
+                    self.a.tick(def.len());
+                    let before = todo.len();
+                    let mut all = Vec::new();
+                    for &m in def.terms() {
+                        for &c in self.a.syms(m).iter() {
+                            match &self.outcomes[c as usize] {
+                                Some(o) => all.extend_from_slice(o),
+                                None => todo.push(c),
+                            }
+                        }
+                    }
+                    if todo.len() > before {
+                        continue;
+                    }
+                    self.a.tick(all.len());
+                    all.sort_unstable();
+                    all.dedup();
+                    all
+                }
+            };
+            self.outcomes[x as usize] = Some(Rc::from(set));
+            todo.pop();
+        }
+        self.outcomes[s as usize]
+            .clone()
+            .unwrap_or_else(|| Rc::from(Vec::new()))
+    }
+
+    /// Whether the value of `s` changes under the restriction of `m` (`NO_SYM`: of any outcome).
+    fn reads(&mut self, s: Sym, m: Sym) -> bool {
+        let o = self.outcomes_of(s);
+        if m == NO_SYM {
+            !o.is_empty()
+        } else {
+            o.binary_search(&m).is_ok()
+        }
+    }
+
+    /// The symbol `s` with the outcome `m` set to `v` (`m = NO_SYM`: every outcome set to `v`).
+    /// A sealed symbol that reads `m` maps to the seal of its restricted definition.
+    fn cut_sym(&mut self, s: Sym, m: Sym, v: bool) -> Cut {
+        let mut todo = vec![s];
+        let mut last = Cut::Sym(s);
+        while let Some(&x) = todo.last() {
+            if !self.reads(x, m) {
+                last = Cut::Sym(x);
+                todo.pop();
+                continue;
+            }
+            if let Some(&c) = self.cut.get(&(x, m, v)) {
+                last = c;
+                todo.pop();
+                continue;
+            }
+            let c = match self.a.def(x) {
+                // An outcome that `m` names.
+                None => {
+                    if v {
+                        Cut::One
+                    } else {
+                        Cut::Zero
+                    }
+                }
+                Some(def) => {
+                    self.a.tick(def.len());
+                    let before = todo.len();
+                    for &t in def.terms() {
+                        for &c in self.a.syms(t).iter() {
+                            if self.reads(c, m) && !self.cut.contains_key(&(c, m, v)) {
+                                todo.push(c);
+                            }
+                        }
+                    }
+                    if todo.len() > before {
+                        continue;
+                    }
+                    let q = self.cut_mapped(&def, m, v);
+                    if q.is_zero() {
+                        Cut::Zero
+                    } else if q.is_one() {
+                        Cut::One
+                    } else {
+                        Cut::Sym(self.a.seal(&q))
+                    }
+                }
+            };
+            self.cut.insert((x, m, v), c);
+            last = c;
+            todo.pop();
+        }
+        last
+    }
+
+    /// `p` under the restriction; every symbol of `p` that reads `m` is already in `cut`.
+    fn cut_mapped(&mut self, p: &Poly, m: Sym, v: bool) -> Poly {
+        self.a.tick(p.len());
+        let mut out = Vec::with_capacity(p.len());
+        'term: for &t in p.terms() {
+            let mut syms: Vec<Sym> = Vec::new();
+            for &c in self.a.syms(t).iter() {
+                let cut = if self.reads(c, m) {
+                    self.cut.get(&(c, m, v)).copied().unwrap_or(Cut::Sym(c))
+                } else {
+                    Cut::Sym(c)
+                };
+                match cut {
+                    Cut::Zero => continue 'term,
+                    Cut::One => {}
+                    Cut::Sym(y) => syms.push(y),
+                }
+            }
+            syms.sort_unstable();
+            syms.dedup();
+            out.push(self.a.intern(&syms));
+        }
+        Poly::from_terms(out)
+    }
+
+    /// `p` with the outcome `m` set to `v` (`m = NO_SYM`: every outcome).
+    fn cut_poly(&mut self, p: &Poly, m: Sym, v: bool) -> Poly {
+        for &t in p.terms() {
+            for &c in self.a.syms(t).iter() {
+                self.cut_sym(c, m, v);
+            }
+        }
+        self.cut_mapped(p, m, v)
+    }
+
+    /// Proves that `p` does not depend on any measurement outcome, as a function: for every
+    /// outcome `m` it reads, directly or through a definition, `p` with `m = 1` plus `p` with
+    /// `m = 0` is identically zero. A function that no single variable can change is constant
+    /// in all of them, so `p` then equals `p` with every outcome set to 0, which is returned:
+    /// a polynomial that names no outcome anywhere. `Err` is the op of an outcome `p` is not
+    /// proven independent of, and why.
+    fn settle(&mut self, p: &Poly) -> Result<Poly, (usize, String)> {
+        // Per outcome: the terms of `p` that read it.
+        let mut readers: HashMap<Sym, Vec<Mono>> = HashMap::new();
+        for &t in p.terms() {
+            let mut all: Vec<Sym> = Vec::new();
+            for &c in self.a.syms(t).iter() {
+                all.extend_from_slice(&self.outcomes_of(c));
+            }
+            all.sort_unstable();
+            all.dedup();
+            self.a.tick(all.len());
+            for m in all {
+                readers.entry(m).or_default().push(t);
+            }
+        }
+        if readers.is_empty() {
+            return Ok(p.clone());
+        }
+        let mut outcomes: Vec<Sym> = readers.keys().copied().collect();
+        outcomes.sort_unstable();
+        let total = outcomes.len();
+        for (k, m) in outcomes.into_iter().enumerate() {
+            self.stage = format!(
+                "while proving a polynomial of {} terms independent of outcome {} of the {total} \
+                 it reads",
+                p.len(),
+                k + 1
+            );
+            // Terms that do not read `m` are the same on both sides and cancel.
+            let part = Poly::from_terms(readers.remove(&m).unwrap_or_default());
+            // First by the diagram of those terms as they stand: it shares every symbol's
+            // diagram with the other outcomes' tests, where the restrictions below are new
+            // symbols each time.
+            if self.a.depends_on(&part, m, &self.lim) == Some(false) {
+                self.counts.outcome_phases_proved += 1;
+                continue;
+            }
+            let mut d = self.cut_poly(&part, m, true);
+            let zero = self.cut_poly(&part, m, false);
+            self.a.add(&mut d, &zero);
+            if self.a.exhausted {
+                return Err((usize::MAX, "the work budget is exhausted".into()));
+            }
+            if let Err(why) = self.prove_zero(&d) {
+                let op = match self.a.kind(m) {
+                    Kind::Outcome(i) => i,
+                    _ => usize::MAX,
+                };
+                return Err((op, why));
+            }
+            self.counts.outcome_phases_proved += 1;
+        }
+        self.stage = "while writing a polynomial without the outcomes it was proven not to \
+                      depend on"
+            .into();
+        let plain = self.cut_poly(p, NO_SYM, false);
+        self.stage = "in the comparison of the lane operator with its adjoint".into();
+        Ok(plain)
     }
 
     /// The symbol `s` with the first- and second-pass inner symbols exchanged. A sealed symbol
@@ -1095,7 +1397,82 @@ impl<'a> Engine<'a> {
         let (list, frame, crossing) = self.normal(&log);
         let mut sign = self.phi.get(&ONE).cloned().unwrap_or_default();
         self.a.add(&mut sign, &crossing);
-        // The twin of everything the lane operator is made of. An outcome anywhere is refused.
+        // Everything the lane operator is made of is proven independent of every outcome and
+        // replaced by its outcome-free form (`settle`).
+        let depends =
+            |at: Option<usize>, kind: &'static str, what: &str, e: (usize, String)| Obstruction {
+                op: at.or((e.0 != usize::MAX).then_some(e.0)),
+                name: at.is_none().then_some(K::Hmr.name()),
+                kind,
+                reason: match e.0 {
+                    usize::MAX => {
+                        format!("{what} is not proven independent of the outcomes: {}", e.1)
+                    }
+                    i => format!(
+                        "{what} is not proven independent of the outcome of the HMR at op {i}: {}",
+                        e.1
+                    ),
+                },
+            };
+        let steers = "outcome-steers-system";
+        let mut settled: Vec<(usize, Sys)> = Vec::with_capacity(list.len());
+        for (at, op) in &list {
+            let here = Some(*at);
+            let t = match op {
+                Sys::X { q, c } => Sys::X {
+                    q: *q,
+                    c: self
+                        .settle(c)
+                        .map_err(|e| depends(here, steers, "a system X's control", e))?,
+                },
+                Sys::F { dagger, c } => Sys::F {
+                    dagger: *dagger,
+                    c: self
+                        .settle(c)
+                        .map_err(|e| depends(here, steers, "a SpinSwap's control", e))?,
+                },
+                Sys::G { p, q, angle, sign } => {
+                    let mut bits = Vec::with_capacity(angle.len());
+                    for b in angle {
+                        bits.push(
+                            self.settle(b)
+                                .map_err(|e| depends(here, steers, "a Givens angle", e))?,
+                        );
+                    }
+                    Sys::G {
+                        p: *p,
+                        q: *q,
+                        angle: bits,
+                        sign: self
+                            .settle(sign)
+                            .map_err(|e| depends(here, steers, "a system Z's control", e))?,
+                    }
+                }
+                Sys::Z { q, c } => Sys::Z {
+                    q: *q,
+                    c: self
+                        .settle(c)
+                        .map_err(|e| depends(here, steers, "a system Z's control", e))?,
+                },
+            };
+            settled.push((*at, t));
+        }
+        let list = settled;
+        let mut plain = Vec::with_capacity(frame.len());
+        for f in &frame {
+            plain.push(
+                self.settle(f)
+                    .map_err(|e| depends(None, steers, "a system Z's control", e))?,
+            );
+        }
+        let frame = plain;
+        let sign = self
+            .settle(&sign)
+            .map_err(|e| depends(None, "outcome-phase", "the lane's sign", e))?;
+        if self.a.exhausted {
+            return Err(self.budget(None));
+        }
+        // The twin of each. No outcome is left to meet.
         let steered = |at: Option<usize>, i: usize, what: &str| Obstruction {
             op: at,
             name: None,
