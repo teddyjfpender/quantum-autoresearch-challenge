@@ -59,7 +59,8 @@ epoch ([VALIDATION.md](VALIDATION.md)).
 
 - **One circuit, on a runner.** The *Re-validate a recorded circuit* workflow rebuilds a pinned
   circuit in the build sandbox, validates it with the released evaluator and the ledger key, and requires the result
-  to equal its ledger row (seed, digests, counts, verifier digest). Choose the reference engine
+  to equal its ledger row (seed, digests, counts). A row recorded by an earlier evaluator
+  is expected to reproduce under the current one; the two verifier digests are printed. Choose the reference engine
   for the full stage to strengthen a headline row.
 - **All of them, locally.** `challenges/femoco/tools/authenticate_pins.py` does the same for
   every pinned circuit. Use it after an evaluator change, on a checkout of `main` only: it

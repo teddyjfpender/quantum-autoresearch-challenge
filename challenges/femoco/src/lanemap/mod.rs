@@ -19,6 +19,10 @@ use crate::spec::{EncodingSpec, Exact, SystemOp};
 pub const MAGIC: &[u8; 8] = b"FEMOLMAP";
 
 pub trait LaneMap: Send + Sync {
+    /// Trusted SA table view for deterministic coverage and symbolic export.
+    fn as_sa_nested(&self) -> Option<&sa_nested::SaNestedMap> {
+        None
+    }
     /// "alias-v1", "sparse-sym-alias-v1", "df-pair-alias-v1", "df-nested-alias-v1",
     /// "thc-pair-alias-v1" or "sa-nested-alias-v1".
     fn family(&self) -> &str;
