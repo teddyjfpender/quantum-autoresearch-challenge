@@ -22,6 +22,14 @@
 //! (every ordinary run) the seed is the formula above, byte for byte
 //! (`tests/seed_stream.rs`). The scope is per thread: `eval_circuit` sets it around
 //! `score::evaluate`, which draws every lane and the measurement key on the calling thread.
+//!
+//! **Outcome-coverage strata** (`eval_circuit --outcome-coverage` only; spec/DESIGN.md section
+//! 9). A directed stratum is named by `sid = SHA-256("femoco-walk-coverage-stratum-v1" ||
+//! canonical bytes of its linear system)`. Its measurement key is the first 32 bytes of
+//! `SHAKE256("femoco-walk-coverage-key-v1" || hmr_key || sid)` and its lanes come from
+//! `SHAKE256("femoco-walk-coverage-lanes-v1" || hmr_key || sid)`, decoded as steps 2 and 3. Both
+//! are functions of the run's measurement key, so they follow the seed. An ordinary run reads
+//! none of them.
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::{Shake256, Shake256Reader};
 use std::cell::Cell;
@@ -179,14 +187,8 @@ pub fn sample_nested(d: &Digests, u: u32, lo: u32, w: u32, k: usize) -> NestedSa
     for lane in &sample.lanes {
         let mut b = [0u8; 8];
         xof.read(&mut b);
-        let x = u64::from_le_bytes(b);
-        let diag = x & 1 == 1;
-        let second = if diag {
-            lane.s & inner
-        } else {
-            ((x >> 1) << lo) & inner
-        };
-        after.push((lane.s & !inner) | second);
+        let (a, diag) = second_pass(lane, u64::from_le_bytes(b), lo, inner);
+        after.push(a);
         diagonal.push(diag);
     }
     NestedSample {
@@ -194,6 +196,26 @@ pub fn sample_nested(d: &Digests, u: u32, lo: u32, w: u32, k: usize) -> NestedSa
         after,
         diagonal,
     }
+}
+
+/// Step 2: the lane a seed-stream word `w` stands for (`mask = 2^u - 1`).
+fn lane_of(w: u64, mask: u64) -> Lane {
+    Lane {
+        c: w & 1 == 1,
+        s: (w >> 1) & mask,
+    }
+}
+
+/// Step 3: the uniform value after the `Reflect` that the word `x` gives `lane`, and whether
+/// the lane is diagonal (`inner` is the inner register's mask, at bit `lo`).
+fn second_pass(lane: &Lane, x: u64, lo: u32, inner: u64) -> (u64, bool) {
+    let diag = x & 1 == 1;
+    let second = if diag {
+        lane.s & inner
+    } else {
+        ((x >> 1) << lo) & inner
+    };
+    ((lane.s & !inner) | second, diag)
 }
 
 fn draw(d: &Digests, u: u32, k: usize) -> (Sample, Shake256Reader) {
@@ -206,11 +228,7 @@ fn draw(d: &Digests, u: u32, k: usize) -> (Sample, Shake256Reader) {
         .map(|_| {
             let mut b = [0u8; 8];
             xof.read(&mut b);
-            let w = u64::from_le_bytes(b);
-            Lane {
-                c: w & 1 == 1,
-                s: (w >> 1) & mask,
-            }
+            lane_of(u64::from_le_bytes(b), mask)
         })
         .collect();
     (Sample { lanes, hmr_key }, xof)
@@ -224,6 +242,80 @@ pub fn hmr_stream(key: &[u8; 32], batch: u64) -> Shake256Reader {
     h.update(key);
     h.update(&batch.to_le_bytes());
     h.finalize_xof()
+}
+
+/// Domain strings of the outcome-coverage mode's directed strata (`eval_circuit
+/// --outcome-coverage`, spec/DESIGN.md section 9). Nothing outside the mode reads them.
+pub const COVERAGE_STRATUM_DOMAIN: &[u8] = b"femoco-walk-coverage-stratum-v1";
+pub const COVERAGE_KEY_DOMAIN: &[u8] = b"femoco-walk-coverage-key-v1";
+pub const COVERAGE_LANES_DOMAIN: &[u8] = b"femoco-walk-coverage-lanes-v1";
+
+/// A directed stratum's id: `SHA-256("femoco-walk-coverage-stratum-v1" || system)`, where
+/// `system` is the canonical bytes of the linear system the stratum's outcomes solve
+/// (`sim::condition::canonical_bytes`).
+#[must_use]
+pub fn coverage_stratum_id(system: &[u8]) -> [u8; 32] {
+    let mut h = sha2::Sha256::default();
+    h.update(COVERAGE_STRATUM_DOMAIN);
+    h.update(system);
+    sha2::Digest::finalize(h).into()
+}
+
+fn coverage_xof(domain: &[u8], hmr_key: &[u8; 32], sid: &[u8; 32]) -> Shake256Reader {
+    let mut h = Shake256::default();
+    h.update(domain);
+    h.update(hmr_key);
+    h.update(sid);
+    h.finalize_xof()
+}
+
+/// A directed stratum's measurement key: the first 32 bytes of
+/// `SHAKE256("femoco-walk-coverage-key-v1" || hmr_key || stratum id)`. The stratum's batches
+/// read their raw outcomes from [`hmr_stream`] under this key.
+#[must_use]
+pub fn coverage_key(hmr_key: &[u8; 32], sid: &[u8; 32]) -> [u8; 32] {
+    let mut key = [0u8; 32];
+    coverage_xof(COVERAGE_KEY_DOMAIN, hmr_key, sid).read(&mut key);
+    key
+}
+
+/// A directed stratum's `m` lanes, from `SHAKE256("femoco-walk-coverage-lanes-v1" || hmr_key ||
+/// stratum id)`: one `u64` per lane decoded as step 2 of the module docs and then, for a nested
+/// lane map (`inner = (lo, w)`), one more `u64` per lane decoded as step 3. So a stratum's lanes
+/// have the distribution of the main sample's. Everything derives from the main run's
+/// measurement key, hence from the seed in force (server seed and audit beacon included).
+///
+/// # Panics
+/// As [`sample_nested`].
+#[must_use]
+pub fn coverage_lanes(
+    hmr_key: &[u8; 32],
+    sid: &[u8; 32],
+    u: u32,
+    inner: Option<(u32, u32)>,
+    m: usize,
+) -> (Vec<Lane>, Option<Vec<u64>>) {
+    assert!(u <= 63, "uniform register wider than 63 bits");
+    let mut xof = coverage_xof(COVERAGE_LANES_DOMAIN, hmr_key, sid);
+    let mut word = || {
+        let mut b = [0u8; 8];
+        xof.read(&mut b);
+        u64::from_le_bytes(b)
+    };
+    let mask = (1u64 << u) - 1;
+    let lanes: Vec<Lane> = (0..m).map(|_| lane_of(word(), mask)).collect();
+    let after = inner.map(|(lo, w)| {
+        assert!(
+            lo + w <= u && w < 64,
+            "inner register outside the uniform register"
+        );
+        let inner = ((1u64 << w) - 1) << lo;
+        lanes
+            .iter()
+            .map(|lane| second_pass(lane, word(), lo, inner).0)
+            .collect()
+    });
+    (lanes, after)
 }
 
 #[cfg(test)]

@@ -9,6 +9,9 @@ pub const RESULTS_HEADER: &str =
     "unix_time\tcommit\tspec\tfamily_name\tfamily_axes\tlambda\ttoffoli\t\
 qubits\tscore\ttotal_toffoli_lit\tsamples\tstatus\tnote";
 
+/// `sampling_limits.measurement_outcomes` of a run in the outcome-coverage mode.
+pub const COVERED_OUTCOMES: &str = "drawn uniformly per lane; in addition every conditioned site not proved unreachable executed on validated control-1 lanes (metrics.outcome_coverage), a per-site count and not a bound over combinations of outcomes";
+
 fn axes_named(ev: &Evaluation, verified: bool) -> Vec<String> {
     ev.verdicts
         .iter()
@@ -150,6 +153,12 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
         "measurement_outcomes": "drawn uniformly per lane: a block conditioned on a rare outcome pattern is tested on few or no lanes",
         "certifies_energy_error": false,
     });
+    // Outcome-coverage mode only (spec/SAMPLING.md section 2.3): every other run's score.json is
+    // unchanged.
+    if let Some(c) = &ev.outcome_coverage {
+        out["metrics"]["outcome_coverage"] = c.json.clone();
+        out["metrics"]["sampling_limits"]["measurement_outcomes"] = json!(COVERED_OUTCOMES);
+    }
     // Nested runs only, so flat runs' score.json is unchanged (spec/DESIGN.md section 16).
     if let Some(n) = &ev.nested {
         let (fp, fd) = n.f_bounds();

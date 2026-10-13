@@ -14,6 +14,7 @@
 // Word-indexed loops over the fixed `W` words read most clearly and vectorize well here.
 #![allow(clippy::needless_range_loop)]
 use super::compile::{Compiled, SimOp};
+use super::condition::{DirectedRun, SiteCounts};
 use super::tracker::{LaneFrame, LaneTracker, TrackerFactory};
 use crate::circuit::NONE;
 use sha3::digest::XofReader;
@@ -72,6 +73,10 @@ pub struct Lanes<'a> {
     pub system: usize,
     /// Set by the validator when the lane map is nested; `None` rejects any `Reflect`.
     pub reflect: Option<ReflectLanes>,
+    /// Outcome-coverage mode only (`super::condition`): per-site execution counts.
+    pub cover: Option<SiteCounts>,
+    /// Outcome-coverage mode only: the directed outcome stream of a stratum.
+    pub directed: Option<DirectedRun<'a>>,
     factory: Option<&'a dyn TrackerFactory>,
     registers: &'a [Vec<u32>],
 }
@@ -104,6 +109,8 @@ impl<'a> Lanes<'a> {
             trackers: (0..LANES).map(|_| None).collect(),
             system,
             reflect: None,
+            cover: None,
+            directed: None,
             factory,
             registers: &c.registers,
         }
@@ -169,9 +176,20 @@ impl<'a> Lanes<'a> {
                 SimOp::Push { bit } => {
                     stack.push(base);
                     base = self.mask(&base, bit);
+                    if let Some(c) = self.cover.as_mut() {
+                        c.add(&base);
+                    }
                 }
                 SimOp::Pop => base = stack.pop().unwrap_or(self.active),
-                _ => self.step(op, &base, i, rng)?,
+                _ => {
+                    if self.cover.is_some() && op.cond() != NONE {
+                        let m = self.mask(&base, op.cond());
+                        if let Some(c) = self.cover.as_mut() {
+                            c.add(&m);
+                        }
+                    }
+                    self.step(op, &base, i, rng)?;
+                }
             }
         }
         Ok(())
@@ -296,10 +314,17 @@ impl<'a> Lanes<'a> {
         self.tally.hmr += pop(m);
         let mut buf = [0u8; 8 * W];
         rng.read(&mut buf);
+        let mut words = [0u64; W];
+        for j in 0..W {
+            words[j] = u64::from_le_bytes(buf[8 * j..8 * j + 8].try_into().unwrap_or([0; 8]));
+        }
+        if let Some(d) = self.directed.as_mut() {
+            d.fix(&mut words);
+        }
         let (it, ib) = (t as usize * W, bit as usize * W);
         let mut kick = [0u64; W];
         for j in 0..W {
-            let r = u64::from_le_bytes(buf[8 * j..8 * j + 8].try_into().unwrap_or([0; 8]));
+            let r = words[j];
             kick[j] = self.q[it + j] & r & m[j];
             self.b[ib + j] = (self.b[ib + j] & !m[j]) | (r & m[j]);
             self.q[it + j] &= !m[j];

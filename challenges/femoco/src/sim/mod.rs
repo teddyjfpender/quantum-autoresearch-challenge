@@ -4,8 +4,10 @@
 //! 64 lanes per word with the system register carried as a Pauli frame; `validate` runs the
 //! sampled lanes in parallel and applies the per-lane checks; `jw` is the exact Jordan-Wigner
 //! conversion every encoding compares system operators through; `tracker` is the plug-in point for
-//! the fermionic-Gaussian tracking of `Givens`.
+//! the fermionic-Gaussian tracking of `Givens`; `condition` is the outcome-coverage mode's
+//! static pass, execution counts and directed outcome streams (opt-in).
 pub mod compile;
+pub mod condition;
 pub mod gaussian;
 pub mod jw;
 pub mod lanes;

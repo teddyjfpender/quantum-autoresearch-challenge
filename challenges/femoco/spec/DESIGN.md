@@ -60,10 +60,10 @@ path; everything else is trusted.
 | `src/spec/` | trusted | spec types, the loader, exact rationals, rounding classes (sections 7, 13) |
 | `src/lanemap/` | trusted | lane-map families (section 6) |
 | `src/fiat_shamir.rs` | trusted | the seed stream (sections 9, 14) |
-| `src/sim/` | trusted | static checks, liveness, the bit-sliced lane simulator, the fermionic Gaussian tracker, per-lane validation |
+| `src/sim/` | trusted | static checks, liveness, the bit-sliced lane simulator, the fermionic Gaussian tracker, per-lane validation; `condition.rs`, the outcome-coverage mode's static pass, counts and directed outcomes (section 9) |
 | `src/fastsim/`, `src/equiv.rs` | trusted | the optional fast lane engine and its equivalence harness (spec/FAST-EVALUATOR.md) |
 | `src/facts.rs`, `src/taxonomy.rs`, `src/taxonomy/` | trusted | `CircuitFacts` and the taxonomy checker (section 10) |
-| `src/score.rs`, `src/score/` | trusted | evaluation, scoring, `score.json` and `results.tsv` writers (sections 8, 11) |
+| `src/score.rs`, `src/score/` | trusted | evaluation, scoring, `score.json` and `results.tsv` writers (sections 8, 11); `coverage.rs`, the outcome-coverage acceptance rule and report (section 9) |
 | `src/bin/` | trusted | `build_circuit`, `eval_circuit`, `eval_diff`, `femoco_serve` |
 | `src/walk/` | **editable** | the submission: `mod.rs` (dispatch), `sa_low/` (the shipped architectures), `common/`, `shared/` (gadget libraries) |
 | `tests/` | trusted | harness, spec, taxonomy, equivalence and adversarial tests |
@@ -195,6 +195,13 @@ as an executed measurement. The batch's outcome bits are drawn for every lane ei
 outcome stream does not depend on conditions. A non-executing `Hmr` does not reject a lane whose
 qubit holds 1; that lane fails only if the qubit is still 1 when an `R` frees it or at the end of
 the stream. For liveness such an `Hmr` does not free the qubit (section 8).
+
+**`Hmr` ordinals.** Because every `Hmr` op reads the outcome stream whether or not it executes,
+the `j`-th `Hmr` op of the stream always reads the same position of it. The outcome-coverage
+mode (section 9) names that outcome variable `j`. In a directed stratum of that mode the engines
+replace the words read at chosen ordinals by a fixed GF(2)-affine function of words read
+earlier (`src/sim/condition.rs`, `Directed`); every other outcome is the raw stream. Outside
+the mode the outcomes are the raw stream, always.
 
 Static caps: at most `2^20` qubits, `2^22` classical bits and `2^20` registers.
 
@@ -426,6 +433,47 @@ Hermitian) or a `Rotated` product (section 6).
   occurred, from: `dirty-ancilla-freed`, `tracker`, `registers-not-restored`,
   `dirty-ancilla-at-end`, `phase-garbage`, `control-0-not-identity`, `not-a-pauli`, `wrong-phase`,
   `wrong-term`, `inner-register-at-reflect`.
+- **Outcome coverage** (`eval_circuit --outcome-coverage`, opt-in; `src/sim/condition.rs`,
+  `src/score/coverage.rs`, tests in `tests/outcome_coverage.rs`). Outcomes are uniform per lane,
+  so a block conditioned on a rare outcome pattern runs on few or no sampled lanes
+  ([SAMPLING.md](SAMPLING.md) section 2.3). Without the flag nothing below runs and every output
+  is unchanged. With it:
+  - *Sites.* Every `PushCondition` and every other op with a `c_condition`, in stream order. A
+    site executes on a lane when its whole mask is 1 there.
+  - *Counts.* Both engines count, per site, the lanes on which it executed, split by the sampled
+    control bit. Counts are summed over batches and are used only when every lane of the engine
+    call passed.
+  - *Static pass.* Each classical bit is followed as a function of the outcome variables
+    (section 5): `Zero`, a conjunction of GF(2)-affine forms held as a reduced linear system (at
+    most 64 rows), or `Opaque`. `Hmr`, `BitInvert`, `BitStore0/1` and the condition stack each
+    have a rule that is exact or yields `Opaque`. A site is *proved unreachable* (inconsistent
+    system), *affine* of rank `r` (it executes with probability `2^-r` under uniform outcomes),
+    or *opaque*. The pass has a work cap; past it everything is opaque.
+  - *Directed strata.* After the uniform run passes, each distinct system among the affine
+    sites with fewer than 256 control-1 executions gets one stratum of 1,024 lanes. With
+    `sid = SHA-256("femoco-walk-coverage-stratum-v1" || system bytes)`, the stratum's
+    measurement key is the first 32 bytes of `SHAKE256("femoco-walk-coverage-key-v1" || hmr key
+    || sid)` and its lanes come from `SHAKE256("femoco-walk-coverage-lanes-v1" || hmr key ||
+    sid)`: one `u64` per lane decoded as step 2 above, then for a nested lane map one `u64` per
+    lane decoded as step 3. The system bytes are a `u32` row count, then per row a byte for the
+    constant, a `u32` variable count and the variables as `u32`, little-endian. Outcomes are
+    uniform on the system's solutions: free variables are the raw stream bits of the stratum's
+    key and each row's highest variable is set from the others. A stratum is an engine call of
+    its own; every per-lane check applies, and a failing lane rejects the run with
+    `outcome-coverage (directed lanes for op I): ` before the usual message, `I` being the op
+    whose stratum the lane belongs to. More than 1,024 strata refuses the run.
+  - *Acceptance.* Every site not proved unreachable needs 256 control-1 executions: from the
+    uniform lanes, or from those plus its own stratum (never another site's). An opaque site
+    left short is refused (`outcome-coverage: unexercised: op I ...`).
+  - *Guards.* The run is refused with `internal error` if a proved-unreachable site executes on
+    any lane of any engine call, if a site does not execute on every lane of its own stratum, or
+    if the engine passes a different number of sites than the static pass counted. So an error
+    in the static pass or the directed outcomes shows as a refusal wherever these checks see it;
+    the one thing taken from the static pass alone is that a proved-unreachable site needs no
+    execution.
+  - *Costs.* A stratum's tally is dropped. `toffoli`, `qubits`, every other count, `samples`,
+    `control_one_samples` and every bound are those of the uniform run, computed by the same
+    code as without the flag.
 - **Mutant tests** (`tests/harness_mutants.rs`). A circuit wrong on one term's sign, one wrong
   term, a dirty ancilla (freed or at the end), phase garbage, an ignored control, a lane map whose
   counts disagree with the circuit, a lane map over the rounding threshold, a declared family axis
@@ -522,6 +570,18 @@ not match the loaded spec. The default build writes:
   formula of the implied bound.
 - `metrics.rounding_class` is present only under the estimated class (section 13).
 - `metrics.audit` or `metrics.server_seed` is present only on the runs of section 14.
+- `metrics.outcome_coverage` is present only on a run with `--outcome-coverage` (section 9):
+  `mode` (`femoco-outcome-coverage-v1`), `required_control_one_executions` (256), the counts of
+  `sites`, `push_blocks`, `conditioned_ops` and `hmr_ops`, the `static` classes with the rank
+  histogram, the `uniform` run's lanes and fewest executions, the `directed` strata (count,
+  lanes per stratum, sites covered, cap), the final `min_control_one_executions` and
+  `min_control_zero_executions`, a histogram of executions, the eight `rarest` sites, the first
+  proved-unreachable op indices, `per_site_bound` with its meaning, a `statement` of what the
+  block does and does not establish, and `site_table_sha256`. The last is the SHA-256 of the
+  whole site table (26 bytes per site: `u64` op index, `u8` class, `u8` rank, `u64` control-1
+  and `u64` control-0 executions), which `--dump-coverage FILE` writes. On such a run
+  `sampling_limits.measurement_outcomes` points to the block. Nothing else in `score.json`
+  differs from the same run without the flag, apart from `eval_seconds`.
 - The lane engine is not recorded.
 
 This `results.tsv` is the evaluator's local run log, written in the `--root` directory. `benchmark.sh` runs the evaluator in `run/` (git-ignored), so the log is `run/results.tsv` and is never committed. It is not the challenge ledger, `results.tsv` at the challenge root, which has its own columns and is appended to only by the judge ([../../../spec/LEDGER.md](../../../spec/LEDGER.md)).

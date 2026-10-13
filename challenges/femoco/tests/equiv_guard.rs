@@ -326,6 +326,8 @@ fn run(g: Gadget, pick: Pick, rng: &mut Rng, cand: &(String, Engine)) -> Vec<Str
         reference: &reference,
         uniform_after: &uniform_after,
         tracker,
+        coverage: None,
+        directed: None,
     };
     let (_, p, diffs) = equiv::compare_engines(cand.1, &threads, &ctx, None, &lanes);
     let counters = equiv::engine_counters(&cand.0);

@@ -145,6 +145,13 @@ Modules under `src/fastsim/`; the reference path imports none of them:
 | `pfblock.rs` | The reference's elimination on complex entries with delayed (panelled) updates and linked columns; the `FEMOCO_FASTSIM_REAL=0` path. |
 | `prof.rs` | Phase timers (`FEMOCO_FASTSIM_PROF`, stderr only). |
 
+In the outcome-coverage mode (`eval_circuit --outcome-coverage`, spec/DESIGN.md section 9) the
+executor also counts each conditioned site's executions and, in a directed stratum, applies
+the directed outcomes, both through the helpers the reference uses (`src/sim/condition.rs`). A
+pass adds its counts only when it is accepted; a pass or batch that is re-run drops them and the
+re-run adds its own, so the totals are the reference's. `equiv::compare_site_counts` compares
+them, and `tests/equiv_fuzz.rs` calls it on every case. Without the mode neither runs.
+
 ### 4.2 Memoized tracker on exact input traces
 
 **Recording.** During bit-sliced execution, each lane on which a `Givens` or `SpinSwap`

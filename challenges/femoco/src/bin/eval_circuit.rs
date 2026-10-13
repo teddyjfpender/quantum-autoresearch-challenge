@@ -30,6 +30,21 @@
 //! same code, and `score.json` does not record the engine. `--dump-verdicts FILE` writes one byte
 //! per sampled lane, in sample order (`validate::VERDICT_PASS`, a failure category index, or
 //! `validate::VERDICT_UNCHECKED`), for the equivalence harness (tools/fastsim/equivalence.sh).
+//!
+//! Outcome coverage (spec/SAMPLING.md section 2.3, spec/DESIGN.md section 9): `--outcome-coverage`
+//! (no value; opt-in). Measurement outcomes are drawn uniformly per lane, so a block conditioned
+//! on a rare outcome pattern runs on few or no sampled lanes. With this flag the engine counts,
+//! per conditioned site (each `PushCondition` block and each op with a condition of its own), the
+//! lanes on which the site executed; sites the ordinary lanes leave short get directed lanes
+//! (1,024 per distinct condition, outcomes uniform on the solutions of that condition, every
+//! per-lane check applied); and the run is refused unless every site not proved unreachable
+//! executed on at least 256 control-1 lanes that passed. A refusal names the op. The result is
+//! `metrics.outcome_coverage` in `score.json`. Toffoli, qubit and every other count and bound
+//! still come from the ordinary uniform lanes only: directed lanes are used to reject and to
+//! count executions, nothing else. It is a per-site statement; it does not cover combinations of
+//! outcomes across sites and does not certify an energy error. `--dump-coverage FILE` (with the
+//! flag) writes the whole site table whose SHA-256 `score.json` carries. Without the flag no
+//! code of the mode runs and every output is what it was before the mode existed.
 use femoco_walk::circuit::read_ops;
 use femoco_walk::fiat_shamir::{self, quicknet, AuditBeacon, Digests};
 use femoco_walk::score::{self, append_results_row, score_json, Inputs, ResultsRow};
@@ -58,6 +73,8 @@ struct Args {
     server_seed: Option<[u8; 32]>,
     engine: Option<(String, Engine)>,
     dump_verdicts: Option<PathBuf>,
+    outcome_coverage: bool,
+    dump_coverage: Option<PathBuf>,
 }
 
 fn args() -> Result<Args, String> {
@@ -74,6 +91,8 @@ fn args() -> Result<Args, String> {
         server_seed: None,
         engine: None,
         dump_verdicts: None,
+        outcome_coverage: false,
+        dump_coverage: None,
     };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
@@ -120,6 +139,9 @@ fn args() -> Result<Args, String> {
                 a.engine = Some((name, e));
             }
             "--dump-verdicts" => a.dump_verdicts = Some(val()?.into()),
+            "--outcome-coverage" if inline.is_none() => a.outcome_coverage = true,
+            "--outcome-coverage" => return Err("--outcome-coverage takes no value".into()),
+            "--dump-coverage" => a.dump_coverage = Some(val()?.into()),
             other => return Err(format!("unknown argument {other}")),
         }
     }
@@ -137,6 +159,9 @@ fn args() -> Result<Args, String> {
             "an audit needs all of --freeze, --audit-round, --audit-seed and --audit-signature"
                 .into(),
         );
+    }
+    if a.dump_coverage.is_some() && !a.outcome_coverage {
+        return Err("--dump-coverage needs --outcome-coverage".into());
     }
     if a.server_seed.is_some() && given.iter().any(|&g| g) {
         return Err("--server-seed cannot be combined with a beacon audit".into());
@@ -377,7 +402,13 @@ fn run(
         .map_or(validate::reference as Engine, |e| e.1);
     let mut probe = score::Probe::default();
     let probe_ref = a.dump_verdicts.is_some().then_some(&mut probe);
-    let eval = || score::evaluate_with(&inputs, engine, probe_ref);
+    if a.outcome_coverage {
+        println!("  coverage    : outcome-coverage mode (spec/SAMPLING.md section 2.3)");
+    }
+    let opts = score::Options {
+        outcome_coverage: a.outcome_coverage,
+    };
+    let eval = || score::evaluate_opts(&inputs, engine, probe_ref, opts);
     let ev = match (audit, a.server_seed) {
         (None, None) => eval(),
         (None, Some(randomness)) => fiat_shamir::with_audit(
@@ -402,7 +433,12 @@ fn run(
         std::fs::write(path, &probe.verdicts)
             .map_err(|e| format!("--dump-verdicts {}: {e}", path.display()))?;
     }
-    Ok((ev?, circuit))
+    let ev = ev?;
+    if let (Some(path), Some(c)) = (&a.dump_coverage, &ev.outcome_coverage) {
+        std::fs::write(path, c.table.as_slice())
+            .map_err(|e| format!("--dump-coverage {}: {e}", path.display()))?;
+    }
+    Ok((ev, circuit))
 }
 
 /// `metrics.audit` of an audited run's `score.json`.
@@ -524,6 +560,16 @@ fn main() {
             println!("  qubits      : {}", ev.qubits);
             println!("  score       : {:.6e}", ev.score());
             println!("  eval time   : {:.2} s", ev.seconds);
+            if let Some(c) = &ev.outcome_coverage {
+                println!(
+                    "  coverage    : {} conditioned sites ({} proved unreachable), fewest control-1 executions {}, {} directed strata of {} lanes",
+                    c.sites,
+                    c.proved_unreachable,
+                    c.min_control_one.map_or("n/a".to_string(), |n| n.to_string()),
+                    c.directed_strata,
+                    c.lanes_per_stratum
+                );
+            }
             if audit.is_some() {
                 println!(
                     "  audit bound : f_bound {:.3e} at K = {} (single draw)",

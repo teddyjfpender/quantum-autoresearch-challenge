@@ -624,6 +624,8 @@ fn run_case(
         reference: &reference,
         uniform_after: &uniform_after,
         tracker,
+        coverage: None,
+        directed: None,
     };
     let nested = c.inner.map(|(lo, width)| Nested {
         lo,
@@ -646,7 +648,10 @@ fn run_case(
             .entry(equiv::verdict_name(v).to_string())
             .or_default() += 1;
     }
-    for (t, d) in diffs {
+    // The outcome-coverage mode's per-site execution counts (opt-in in production): equal
+    // between the engines, and counting changes no `Outcome`.
+    let counts = equiv::compare_site_counts(cand.1, threads, &ctx, nested.as_ref(), &lanes);
+    for (t, d) in diffs.into_iter().chain(counts) {
         for x in d {
             st.differences
                 .push(format!("case {i} ({}) @{t}: {x}", c.what));

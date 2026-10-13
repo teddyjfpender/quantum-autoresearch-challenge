@@ -88,12 +88,67 @@ A defect there is stochastic, not coherent: it strikes a step with probability u
 a run of `T` steps with probability about `T f`. At the default bound that is 0.67 (Reiher)
 and 0.90 (Li). It scales with `T`, not `T^2`.
 
+**The outcome-coverage mode** (`eval_circuit --outcome-coverage`, opt-in; DESIGN.md section 9)
+checks that every conditioned block was actually run. A *site* is each `PushCondition` block
+and each op with a condition of its own. In the mode:
+
+- The engine counts, per site, the lanes on which the site executed, separately for control 1
+  and control 0. The counts are taken from the masks that gate the ops and are read only after
+  every lane passed, so an execution counted is an execution on a lane that passed every check.
+- A trusted static pass follows each classical bit as a function of the measurement outcomes. A
+  bit is 0, a conjunction of GF(2)-affine forms of the outcomes, or not followed. Each rule is
+  exact or gives "not followed". A site whose condition is an inconsistent linear system can
+  never execute and is exempt (*proved unreachable*).
+- A site with fewer than 256 control-1 executions on the uniform lanes gets *directed lanes*:
+  1,024 lanes drawn as the main sample is, with outcomes uniform on the solutions of that
+  site's condition. Every per-lane check applies to them. They exist only for sites whose
+  condition the static pass follows.
+- The run is refused unless every site not proved unreachable has at least 256 control-1
+  executions on lanes that passed. A site whose condition is not followed and that the uniform
+  lanes leave short is refused, not passed (`unexercised`, with the op index).
+
+**What a pass establishes.** For every conditioned site not proved unreachable, at least 256
+control-1 lanes on which that site executed went through the full per-lane checks and passed.
+Per site, at confidence `1 - delta`, the fraction of failing control-1 (lane, outcome) pairs
+among those that execute the site is at most `ln(1/delta) / n1`, which is 5.4% at the floor
+`n1 = 256` (`metrics.outcome_coverage.per_site_bound`). A block that is wrong whenever it
+executes cannot pass. A block wrong on a fraction `q` of its executions escapes with
+probability `(1 - q)^256`, which is below `1e-6` even against `2^40` re-drawn seeds once `q`
+exceeds about 16%.
+
+**What it does not establish.**
+
+- It is a statement per site. Two blocks that are each right but wrong together on a rare joint
+  outcome pattern are covered only as far as uniform sampling covers the pattern.
+- It does not lower `f_bound` or the `T f` figure above for defects spread thinly over common
+  branches.
+- It says nothing about unsampled uniform-register values (2.1 and 2.2), and
+  `certifies_energy_error` stays `false`.
+- Control-0 executions are reported, not required.
+- The proved-unreachable exemption rests on the static pass. Its rules are exact, an exhaustive
+  test checks them against every outcome vector of random programs, and the run is refused if
+  an exempt site executes on any lane or a directed site misses a lane of its own stratum. An
+  error in the rules that these guards also miss would exempt a live block.
+- Directed lanes use outcome patterns chosen by the evaluator. The harness already requires
+  every sampled lane to be right for whatever outcomes it is given, so this is the same
+  standard; a circuit that relies on outcomes being correlated would fail the mode.
+- An honest circuit with a rare condition that is not a conjunction of affine forms (a product
+  of outcomes, say) is refused until the static pass is extended. That is a refusal to certify,
+  not a finding that the circuit is wrong.
+
+The Toffoli and qubit counts, `samples` and every bound still come from the uniform lanes only.
+Measured at `2^19` lanes, the Low et al. baseline and the best Reiher and Li circuits of the
+ledger have 777,724, 86,433 and 182,524 sites, of which 100, 4 and 10 are proved unreachable;
+every other site runs on about a half or a quarter of the lanes, so none needs directed lanes.
+
 ## 3. What a row therefore says
 
 - Every sampled lane applies the declared operator, restores its ancillas and leaves no phase.
 - The Toffoli and qubit counts are those of the sampled executions.
 - **Not** that the unsampled lanes are Hermitian, **not** an energy error, **not** that every
-  conditioned block was executed.
+  conditioned block was executed. The last holds only for a run made in the outcome-coverage
+  mode (2.3), whose `score.json` then carries `metrics.outcome_coverage`; ledger rows are not
+  made in that mode today.
 
 For comparing circuits built by the same builders under the same rule, which is what the
 board does, this is the standard the challenge started from (every drawn lane passes). It is
@@ -119,9 +174,15 @@ In order of strength.
    accuracy at any practical count. The re-validation workflow takes a lane count, so a
    headline row can be re-run deeper; at the measured sliced-engine rate `2^24` lanes take
    about 4 minutes (Reiher) and 20 minutes (Li) on four threads.
-4. **Stratified measurement outcomes.** Force every classically conditioned block to run on a
-   fixed share of the validation lanes, keeping uniform outcomes for the cost count. This
-   removes 2.3. Not implemented.
+4. **Coverage of conditioned blocks.** Implemented as the opt-in outcome-coverage mode of 2.3:
+   every conditioned site not proved unreachable must execute on at least 256 control-1 lanes
+   that pass, with directed lanes for the sites uniform outcomes rarely reach, and uniform
+   outcomes alone for the cost count. This removes the case of 2.3 in which a block is never or
+   almost never run. It does not remove the `T f` figure for defects on common branches, and it
+   is per site, not per combination of outcomes. All-zero, all-one and biased outcome strata
+   were measured and rejected: on the three circuits above they reach fewer sites than uniform
+   outcomes do (all-one leaves 5,636 to 11,769 sites unexecuted that uniform reaches), and their
+   lanes are not samples from a distribution a bound can be stated over.
 
-Items 2 and 4 are open design work. Until one of 1 or 2 holds for a circuit, its row is a
-sampled regression result and is labelled as one.
+Item 2 is open design work. Until one of 1 or 2 holds for a circuit, its row is a sampled
+regression result and is labelled as one.
