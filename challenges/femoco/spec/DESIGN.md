@@ -735,6 +735,25 @@ above the honest residual and five below the smallest single-unit error at those
 **Limits.** At most `MAX_FACTORS = 512` Majorana factors per lane; more is rejected as
 unsupported, which bounds the Pfaffian's cost. Only real (orthogonal) mode rotations are supported.
 
+**Prior work.** The tracker rests on the classical simulation of matchgate and free-fermion
+circuits. Valiant showed that circuits of matchgates on adjacent lines can be simulated
+classically in polynomial time, by reducing them to Pfaffians (STOC 2001, pp. 114-123; SIAM J.
+Comput. 31(4), 1229-1254, 2002). Knill (arXiv:quant-ph/0108033, 2001) and Terhal and DiVincenzo
+(Phys. Rev. A 65, 032325, 2002) identified these circuits with fermionic linear optics
+(non-interacting fermions) through the Jordan-Wigner map; Terhal and DiVincenzo also allow
+quadratic couplings between any two modes. The tracker uses two results from this work. First, a
+Gaussian unitary acts on the Majorana operators by conjugation as a rotation in `SO(2n)`; Jozsa and
+Miyake (Proc. R. Soc. A 464, 3089-3106, 2008, theorem 3) state and prove this and credit it to
+Knill, to Terhal and DiVincenzo and to Bravyi (Quantum Inf. Comput. 5(3), 216-238, 2005). For a
+Givens rotation the `SO(2n)` matrix is `U (+) U`. Second, the vacuum expectation of a product of
+Majorana operators is the Pfaffian of their pairwise vacuum contractions; Terhal and DiVincenzo
+(section IV, Eqs. (43)-(44)) derive this from Wick's theorem. What is specific to this judge is
+the use: it checks an operator identity on every lane instead of computing an output probability.
+The circuit's Pauli frames are carried as Majorana products, `O_ref^-1 O` is reduced to a
+conjugation check (the operator is a scalar, up to `AD_TOL`) and one vacuum amplitude (that scalar
+is `+1`, sign and phase included), and the floating-point bound above limits what the tolerance
+can hide. This combination was written for this judge. It is not claimed as a new result.
+
 ## 16. Nested composition: `Reflect` and nested lane maps
 
 A nested walk step applies an inner block encoding, reflects the inner register, and applies the
