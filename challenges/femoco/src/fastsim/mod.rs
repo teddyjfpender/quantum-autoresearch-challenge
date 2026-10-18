@@ -458,6 +458,10 @@ fn fast_pass<const WW: usize>(
             .collect();
         ex.reflect = Some(exec::WideReflect::new::<WW>(&rl));
     }
+    ex.directed = ctx
+        .directed
+        .map(|d| crate::sim::condition::DirectedRun::new(d, WW));
+    ex.cover = ctx.coverage.map(|s| s.begin(WW));
     for (bi, chunk) in chunks.iter().enumerate() {
         for (i, lane) in chunk.iter().enumerate() {
             let at = bi * LANES + i;
@@ -465,6 +469,9 @@ fn fast_pass<const WW: usize>(
             let mut set = |q: u32| ex.q[q as usize * WW + at / 64] |= 1 << (at % 64);
             if lane.c {
                 set(0);
+                if let Some(c) = ex.cover.as_mut() {
+                    c.set_control_one(at);
+                }
             }
             for k in 0..l.uniform {
                 if lane.s >> k & 1 == 1 {
@@ -481,6 +488,30 @@ fn fast_pass<const WW: usize>(
     let t = prof::start();
     ex.run(&ctx.compiled.ops, &mut rngs);
     prof::stop(prof::EXEC, t);
+    // Outcome-coverage mode: a pass that is accepted here adds its site counts; a pass that is
+    // re-run (batch by batch, then on the reference) drops them, and the re-run adds its own.
+    let cover = ex.cover.take();
+    let out = pass_outcome(ctx, nested, first, chunks, &ex, memo, stats);
+    if let (Some(sink), Some(c)) = (ctx.coverage, cover) {
+        match out {
+            Some(_) => sink.commit(c, true),
+            None => sink.discard(c),
+        }
+    }
+    out
+}
+
+/// The end-of-pass checks of [`fast_pass`] on the executed pass `ex`.
+fn pass_outcome<const WW: usize>(
+    ctx: &Context<'_>,
+    nested: Option<&Nested<'_>>,
+    first: usize,
+    chunks: &[&[Lane]],
+    ex: &Exec<'_, WW>,
+    memo: &Memo,
+    stats: &Stats,
+) -> Option<Outcome> {
+    let l = &ctx.layout;
     if ex.failed {
         return None;
     }
@@ -505,7 +536,7 @@ fn fast_pass<const WW: usize>(
             if !lane_passes::<WW>(
                 ctx,
                 nested,
-                &ex,
+                ex,
                 at,
                 base + i,
                 lane,

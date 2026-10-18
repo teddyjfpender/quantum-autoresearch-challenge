@@ -1,14 +1,20 @@
 //! Evaluation: validate a submission's three files against a spec, count, and score
 //! (spec/DESIGN.md sections 6, 8, 9 and 11). `eval_circuit` is a thin wrapper
 //! around `evaluate` plus the writers in `report`.
+pub mod coverage;
 mod report;
 
+pub use coverage::{CoverageReport, Scope as OutcomeCoverage};
 pub use report::{append_results_row, sa_score_lambda, score_json, ResultsRow};
 
 use crate::circuit::{OpsFile, SEG_INNER_BEGIN, SEG_INNER_END};
 use crate::facts::{static_facts, CircuitFacts};
-use crate::fiat_shamir::{sample, sample_nested, Digests};
+use crate::fiat_shamir::{
+    coverage_key, coverage_lanes, coverage_stratum_id, sample, sample_nested, Digests,
+};
 use crate::lanemap::{self, LaneMap};
+use crate::sim::condition::{canonical_bytes, CoverageSink, Directed, System};
+use crate::sim::reflection;
 use crate::sim::{compile, compile_nested, compile_sa, validate, Inner, Layout, TrackerFactory};
 use crate::spec::rounding::{Estimate, RoundingClass};
 use crate::spec::{EncodingSpec, Exact};
@@ -73,6 +79,9 @@ pub struct Inputs<'a> {
 /// A passing evaluation.
 #[derive(Clone, Debug)]
 pub struct Evaluation {
+    /// Optional deterministic coverage, separate from sampled resource counts. Never a
+    /// claim of exact quantum equivalence; see `coverage` and tools/verification/README.md.
+    pub validation: Option<serde_json::Value>,
     pub family: FamilyOut,
     pub facts: CircuitFacts,
     pub verdicts: Vec<AxisVerdict>,
@@ -108,6 +117,42 @@ pub struct Evaluation {
     pub resets: f64,
     pub digests: Digests,
     pub seconds: f64,
+    /// Outcome-coverage mode only ([`Options::outcome_coverage`]); `None` for every other run.
+    pub outcome_coverage: Option<CoverageReport>,
+    /// Reflection check only ([`Options::reflection`]); `None` for every other run.
+    pub reflection: Option<reflection::Report>,
+}
+
+/// `eval_circuit --reflection-check` (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReflectionCheck {
+    /// The check does not run and no output changes.
+    #[default]
+    Off,
+    /// Run it and report the result in `metrics.reflection`; never a rejection.
+    Report,
+    /// As `Report`, and a step that is not certified is rejected.
+    Require,
+}
+
+/// Lane-map families the reflection check covers: nested, and no family here overrides
+/// `LaneMap::uniform_after`, so every lane ends on the uniform value it must hold.
+const REFLECTION_FAMILIES: [&str; 2] = ["df-nested-alias-v1", lanemap::sa_nested::FAMILY];
+
+/// Opt-in parts of an evaluation. The default is the ordinary run.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Options {
+    /// `eval_circuit --outcome-coverage[=sites]` (spec/SAMPLING.md section 2.3): count the
+    /// executions of every conditioned site, add directed lanes for the sites the uniform lanes
+    /// leave short, and refuse unless every site not proved unreachable has
+    /// `coverage::COVERAGE_MIN` validated control-1 executions; with `Full`, refuse also when
+    /// an op reads a qubit written under a classical condition. Costs and bounds still come
+    /// from the uniform lanes only.
+    pub outcome_coverage: OutcomeCoverage,
+    /// `eval_circuit --reflection-check MODE`: after every sampled lane has passed, run the
+    /// static certificate `sim::reflection::certify`. It reads the op stream only, never a
+    /// lane, and changes no count or bound.
+    pub reflection: ReflectionCheck,
 }
 
 /// A spec-declared rounding rule and what the lane map met it with (spec/SPEC-SA.md section 12).
@@ -198,16 +243,36 @@ impl Evaluation {
         self.implied_error_bound_at(0)
     }
     /// [`Self::implied_error_bound`] against `2^draws_log2` free re-draws of the seed.
+    ///
+    /// **Conditional.** It bounds the encoded operator only if the block encoding is Hermitian
+    /// on every lane, sampled or not. Sampling cannot establish that; see
+    /// [`Self::non_hermitian_phase_scale_at`] and spec/SAMPLING.md. A certified reflection check
+    /// ([`Self::reflection`]) establishes it for the circuit at hand.
     #[must_use]
     pub fn implied_error_bound_at(&self, draws_log2: u32) -> f64 {
-        let lambda = self.lambda.to_f64();
+        2.0 * self.lambda.to_f64() * self.wrong_weight_bound_at(draws_log2)
+    }
+    /// The operator weight that may sit on wrong control-1 lanes given that every sampled lane
+    /// passed: flat `f_1`, nested `2 f_p1 + f_d1` (spec/DESIGN.md section 16.4).
+    #[must_use]
+    pub fn wrong_weight_bound_at(&self, draws_log2: u32) -> f64 {
         match &self.nested {
-            None => 2.0 * lambda * log_term(draws_log2) / self.control_one_samples.max(1) as f64,
+            None => log_term(draws_log2) / self.control_one_samples.max(1) as f64,
             Some(n) => {
                 let (fp, fd) = n.f_bounds_control_one_at(draws_log2);
-                2.0 * lambda * (2.0 * fp + fd)
+                2.0 * fp + fd
             }
         }
+    }
+    /// How far a defect that is **not** Hermitian can move the walk's eigenphase, in radians,
+    /// when it sits on unsampled lanes of weight up to [`Self::wrong_weight_bound_at`]:
+    /// `sqrt(2 g)`. A defect tuned so that its localized eigenvalue meets the ground eigenphase
+    /// mixes with amplitude `sqrt(g)` and splits the level by this much, where a Hermitian
+    /// defect moves the encoded operator by `2 lambda g` only. It is the size of the effect in
+    /// the rank-one resonance model of spec/SAMPLING.md, not a certified bound.
+    #[must_use]
+    pub fn non_hermitian_phase_scale_at(&self, draws_log2: u32) -> f64 {
+        (2.0 * self.wrong_weight_bound_at(draws_log2)).sqrt()
     }
 }
 
@@ -245,7 +310,21 @@ pub struct Probe {
 pub fn evaluate_with(
     inp: &Inputs<'_>,
     engine: validate::Engine,
+    probe: Option<&mut Probe>,
+) -> Result<Evaluation, String> {
+    evaluate_opts(inp, engine, probe, Options::default())
+}
+
+/// [`evaluate_with`] with `opts`. With the default options this is `evaluate_with` exactly: no
+/// code of the outcome-coverage mode runs. The probe records the uniform run only.
+///
+/// # Errors
+/// As [`evaluate`]; in the outcome-coverage mode also the refusals of `coverage::settle`.
+pub fn evaluate_opts(
+    inp: &Inputs<'_>,
+    engine: validate::Engine,
     mut probe: Option<&mut Probe>,
+    opts: Options,
 ) -> Result<Evaluation, String> {
     let mut run_engine = |ctx: &validate::Context<'_>,
                           nested: Option<&validate::Nested<'_>>,
@@ -292,11 +371,22 @@ pub fn evaluate_with(
         ops: inp.ops.sha256,
     };
     let k = inp.samples.max(1);
+    let plan = match opts.outcome_coverage {
+        OutcomeCoverage::Off => None,
+        scope => Some(coverage::Plan::new(
+            &inp.ops.ops,
+            &compiled.ops,
+            &compiled.registers,
+            &inner.map(|i| i.qubits(&layout)).unwrap_or_default(),
+            scope,
+        )?),
+    };
+    let sink = plan.as_ref().map(|p| CoverageSink::new(p.sites()));
     let reference = |s: u64| lm.reference_op(inp.spec, s);
     let reference_nested = |s: u64, after: u64| lm.reference_nested(inp.spec, s, after);
     let uniform_after = |s: u64| lm.uniform_after(s);
     let control_one;
-    let (out, nested) = match inner {
+    let (out, nested, hmr_key) = match inner {
         None => {
             let smp = sample(&digests, layout.uniform, k);
             control_one = smp.lanes.iter().filter(|l| l.c).count();
@@ -307,8 +397,10 @@ pub fn evaluate_with(
                 reference: &reference,
                 uniform_after: &uniform_after,
                 tracker: inp.tracker,
+                coverage: sink.as_ref(),
+                directed: None,
             };
-            (run_engine(&ctx, None, &smp.lanes), None)
+            (run_engine(&ctx, None, &smp.lanes), None, smp.hmr_key)
         }
         Some(inner) => {
             let smp = sample_nested(&digests, layout.uniform, inner.lo, inner.width, k);
@@ -319,6 +411,8 @@ pub fn evaluate_with(
                 reference: &reference,
                 uniform_after: &uniform_after,
                 tracker: inp.tracker,
+                coverage: sink.as_ref(),
+                directed: None,
             };
             let n = validate::Nested {
                 lo: inner.lo,
@@ -344,12 +438,87 @@ pub fn evaluate_with(
                 paired_control_one: ones(false),
                 diagonal_control_one: ones(true),
             };
-            (run_engine(&ctx, Some(&n), &smp.sample.lanes), Some(stats))
+            (
+                run_engine(&ctx, Some(&n), &smp.sample.lanes),
+                Some(stats),
+                smp.sample.hmr_key,
+            )
         }
     };
     if let Some(why) = out.rejection() {
         return Err(why);
     }
+    // Outcome-coverage mode only. Each directed stratum is an engine call of its own, with its
+    // own lanes, measurement key and counts; only its rejection and its counts are used, so
+    // `out` (and with it every cost figure and bound below) is the uniform run's alone.
+    let outcome_coverage = match (plan, sink) {
+        (Some(plan), Some(sink)) => {
+            let sites = plan.sites();
+            let mut stratum = |system: &System| -> Result<coverage::Stratum, String> {
+                let sid = coverage_stratum_id(&canonical_bytes(system));
+                let (lanes, after) = coverage_lanes(
+                    &hmr_key,
+                    &sid,
+                    layout.uniform,
+                    inner.map(|i| (i.lo, i.width)),
+                    coverage::STRATUM_LANES,
+                );
+                let directed = Directed::new(system);
+                let sink = CoverageSink::new(sites);
+                let ctx = validate::Context {
+                    compiled: &compiled,
+                    layout,
+                    hmr_key: coverage_key(&hmr_key, &sid),
+                    reference: &reference,
+                    uniform_after: &uniform_after,
+                    tracker: inp.tracker,
+                    coverage: Some(&sink),
+                    directed: Some(&directed),
+                };
+                let n = inner
+                    .zip(after.as_deref())
+                    .map(|(i, after)| validate::Nested {
+                        lo: i.lo,
+                        width: i.width,
+                        after,
+                        reference: &reference_nested,
+                    });
+                let out = engine(&ctx, n.as_ref(), &lanes, None);
+                if let Some(why) = out.rejection() {
+                    return Err(why);
+                }
+                Ok(coverage::Stratum {
+                    lanes: lanes.len(),
+                    counts: sink.finish()?,
+                })
+            };
+            Some(coverage::settle(
+                &plan,
+                &inp.ops.ops,
+                &compiled.ops,
+                sink.finish()?,
+                (k, control_one),
+                &mut stratum,
+            )?)
+        }
+        _ => None,
+    };
+    // Reflection check only. It runs after the lanes so that a circuit the sampled check
+    // rejects is reported with that rejection.
+    let reflection = match opts.reflection {
+        ReflectionCheck::Off => None,
+        mode => {
+            let budget = reflection::Budget::default();
+            // A family outside the list is passed as "not nested", which the check refuses.
+            let scope = inner.filter(|_| REFLECTION_FAMILIES.contains(&lm.family()));
+            let report =
+                reflection::certify(&inp.ops.ops, &layout, scope, &compiled.registers, budget);
+            if mode == ReflectionCheck::Require && !report.certified {
+                return Err(format!("reflection-check: {}", report.summary()));
+            }
+            Some(report)
+        }
+    };
     let per = |v: u64| v as f64 / k as f64;
     let mut facts = static_facts(&inp.ops.ops, &layout);
     fill_facts(&mut facts, inp.spec, lm.as_ref(), &compiled, &out.tally, k);
@@ -409,6 +578,7 @@ pub fn evaluate_with(
         0
     };
     Ok(Evaluation {
+        validation: None,
         family: fam,
         verdicts,
         lambda: lm.lambda_decl(),
@@ -430,6 +600,8 @@ pub fn evaluate_with(
         digests,
         seconds: t0.elapsed().as_secs_f64(),
         facts,
+        outcome_coverage,
+        reflection,
     })
 }
 
@@ -453,7 +625,7 @@ pub fn spin_swap_toffoli(system_qubits: usize) -> f64 {
 ///   reported, and acceptance is Low et al.'s estimated procedure (`LaneMap::rounding_estimate`).
 ///
 /// The rule and class come from the trusted spec, never from the lane map.
-fn check_lanemap(
+pub(crate) fn check_lanemap(
     lm: &dyn LaneMap,
     spec: &dyn EncodingSpec,
 ) -> Result<(Exact, Option<RoundingRule>, Option<Estimate>), String> {

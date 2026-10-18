@@ -30,9 +30,54 @@
 //! same code, and `score.json` does not record the engine. `--dump-verdicts FILE` writes one byte
 //! per sampled lane, in sample order (`validate::VERDICT_PASS`, a failure category index, or
 //! `validate::VERDICT_UNCHECKED`), for the equivalence harness (tools/fastsim/equivalence.sh).
+//!
+//! Outcome coverage (spec/SAMPLING.md section 2.3, spec/DESIGN.md section 9): `--outcome-coverage`
+//! or `--outcome-coverage=sites` (opt-in). Measurement outcomes are drawn uniformly per lane, so
+//! a block conditioned on a rare outcome pattern runs on few or no sampled lanes. With this flag
+//! the engine counts, per conditioned site (each `PushCondition` block and each op with a
+//! condition of its own), the lanes on which the site executed; sites the ordinary lanes leave
+//! short get directed lanes (1,024 per distinct condition, outcomes uniform on the solutions of
+//! that condition, every per-lane check applied); and the run is refused unless every site not
+//! proved unreachable executed on at least 256 control-1 lanes that passed. A refusal names the
+//! op. The result is `metrics.outcome_coverage` in `score.json`. Toffoli, qubit and every other
+//! count and bound still come from the ordinary uniform lanes only: directed lanes are used to
+//! reject and to count executions, nothing else.
+//!
+//! A site is a classical condition only. An outcome copied into a qubit by a conditioned write
+//! steers later ops as a quantum control without any site, so `--outcome-coverage` also refuses
+//! a circuit in which an op reads a qubit written under a classical condition
+//! (`outcome-coverage: outcome-in-qubit: ...`). That refusal is not a finding that the circuit
+//! is wrong. `--outcome-coverage=sites` applies the per-site rule alone, reports those reads and
+//! states that they are not covered. Either way it is a per-site statement; it does not cover
+//! combinations of outcomes across sites and does not certify an energy error.
+//! `--dump-coverage FILE` (with the flag) writes the whole site table whose SHA-256 `score.json`
+//! carries. Without the flag no code of the mode runs and every output is what it was before
+//! the mode existed.
+//!
+//! Reflection check (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6):
+//! `--reflection-check MODE`, opt-in, `MODE` = `report` or `require`. After every sampled lane
+//! has passed, a static analysis of the op stream (`sim::reflection`, rule set `reflection-v3`)
+//! tries to prove, for every lane and every measurement-outcome record and without reading a
+//! sampled lane, that the step restores its registers, that its system operator does not depend
+//! on the outcomes, and that the step is Hermitian. The result is `metrics.reflection` in
+//! `score.json`: `certified`, or `not certified` with the first obstruction (op index, kind,
+//! reason). When certified, `metrics.sampling_limits` states that `implied_error_bound` no
+//! longer rests on the unchecked Hermiticity condition. "Not certified" means not proven within
+//! the rule set, not that the step is wrong: with `report` the run passes either way and no
+//! count or bound changes; with `require` a step that is not certified is a `FAIL` row. The
+//! check does not establish that the step encodes the spec's operator (that stays sampled) and
+//! `certifies_energy_error` stays `false`. Without the flag no code of the check runs and every
+//! output is unchanged.
+//!
+//! Deterministic input coverage: `--coverage terms|exhaustive` adds a separate lane set after
+//! the sampled run, without changing resource tallies. `--export-symbolic FILE` writes the
+//! trusted lowered controller and alias tables for independent SMT audit. Neither option
+//! certifies exact quantum equivalence; see tools/verification/README.md for the domains.
 use femoco_walk::circuit::read_ops;
 use femoco_walk::fiat_shamir::{self, quicknet, AuditBeacon, Digests};
-use femoco_walk::score::{self, append_results_row, score_json, Inputs, ResultsRow};
+use femoco_walk::score::{
+    self, append_results_row, score_json, Inputs, OutcomeCoverage, ReflectionCheck, ResultsRow,
+};
 use femoco_walk::sim::validate::{self, Engine};
 use femoco_walk::{equiv, sim, spec, taxonomy};
 use serde_json::{json, Value};
@@ -46,6 +91,8 @@ const FREEZE_FORMAT: &str = "femoco-audit-freeze-v1";
 const AUDIT_PROTOCOL: &str = "femoco-fresh-seed-v1";
 
 struct Args {
+    coverage: Option<femoco_walk::coverage::Mode>,
+    export_symbolic: Option<PathBuf>,
     samples: usize,
     samples_given: bool,
     note: String,
@@ -58,10 +105,15 @@ struct Args {
     server_seed: Option<[u8; 32]>,
     engine: Option<(String, Engine)>,
     dump_verdicts: Option<PathBuf>,
+    outcome_coverage: OutcomeCoverage,
+    dump_coverage: Option<PathBuf>,
+    reflection: ReflectionCheck,
 }
 
 fn args() -> Result<Args, String> {
     let mut a = Args {
+        coverage: None,
+        export_symbolic: None,
         samples: score::DEFAULT_SAMPLES,
         samples_given: false,
         note: String::new(),
@@ -74,6 +126,9 @@ fn args() -> Result<Args, String> {
         server_seed: None,
         engine: None,
         dump_verdicts: None,
+        outcome_coverage: OutcomeCoverage::Off,
+        dump_coverage: None,
+        reflection: ReflectionCheck::Off,
     };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
@@ -88,6 +143,14 @@ fn args() -> Result<Args, String> {
                 .ok_or(format!("{key} needs a value"))
         };
         match key.as_str() {
+            "--coverage" => {
+                a.coverage = Some(match val()?.as_str() {
+                    "terms" => femoco_walk::coverage::Mode::Terms,
+                    "exhaustive" => femoco_walk::coverage::Mode::Exhaustive,
+                    other => return Err(format!("--coverage: unknown mode {other}")),
+                })
+            }
+            "--export-symbolic" => a.export_symbolic = Some(val()?.into()),
             "--samples" => {
                 a.samples = val()?.parse().map_err(|e| format!("--samples: {e}"))?;
                 a.samples_given = true;
@@ -120,6 +183,29 @@ fn args() -> Result<Args, String> {
                 a.engine = Some((name, e));
             }
             "--dump-verdicts" => a.dump_verdicts = Some(val()?.into()),
+            "--outcome-coverage" => {
+                a.outcome_coverage = match inline.as_deref() {
+                    None => OutcomeCoverage::Full,
+                    Some("sites") => OutcomeCoverage::SitesOnly,
+                    Some(other) => {
+                        return Err(format!(
+                            "--outcome-coverage={other}: expected no value or =sites"
+                        ))
+                    }
+                };
+            }
+            "--dump-coverage" => a.dump_coverage = Some(val()?.into()),
+            "--reflection-check" => {
+                a.reflection = match val()?.as_str() {
+                    "report" => ReflectionCheck::Report,
+                    "require" => ReflectionCheck::Require,
+                    other => {
+                        return Err(format!(
+                            "--reflection-check {other}: expected report or require"
+                        ))
+                    }
+                };
+            }
             other => return Err(format!("unknown argument {other}")),
         }
     }
@@ -137,6 +223,9 @@ fn args() -> Result<Args, String> {
             "an audit needs all of --freeze, --audit-round, --audit-seed and --audit-signature"
                 .into(),
         );
+    }
+    if a.dump_coverage.is_some() && a.outcome_coverage == OutcomeCoverage::Off {
+        return Err("--dump-coverage needs --outcome-coverage".into());
     }
     if a.server_seed.is_some() && given.iter().any(|&g| g) {
         return Err("--server-seed cannot be combined with a beacon audit".into());
@@ -377,7 +466,23 @@ fn run(
         .map_or(validate::reference as Engine, |e| e.1);
     let mut probe = score::Probe::default();
     let probe_ref = a.dump_verdicts.is_some().then_some(&mut probe);
-    let eval = || score::evaluate_with(&inputs, engine, probe_ref);
+    match a.outcome_coverage {
+        OutcomeCoverage::Off => {}
+        OutcomeCoverage::Full => {
+            println!("  coverage    : outcome-coverage mode (spec/SAMPLING.md section 2.3)");
+        }
+        OutcomeCoverage::SitesOnly => println!(
+            "  coverage    : outcome-coverage mode, sites only (spec/SAMPLING.md section 2.3)"
+        ),
+    }
+    if a.reflection != ReflectionCheck::Off {
+        println!("  reflection  : static Hermiticity check (spec/SAMPLING.md section 4)");
+    }
+    let opts = score::Options {
+        outcome_coverage: a.outcome_coverage,
+        reflection: a.reflection,
+    };
+    let eval = || score::evaluate_opts(&inputs, engine, probe_ref, opts);
     let ev = match (audit, a.server_seed) {
         (None, None) => eval(),
         (None, Some(randomness)) => fiat_shamir::with_audit(
@@ -402,7 +507,21 @@ fn run(
         std::fs::write(path, &probe.verdicts)
             .map_err(|e| format!("--dump-verdicts {}: {e}", path.display()))?;
     }
-    Ok((ev?, circuit))
+    let mut ev = ev?;
+    if let (Some(path), Some(c)) = (&a.dump_coverage, &ev.outcome_coverage) {
+        std::fs::write(path, c.table.as_slice())
+            .map_err(|e| format!("--dump-coverage {}: {e}", path.display()))?;
+    }
+    if a.coverage.is_some() || a.export_symbolic.is_some() {
+        ev.validation = femoco_walk::coverage::check(
+            &inputs,
+            engine,
+            a.coverage,
+            a.export_symbolic.as_deref(),
+            a.server_seed.as_ref(),
+        )?;
+    }
+    Ok((ev, circuit))
 }
 
 /// `metrics.audit` of an audited run's `score.json`.
@@ -450,6 +569,9 @@ fn main() {
     };
     // A stale score.json must never survive a failed run.
     let _ = std::fs::remove_file(a.root.join("score.json"));
+    if let Some(path) = &a.export_symbolic {
+        let _ = std::fs::remove_file(path);
+    }
     let audit = if a.fail.is_some() {
         None
     } else {
@@ -524,6 +646,35 @@ fn main() {
             println!("  qubits      : {}", ev.qubits);
             println!("  score       : {:.6e}", ev.score());
             println!("  eval time   : {:.2} s", ev.seconds);
+            if let Some(c) = &ev.outcome_coverage {
+                println!(
+                    "  coverage    : {} conditioned sites ({} proved unreachable), fewest control-1 executions {}, {} directed strata of {} lanes",
+                    c.sites,
+                    c.proved_unreachable,
+                    c.min_control_one.map_or("n/a".to_string(), |n| n.to_string()),
+                    c.directed_strata,
+                    c.lanes_per_stratum
+                );
+                println!(
+                    "  coverage    : {} conditioned qubit writes, {} reads of such a qubit{}",
+                    c.conditioned_qubit_writes,
+                    c.qubit_outcome_reads,
+                    if c.qubit_outcome_reads == 0 {
+                        ""
+                    } else {
+                        " (not sites: not covered)"
+                    }
+                );
+            }
+            if let Some(r) = &ev.reflection {
+                println!(
+                    "  reflection  : {} ({} system ops, {} symbols, work {})",
+                    r.summary(),
+                    r.counts.system_ops,
+                    r.symbols,
+                    r.work
+                );
+            }
             if audit.is_some() {
                 println!(
                     "  audit bound : f_bound {:.3e} at K = {} (single draw)",

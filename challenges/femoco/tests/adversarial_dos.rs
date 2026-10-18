@@ -17,6 +17,10 @@
 //! lower `MAX_FACTORS` to the honest maximum plus margin (needs that maximum measured on the
 //! baselines); compress a lane's vectors whenever they exceed `2n` (a product of Majorana
 //! vectors is a Pin element, which `2n` reflections express); or a per-run factor budget.
+//!
+//! **Fixed, tested in tests/adversarial_coverage_memory.rs** (a binary of its own: it counts
+//! allocations): the outcome-coverage mode's static pass held affine rows without a size limit,
+//! 1.2 GiB for a 1.9 MB stream.
 mod harness_common;
 
 use femoco_walk::circuit::{Op, OperationType as K};

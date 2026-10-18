@@ -39,9 +39,19 @@
    "evidence": "spec/ROADMAP.md"
   },
   {
+   "name": "Symbolic certificate, with its statement of what is proved, for the final candidate of each track",
+   "status": "pending",
+   "evidence": "spec/VALIDATION.md (final candidates); one candidate certified so far: challenges/femoco/rigorous/exact-reiher-fewest-toffoli.json"
+  },
+  {
    "name": "Independent audit of the sliced engine",
    "status": "pending",
    "evidence": "challenges/femoco/spec/FAST-EVALUATOR.md"
+  },
+  {
+   "name": "Validation that bounds the energy error: a reflection by construction or a whole-domain symbolic check, and stratified measurement outcomes",
+   "status": "pending",
+   "evidence": "challenges/femoco/spec/SAMPLING.md"
   },
   {
    "name": "First submission judged end to end on hosted runners",

@@ -724,6 +724,8 @@ fn compare_runs(seed: u64, threads: usize, fault: bool, mode: Mode) -> (bool, bo
         reference,
         uniform_after: &same_after,
         tracker: tracker.map(|t| t as &dyn TrackerFactory),
+        coverage: None,
+        directed: None,
     };
     let k = 1 + r.below(10 * LANES as u64) as usize;
     let lanes: Vec<Lane> = (0..k)
@@ -901,6 +903,8 @@ fn equal_traces_with_different_final_frames() {
             reference: &identity_ref,
             uniform_after: &same_after,
             tracker,
+            coverage: None,
+            directed: None,
         };
         let lanes: Vec<Lane> = (0..3 * LANES as u64)
             .map(|i| Lane {

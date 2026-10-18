@@ -124,6 +124,8 @@ fn st_hmrkey(c: &Context<'_>, n: Option<&Nested<'_>>, l: &[Lane], v: Option<&mut
         reference: c.reference,
         uniform_after: c.uniform_after,
         tracker: c.tracker,
+        coverage: c.coverage,
+        directed: c.directed,
     };
     validate::reference(&ctx, n, l, v)
 }
@@ -180,6 +182,8 @@ fn st_unguarded(
         reference: c.reference,
         uniform_after: c.uniform_after,
         tracker: Some(&f),
+        coverage: c.coverage,
+        directed: c.directed,
     };
     validate::reference(&ctx, n, l, v)
 }
@@ -716,6 +720,74 @@ pub fn compare_engines(
         })
         .collect();
     (o, p, diffs)
+}
+
+/// The outcome-coverage mode's part of the lane-level comparison (`sim::condition`): with a
+/// coverage sink attached, the reference's per-site execution counts against `cand`'s at each
+/// thread count, and each of those `Outcome`s against the reference's without a sink (counting
+/// must not change what an engine returns). Returns the differences per thread count.
+pub fn compare_site_counts(
+    cand: Engine,
+    threads: &[usize],
+    ctx: &Context<'_>,
+    nested: Option<&Nested<'_>>,
+    lanes: &[Lane],
+) -> Vec<(usize, Vec<String>)> {
+    let sites = crate::sim::condition::site_count(&ctx.compiled.ops);
+    let counted = |e: Engine| {
+        let sink = crate::sim::condition::CoverageSink::new(sites);
+        let c = Context {
+            compiled: ctx.compiled,
+            layout: ctx.layout,
+            hmr_key: ctx.hmr_key,
+            reference: ctx.reference,
+            uniform_after: ctx.uniform_after,
+            tracker: ctx.tracker,
+            coverage: Some(&sink),
+            directed: ctx.directed,
+        };
+        let o = format!("{:?}", e(&c, nested, lanes, None));
+        (o, sink.finish())
+    };
+    let plain = format!("{:?}", validate::reference(ctx, nested, lanes, None));
+    let (o, want) = counted(validate::reference);
+    let mut base = Vec::new();
+    if o != plain {
+        base.push(format!(
+            "reference outcome with site counting: {}",
+            text_diff(&plain, &o)
+        ));
+    }
+    threads
+        .iter()
+        .map(|&t| {
+            let (o, got) = on_threads(t, || counted(cand));
+            let mut d = base.clone();
+            if o != plain {
+                d.push(format!(
+                    "outcome with site counting: {}",
+                    text_diff(&plain, &o)
+                ));
+            }
+            match (&want, &got) {
+                (Ok(a), Ok(b)) if a != b => {
+                    let i = a.iter().zip(b).position(|(x, y)| x != y);
+                    d.push(format!(
+                        "site counts: first difference at site {i:?} of {}",
+                        a.len()
+                    ));
+                }
+                (Ok(_), Ok(_)) => {}
+                (Err(a), Err(b)) if a == b => {}
+                (a, b) => d.push(format!(
+                    "site counts: {:?} vs {:?}",
+                    a.as_ref().err(),
+                    b.as_ref().err()
+                )),
+            }
+            (t, d)
+        })
+        .collect()
 }
 
 fn checked(ctx: &Context<'_>, nested: Option<&Nested<'_>>, lanes: &[Lane]) -> Outcome {

@@ -35,7 +35,7 @@ impl Layout {
 }
 
 /// A lowered op. Qubit ids are simulator wire ids; `cond` is a classical bit or `NONE`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum SimOp {
     Neg {
         cond: u32,

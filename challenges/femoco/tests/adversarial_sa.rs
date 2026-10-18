@@ -224,6 +224,8 @@ fn exhaustive(s: &SaSpec, lm_bytes: &[u8], ops: &[Op], keys: usize) -> Result<us
             reference: &reference,
             uniform_after: &uniform_after,
             tracker: givens_tracker(s),
+            coverage: None,
+            directed: None,
         };
         let n = validate::Nested {
             lo,

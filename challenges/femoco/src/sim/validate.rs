@@ -16,6 +16,7 @@
 //! with the second-pass value, the uniform register must end holding the replaced value, and the
 //! reference is `reference_nested(s, after)` (spec/DESIGN.md section 16).
 use super::compile::{Compiled, Layout};
+use super::condition::{CoverageSink, Directed, DirectedRun};
 use super::jw::{monomial_to_frame, Frame};
 use super::lanes::{Lanes, ReflectLanes, Tally, LANES, W};
 use super::tracker::{LaneFrame, TrackerFactory};
@@ -115,6 +116,13 @@ pub struct Context<'a> {
     /// The uniform value a control-1 lane must end with (`LaneMap::uniform_after`).
     pub uniform_after: &'a (dyn Fn(u64) -> u64 + Sync),
     pub tracker: Option<&'a dyn TrackerFactory>,
+    /// Outcome-coverage mode only (`super::condition`; `None` everywhere else, which leaves the
+    /// engines exactly as they are without the mode): where the engine adds, per conditioned
+    /// site, the lanes on which the site executed.
+    pub coverage: Option<&'a CoverageSink>,
+    /// Outcome-coverage mode only: the system the `Hmr` outcomes of this call must solve (a
+    /// directed stratum). `None`: outcomes are the raw stream, uniform.
+    pub directed: Option<&'a Directed>,
 }
 
 /// What a nested lane map adds to each lane (spec/DESIGN.md section 16).
@@ -229,6 +237,14 @@ pub(crate) fn run_batch(
     let l = &ctx.layout;
     let mut sim = Lanes::new(ctx.compiled, l.system, ctx.tracker);
     sim.reflect = nested.map(|n| reflect_lanes(l, n, b * LANES, chunk));
+    sim.directed = ctx.directed.map(|d| DirectedRun::new(d, W));
+    sim.cover = ctx.coverage.map(|s| {
+        let mut c = s.begin(W);
+        for (i, _) in chunk.iter().enumerate().filter(|(_, lane)| lane.c) {
+            c.set_control_one(i);
+        }
+        c
+    });
     for (i, lane) in chunk.iter().enumerate() {
         sim.active[i / 64] |= 1 << (i % 64);
         if lane.c {
@@ -246,7 +262,13 @@ pub(crate) fn run_batch(
     };
     let base = b * LANES;
     let mut rng = hmr_stream(&ctx.hmr_key, b as u64);
-    if let Err(e) = sim.run(&ctx.compiled.ops, &mut rng) {
+    let ran = sim.run(&ctx.compiled.ops, &mut rng);
+    // A batch stopped by an execution error keeps its partial counts: the run is rejected, and
+    // the counts are only ever read for a run in which every lane passed.
+    if let (Some(sink), Some(c)) = (ctx.coverage, sim.cover.take()) {
+        sink.commit(c, ran.is_ok());
+    }
+    if let Err(e) = ran {
         let category = match e.kind {
             "dirty-ancilla" => 0,
             "reflect" => 9,

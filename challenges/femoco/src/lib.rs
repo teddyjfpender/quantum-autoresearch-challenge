@@ -5,6 +5,7 @@
 //! no contestant code (not even a link-section initializer) is linked into it.
 //! See spec/DESIGN.md for the contract between them.
 pub mod circuit;
+pub mod coverage;
 pub mod equiv;
 pub mod facts;
 pub mod fastsim;

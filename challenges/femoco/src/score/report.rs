@@ -9,6 +9,19 @@ pub const RESULTS_HEADER: &str =
     "unix_time\tcommit\tspec\tfamily_name\tfamily_axes\tlambda\ttoffoli\t\
 qubits\tscore\ttotal_toffoli_lit\tsamples\tstatus\tnote";
 
+/// `sampling_limits.measurement_outcomes` of a run in the outcome-coverage mode in which no op
+/// reads a qubit written under a classical condition.
+pub const COVERED_OUTCOMES: &str = "drawn uniformly per lane; in addition every classical-condition site not proved unreachable executed on validated control-1 lanes, and no op reads a qubit written under a classical condition (metrics.outcome_coverage); a per-site count and not a bound over combinations of outcomes";
+
+/// The same for a sites-only run in which some op does read such a qubit.
+pub const COVERED_SITES_ONLY: &str = "drawn uniformly per lane; in addition every classical-condition site not proved unreachable executed on validated control-1 lanes (metrics.outcome_coverage, sites only). Ops that read a qubit written under a classical condition are steered by outcomes without being sites and are not covered: a block they reach only on a rare outcome pattern is tested on few or no lanes. A per-site count and not a bound over combinations of outcomes";
+
+/// `sampling_limits.implied_error_bound_holds_if` of a run whose reflection check certified.
+pub const CERTIFIED_HERMITIAN: &str = "no further condition on the lanes' Hermiticity: metrics.reflection certifies that the step is Hermitian on every lane and outcome record, so the bound holds for the encoded operator at the confidence of wrong_weight_bound; it is still a bound from sampled lanes, far above chemical accuracy";
+
+/// `sampling_limits.measurement_outcomes` of a run whose reflection check certified.
+pub const CERTIFIED_OUTCOMES: &str = "drawn uniformly per lane; metrics.reflection certifies that the step's operator is the same for every outcome record, so a rare outcome pattern cannot change it; executed-gate counts on rare patterns are still sampled";
+
 fn axes_named(ev: &Evaluation, verified: bool) -> Vec<String> {
     ev.verdicts
         .iter()
@@ -83,6 +96,9 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
             }),
         }
     });
+    if let Some(v) = &ev.validation {
+        out["metrics"]["validation"] = v.clone();
+    }
     // sos-sa runs only (spec/SPEC-SA.md section 6): the spectrum-amplified scoring view.
     if ev.facts.encoding == crate::spec::sa::ENCODING {
         out["metrics"]["spectral_amplification"] = conventions::sa_view(
@@ -135,6 +151,47 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
     // Estimated rounding class only (spec/SPEC-SA.md section 14): every rigorous run's score.json is unchanged.
     if let Some(est) = &ev.rounding_estimate {
         out["metrics"]["rounding_class"] = estimated_block(est, ev.rounding_error.to_f64());
+    }
+    // What the sampled check leaves open (spec/SAMPLING.md). Reported beside the implied
+    // error bound so that the bound is never read without its condition.
+    let grinding = crate::score::GRINDING_LOG2;
+    out["metrics"]["sampling_limits"] = json!({
+        "document": "spec/SAMPLING.md",
+        "wrong_weight_bound": ev.wrong_weight_bound_at(0),
+        "wrong_weight_bound_grinding": ev.wrong_weight_bound_at(grinding),
+        "implied_error_bound_holds_if": "the block encoding is Hermitian on every lane, sampled or not; sampling does not establish this",
+        "non_hermitian_phase_scale_rad": ev.non_hermitian_phase_scale_at(0),
+        "non_hermitian_phase_scale_rad_grinding": ev.non_hermitian_phase_scale_at(grinding),
+        "non_hermitian_phase_scale_formula": "sqrt(2 x wrong_weight_bound): the eigenphase displacement a tuned non-Hermitian defect on unsampled lanes can cause; a scale from the resonance model, not a certified bound",
+        "measurement_outcomes": "drawn uniformly per lane: a block conditioned on a rare outcome pattern is tested on few or no lanes",
+        "certifies_energy_error": false,
+    });
+    // Outcome-coverage mode only (spec/SAMPLING.md section 2.3): every other run's score.json is
+    // unchanged.
+    if let Some(c) = &ev.outcome_coverage {
+        out["metrics"]["outcome_coverage"] = c.json.clone();
+        out["metrics"]["sampling_limits"]["measurement_outcomes"] =
+            json!(if c.qubit_outcome_reads == 0 {
+                COVERED_OUTCOMES
+            } else {
+                COVERED_SITES_ONLY
+            });
+    }
+    // Reflection check only (spec/SAMPLING.md section 4): every other run's score.json is
+    // unchanged. The bound's condition is replaced only when the certificate holds.
+    if let Some(r) = &ev.reflection {
+        out["metrics"]["reflection"] = r.json();
+        let s = &mut out["metrics"]["sampling_limits"];
+        s["hermitian_on_every_lane"] = json!(if r.certified {
+            "certified"
+        } else {
+            "not established"
+        });
+        if r.certified {
+            s["implied_error_bound_holds_if"] = json!(CERTIFIED_HERMITIAN);
+            s["measurement_outcomes"] = json!(CERTIFIED_OUTCOMES);
+            s["non_hermitian_phase_scale_applies"] = json!(false);
+        }
     }
     // Nested runs only, so flat runs' score.json is unchanged (spec/DESIGN.md section 16).
     if let Some(n) = &ev.nested {

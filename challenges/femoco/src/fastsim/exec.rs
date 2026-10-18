@@ -16,6 +16,7 @@
 #![allow(clippy::needless_range_loop)]
 use crate::circuit::NONE;
 use crate::sim::compile::{Compiled, SimOp};
+use crate::sim::condition::{DirectedRun, SiteCounts};
 use crate::sim::lanes::{ReflectLanes, Tally, W};
 use crate::sim::tracker::{LaneFrame, TrackerFactory};
 use sha3::digest::XofReader;
@@ -113,6 +114,10 @@ pub struct Exec<'a, const WW: usize> {
     pub reflect: Option<WideReflect>,
     /// Set by any execution error; the batch is then re-run on the reference engine.
     pub failed: bool,
+    /// Outcome-coverage mode only (`crate::sim::condition`): per-site execution counts.
+    pub cover: Option<SiteCounts>,
+    /// Outcome-coverage mode only: the directed outcome stream of a stratum.
+    pub directed: Option<DirectedRun<'a>>,
     factory: Option<&'a dyn TrackerFactory>,
     registers: &'a [Vec<u32>],
 }
@@ -136,6 +141,8 @@ impl<'a, const WW: usize> Exec<'a, WW> {
             system,
             reflect: None,
             failed: false,
+            cover: None,
+            directed: None,
             factory,
             registers: &c.registers,
         }
@@ -197,9 +204,18 @@ impl<'a, const WW: usize> Exec<'a, WW> {
                 SimOp::Push { bit } => {
                     stack.push(base);
                     base = self.mask(&base, bit);
+                    if let Some(c) = self.cover.as_mut() {
+                        c.add(&base);
+                    }
                 }
                 SimOp::Pop => base = stack.pop().unwrap_or(self.active),
                 _ => {
+                    if self.cover.is_some() && op.cond() != NONE {
+                        let m = self.mask(&base, op.cond());
+                        if let Some(c) = self.cover.as_mut() {
+                            c.add(&m);
+                        }
+                    }
                     self.step(op, &base, rngs);
                     if self.failed {
                         return;
@@ -340,6 +356,9 @@ impl<'a, const WW: usize> Exec<'a, WW> {
                 words[i * W + k] =
                     u64::from_le_bytes(buf[8 * k..8 * k + 8].try_into().unwrap_or([0; 8]));
             }
+        }
+        if let Some(d) = self.directed.as_mut() {
+            d.fix(&mut words);
         }
         let (it, ib) = (t as usize * WW, bit as usize * WW);
         let mut kick = [0u64; WW];

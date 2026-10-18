@@ -77,7 +77,34 @@ fn nested_implied_error_bound_counts_only_control_one_lanes() {
         let need = 2.0 * lambda * (2.0 * l / kp1 + l / kd1);
         let got = ev.implied_error_bound_at(draws);
         assert!(got >= need * (1.0 - 1e-12), "{got} < {need}");
+        // The bound is the Hermitian case of the wrong weight `g`; the non-Hermitian scale is
+        // sqrt(2 g), far larger at any practical sample (spec/SAMPLING.md).
+        let g = 2.0 * l / kp1 + l / kd1;
+        assert!((ev.wrong_weight_bound_at(draws) - g).abs() < 1e-15);
+        assert!((ev.non_hermitian_phase_scale_at(draws) - (2.0 * g).sqrt()).abs() < 1e-15);
+        assert!(ev.non_hermitian_phase_scale_at(draws) > 2.0 * g);
     }
+    // score.json never reports the bound without its condition.
+    let json = femoco_walk::score::score_json(&ev);
+    let limits = &json["metrics"]["sampling_limits"];
+    assert_eq!(limits["certifies_energy_error"], false);
+    assert_eq!(limits["wrong_weight_bound"], ev.wrong_weight_bound_at(0));
+    assert_eq!(
+        limits["non_hermitian_phase_scale_rad"],
+        ev.non_hermitian_phase_scale_at(0)
+    );
+    assert_eq!(
+        limits["non_hermitian_phase_scale_rad_grinding"],
+        ev.non_hermitian_phase_scale_at(GRINDING_LOG2)
+    );
+    assert!(limits["implied_error_bound_holds_if"]
+        .as_str()
+        .unwrap()
+        .contains("Hermitian on every lane"));
+    assert_eq!(
+        json["metrics"]["implied_error_bound"],
+        2.0 * lambda * ev.wrong_weight_bound_at(0)
+    );
 }
 
 /// Appends to the fixture circuit a sign error on control-1 lanes where `j` fresh measurement
