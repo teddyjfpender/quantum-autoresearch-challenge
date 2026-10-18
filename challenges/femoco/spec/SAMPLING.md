@@ -15,7 +15,8 @@ That assumption can now be checked for a circuit, without sampling: the opt-in r
 check (section 4, item 2) either proves that the step is Hermitian on every lane or reports
 why it could not. It certifies the Low et al. baseline circuits and the best Reiher and Li
 circuits of the ledger (section 4.1). For those circuits the bound above no longer rests on
-the assumption. The bound itself is unchanged, and so is the statement that no row certifies
+the assumption, and at `2^24` (Reiher) and `2^26` (Li) lanes it is 1.15 and 0.89 mHa
+(section 4.2). The bound itself is unchanged, and so is the statement that no row certifies
 chemical accuracy: the check proves the step is a reflection, not that it encodes the spec's
 operator.
 
@@ -265,7 +266,9 @@ In order of strength.
    1.2 mHa and `2^26` the Li error at 0.9 mHa. Without it, lanes alone do not reach chemical
    accuracy at any practical count. The re-validation workflow takes a lane count, so a
    headline row can be re-run deeper; with the sliced engine `2^24` lanes take about
-   1.5 minutes (Reiher) and 4 minutes (Li) on four threads.
+   1.5 minutes (Reiher) and 4 minutes (Li) on four threads. Section 4.2 gives the two headline
+   circuits at these counts, with the reflection check, so the bound there rests on no
+   assumption about the lanes.
 4. **Coverage of conditioned blocks.** Implemented as the opt-in outcome-coverage mode of 2.3:
    every conditioned site not proved unreachable must execute on at least 256 control-1 lanes
    that pass, with directed lanes for the sites uniform outcomes rarely reach, and uniform
@@ -416,3 +419,27 @@ engine implements separately; where both have run, they agree.
 or fails exactly as without the flag. With `require`, a circuit that is not certified is a
 `FAIL` row. Whether the judge requires it is a maintainer decision; the acceptance rules of
 `benchmark.json` are unchanged.
+
+### 4.2 Deep runs of the headline circuits
+
+The two best circuits of the ledger, rebuilt from their manifests (`ops.bin` equal to the
+ledger digest), evaluated by this evaluator with `--engine sliced --reflection-check report` at
+the lane counts of 4, item 3:
+
+| Circuit | Lanes | Toffolis / qubits | `implied_error_bound` | grinding bound | Reflection | Wall, peak memory |
+| --- | ---: | ---: | ---: | ---: | --- | ---: |
+| reiher/outer-hi-reconstruct-r1 | `2^24` | 11,462.48 / 313 | 1.15 mHa | 3.47 mHa | certified | 14 min, 2.9 GB |
+| li/composed-alias-m8 | `2^26` | 17,535.51 / 471 | 0.89 mHa | 2.67 mHa | certified | 54 min, 4.8 GB |
+
+Both pass every lane, with no fallback batch, and both `score.json` report
+`hermitian_on_every_lane: "certified"`. So for these two circuits the operator the step
+encodes is within 1.15 and 0.89 mHa of the spec's (`2 Lambda g`, section 2.1), at the
+confidence of `g`, with no assumption about the unsampled lanes. The grinding bound, which
+allows a submitter `2^40` draws of the seed (`metrics.grinding_draws_log2`), is within
+3.5 mHa. The Toffoli count is a mean over the sampled lanes, and it agrees with the ledger
+rows' (11,462.56 and 17,535.50 at `2^19` lanes) to within 0.001%; the qubit counts are equal. Times are for four threads of a laptop, the
+reflection check included (about 12 and 39 minutes of each).
+
+These runs used a local seed, not the judge's, and they are not ledger rows. The bound is
+about the encoded operator, not about energy, and `certifies_energy_error` stays `false`
+(4.1, "What it does not establish").
