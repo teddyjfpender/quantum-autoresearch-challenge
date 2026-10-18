@@ -22,6 +22,11 @@ path = "src/bin/build_rigorous.rs"
 required-features = ["walk"]
 
 [[bin]]
+name = "cost_corrected_base"
+path = "src/bin/cost_corrected_base.rs"
+required-features = ["walk"]
+
+[[bin]]
 name = "eval_circuit"
 path = "src/bin/eval_circuit.rs"
 

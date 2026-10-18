@@ -1,0 +1,37 @@
+{
+  "schema": "femoco-chemistry-sources-v1",
+  "record": "https://zenodo.org/records/17066718",
+  "integrals_archive": {
+    "url": "https://zenodo.org/records/17066718/files/integrals.zip?download=1",
+    "md5": "492b2d8ec99ca3555c63169be417afe6"
+  },
+  "factors_archive": {
+    "url": "https://zenodo.org/records/17066718/files/spinfree.zip?download=1",
+    "size": 14820799802,
+    "md5": "43c74f1a7ce046f45199e71ae512f34a"
+  },
+  "instances": {
+    "reiher": {
+      "integrals": "FeMoCo_reiher_dense.fcidump",
+      "integrals_sha256": "8890968d443c714e7b8949caa3ea41560e72df0527cc798f7a1ff542e0707474",
+      "factors_sha256": "5e1432f9d622a4b79e034c085ccf2456123e29ae734008d00f2a42630092a228",
+      "factor_member": "spinfree/best_solutions/FeMoCo54o54e_10_27_27_ln25_ep1000_lrf10_tg3464_te10_ndiff0_ln25_seed3000000.pickle",
+      "factor_offset": 14797482082,
+      "factor_compressed_size": 90765,
+      "factor_size": 95811,
+      "factor_crc32": 3650244262,
+      "core_policy": "fcidump"
+    },
+    "li": {
+      "integrals": "FeMoCo76o113e.fcidump",
+      "integrals_sha256": "e5a48af746fd075026dec9e8f5df2d363802a121e8c53af9a0b984bde695e1bd",
+      "factors_sha256": "08ef2a444720feacf4692f5d0a8528a413d8ee0af7a382463e0c9b33aabcbc55",
+      "factor_member": "spinfree/FeMoCo76o113e/scan_gap_seed2000000/FeMoCo76o113e_15_57_19_ln100_ep1000_lrf10_tg4666_te10_ndiff35.pickle",
+      "factor_offset": 13155159627,
+      "factor_compressed_size": 322081,
+      "factor_size": 339064,
+      "factor_crc32": 3285788015,
+      "core_policy": "zero"
+    }
+  }
+}

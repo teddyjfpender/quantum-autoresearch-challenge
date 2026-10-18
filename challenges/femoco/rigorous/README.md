@@ -61,3 +61,54 @@ statement is in the [verification guide](../tools/verification/README.md#trust-b
 The other seven candidates have the deterministic and sampled evidence above and no
 symbolic certificate. The run used `dd` 0.6.0 with CUDD, `--partition-bits 8 --jobs 4`, and
 took under six minutes.
+
+## Energy audit of the published factors
+
+The separate [chemistry checker](../tools/chemistry/README.md) computes interval bounds from
+the pinned original integrals and the published DFTHC factors. Its
+[Reiher](energy-reiher.json) and [Li](energy-li.json) reports give determinant witnesses for
+a lower bound on the operator norm of the fit residual of the published, unrounded factors:
+more than 47.500 mHa and 21.340 mHa respectively, whatever scalar is subtracted. So those
+factors cannot meet a chemical-accuracy budget stated as an operator norm over the whole
+electron-number sector.
+
+This does not determine their ground-energy errors, and at the current rotation precision it
+establishes nothing about the rounded Hamiltonians the circuits encode. Both reports say
+`chemical_accuracy_certified: false`. The audit also holds validated rotation-precision
+proposals, which are not circuit specs, and Slater energy bounds for the stored Hamiltonian.
+
+## Corrected-Hamiltonian experiment
+
+The [explicit correction and compression experiment](../tools/chemistry/CORRECTED.md)
+constructs new approximations with certified Hamiltonian errors below 0.267 mHa
+(Reiher) and 0.261 mHa (Li). It rebuilds all eight base circuits at the validated
+26/28-bit rotation precisions. Sparse correction retains over 99.3% of the packed
+residual entries; separate analytical correction-block resource bounds quantify
+the cost of that construction. The combined block encoding and complete
+ground-energy algorithm were not implemented by that experiment, and it asserts
+no new full circuit-equivalence certificate.
+
+## Signed correction and combined logical walk
+
+The [signed correction follow-up](../tools/chemistry/SIGNED.md) replaces the large
+sparse table with 1,386/2,153 signed factors. Correction normalization falls from
+213.689/71.160 Ha to 32.396/22.505 Ha. The new numerical certificates
+([Reiher](signed-reiher.json), [Li](signed-li.json)) bound the explicit combined
+Hamiltonian errors below 0.161357/0.150233 mHa.
+
+The emitted combined programs are checked exactly for their layout, every lookup
+record and their coefficient errors ([Reiher](combined-reiher.json),
+[Li](combined-li.json)). That the layout block-encodes the Hamiltonian is an
+argued identity exercised on two-orbital instances, not something the checker
+derives, and the checker shares code with the compiler; the reports record
+`independent_verification: false`. The programs are hierarchical and logical,
+not gate streams, and carry no symbolic certificate.
+
+Controlled-walk upper bounds are 68,863/119,339 Toffolis and 12,825/19,375 logical
+qubits. This is much more expensive than Low et al.'s published estimate, and it
+is a different Hamiltonian from the challenge tracks': 28.7x/37.8x in total
+Toffolis under the paper's query convention, and 43x/69x in Toffolis x qubits
+for one step. The conditional
+budgets fit below 1.179 mHa; physical synthesis, state preparation/selection and
+implemented QPE accounting are still outstanding. Both combined reports keep
+`chemical_accuracy_certified: false`.
