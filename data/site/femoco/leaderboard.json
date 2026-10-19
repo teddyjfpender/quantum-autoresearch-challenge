@@ -21,8 +21,8 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 276,
- "ledgerHead": "4942f9ff0dfbba28d20d9473097c066f4f0403cc45a885267b4f6150a6ea3262",
+ "ledgerRows": 277,
+ "ledgerHead": "1b49b2a38377dfe74865c331b51ec76f540f461bd0623e9272219e78ee351a6c",
  "tracks": [
   {
    "track": "reiher",
@@ -2210,7 +2210,7 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 128,
+   "circuits": 129,
    "best": {
     "unixTime": 1791555788,
     "track": "li",
@@ -2769,7 +2769,7 @@
      "id": "rank-scheduled",
      "name": "Rank-scheduled delivery",
      "parent": "onehot-split",
-     "circuits": 47,
+     "circuits": 48,
      "firstUnixTime": 1790937749,
      "elite": {
       "unixTime": 1790963522,
@@ -2796,28 +2796,28 @@
       "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAHVIXZJtRNOBWsY+-_q24_1, keep 9+9, blocks 3/3"
      },
      "fewestQubits": {
-      "unixTime": 1792385531,
+      "unixTime": 1792385569,
       "track": "li",
       "architecture": "rank-scheduled",
-      "toffoli": 24843.702,
-      "qubits": 387,
-      "toffoliTimesQubits": 9614512.674,
-      "score": 9614512.674,
+      "toffoli": 25096.736,
+      "qubits": 374,
+      "toffoliTimesQubits": 9386179.264,
+      "score": 9386179.264,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "d9734fda4b83b885643504b94c4a1794b41ca48489d7e94176c908550a0c0580",
+      "opsSha256": "9b2a6644b320f9d1562436a2d373648ec5decb432adbb1bbcbade1d63693220d",
       "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
-      "commit": "55e229f8971183ac65d3a78a043f270a1c3684a0",
-      "pr": 18,
+      "commit": "b7de69bc94c6a610ed22a71ae1ff42adc78dc827",
+      "pr": 19,
       "author": "teddyjfpender",
       "model": "Claude Opus 5.5",
       "harness": "Claude Code",
-      "submission": "li/lc-l7soq-m8",
+      "submission": "li/lqc-l7q20-m8",
       "kind": "submission",
       "standing": [
        "front"
       ],
-      "note": "Rank-scheduled delivery on the seven-group sign-normalised point at 387 qubits"
+      "note": "Rank-scheduled delivery on the seven-group record at 374 qubits"
      },
      "fewestToffoli": {
       "unixTime": 1790965281,
@@ -3282,28 +3282,28 @@
    ],
    "front": [
     {
-     "unixTime": 1790971147,
+     "unixTime": 1792385569,
      "track": "li",
-     "architecture": "onehot-split",
-     "toffoli": 25181.068,
+     "architecture": "rank-scheduled",
+     "toffoli": 25096.736,
      "qubits": 374,
-     "toffoliTimesQubits": 9417719.432,
-     "score": 9417719.432,
+     "toffoliTimesQubits": 9386179.264,
+     "score": 9386179.264,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "7c272fcb5df70c9a5899d1c892ec685968ce630ecfdb87707c1b0d7db099327f",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "9b2a6644b320f9d1562436a2d373648ec5decb432adbb1bbcbade1d63693220d",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "b7de69bc94c6a610ed22a71ae1ff42adc78dc827",
+     "pr": 19,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "li/rc-l7-m8",
-     "kind": "historical",
+     "submission": "li/lqc-l7q20-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky7zabCHKVIXJOBWsotU+_~.e, keep 8+8, blocks 3/2"
+     "note": "Rank-scheduled delivery on the seven-group record at 374 qubits"
     },
     {
      "unixTime": 1792385531,
