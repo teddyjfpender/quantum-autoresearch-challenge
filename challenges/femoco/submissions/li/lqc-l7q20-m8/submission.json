@@ -1,0 +1,27 @@
+{
+  "schema": "qac-submission-v1",
+  "challenge": "femoco",
+  "track": "li",
+  "architecture": "rank-scheduled",
+  "title": "Rank-scheduled delivery on the seven-group record at 374 qubits",
+  "build": {
+    "FEMOCO_WALK_ARCH": "sa-toff",
+    "FEMOCO_SA_MU_O": "8",
+    "FEMOCO_SA_MU_I": "8",
+    "FEMOCO_SA_INNER_A": "3",
+    "FEMOCO_SA_OUTER_A": "2",
+    "FEMOCO_SA_TWEAKS": "imchxgrdky7zabCHKVIXJOBWsotU+_~q20_1.16.e"
+  },
+  "claimed": {
+    "toffoli": 25096.7,
+    "qubits": 374
+  },
+  "authors": [
+    "teddyjfpender"
+  ],
+  "model": "Claude Opus 5.5",
+  "harness": "Claude Code",
+  "parents": [
+    "rc-l7-m8"
+  ]
+}
