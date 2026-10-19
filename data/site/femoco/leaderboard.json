@@ -21,14 +21,14 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 273,
- "ledgerHead": "8103f1343638ee559f51f601dfed3970b66487f7bef22e05d89423c36ca644db",
+ "ledgerRows": 274,
+ "ledgerHead": "05ba08cbed0f7838f68ef5ef0f5573b98b7207132933e524f34d5399067e2bdd",
  "tracks": [
   {
    "track": "reiher",
    "title": "Reiher active space (54 orbitals)",
    "spec": "reiher-sa-est-v1",
-   "circuits": 146,
+   "circuits": 147,
    "best": {
     "unixTime": 1791561484,
     "track": "reiher",
@@ -85,7 +85,7 @@
      "id": "rank-scheduled",
      "name": "Rank-scheduled delivery",
      "parent": "onehot-split",
-     "circuits": 85,
+     "circuits": 86,
      "firstUnixTime": 1790937749,
      "elite": {
       "unixTime": 1791561484,
@@ -1237,28 +1237,28 @@
      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky4zZabCHKVITXSRNOBWs, keep 8+8, blocks 2/2"
     },
     {
-     "unixTime": 1790969371,
+     "unixTime": 1792385319,
      "track": "reiher",
-     "architecture": "onehot-split",
-     "toffoli": 13223.405,
+     "architecture": "rank-scheduled",
+     "toffoli": 13191.725,
      "qubits": 298,
-     "toffoliTimesQubits": 3940574.69,
-     "score": 3940574.69,
+     "toffoliTimesQubits": 3931134.05,
+     "score": 3931134.05,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "54e4c70e638bd1526fe3ace62e92481d39e662526cd1717912f32dfa52975848",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "8a2ac421b8e8eda0f283b57121920701015f9af1e0940e1127f3c4cca04a0793",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "edcba67ceb5a76d827ad0e566df5a9b871a5f717",
+     "pr": 16,
      "author": "teddyjfpender",
      "model": "Claude Opus 5.5",
      "harness": "Claude Code",
-     "submission": "reiher/gkr-r3c-m8",
-     "kind": "historical",
+     "submission": "reiher/lc-r3cq-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVITXSNOBWs_~, keep 8+8, blocks 2/2"
+     "note": "Rank-scheduled delivery on the G = 3 point at 298 qubits"
     },
     {
      "unixTime": 1790929788,
