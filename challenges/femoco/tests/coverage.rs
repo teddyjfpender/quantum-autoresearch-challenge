@@ -479,8 +479,8 @@ fn exact_checker_fixtures_are_the_evaluator_exports() {
             ops = spin_keyed_mutant(&spec, &ops, &map(&spec));
         }
         if name == "tiny-rare-outcome-mutant" {
-            // Each copy adds a sign only when sixteen independent HMR outcomes are
-            // all 1. Ordinary small samples usually miss it; all-outcome equivalence
+            // Each copy adds a sign only when 32 independent HMR outcomes are
+            // all 1. Even 2^26 samples usually miss it; all-outcome equivalence
             // must reject it. Both raw copies remain identical and every ancilla is 0.
             let spare = ops.iter().flat_map(Op::qubits).max().unwrap() + 1;
             let first_bit = ops
@@ -491,19 +491,19 @@ fn exact_checker_fixtures_are_the_evaluator_exports() {
                 .unwrap_or(0)
                 + 1;
             let mut defect = Vec::new();
-            for bit in first_bit..first_bit + 16 {
+            for bit in first_bit..first_bit + 32 {
                 let mut hmr = Op::new(OperationType::Hmr);
                 hmr.q_target = spare;
                 hmr.c_target = bit;
                 defect.push(hmr);
             }
-            for bit in first_bit..first_bit + 16 {
+            for bit in first_bit..first_bit + 32 {
                 let mut push = Op::new(OperationType::PushCondition);
                 push.c_condition = bit;
                 defect.push(push);
             }
             defect.push(Op::new(OperationType::Neg));
-            defect.extend((0..16).map(|_| Op::new(OperationType::PopCondition)));
+            defect.extend((0..32).map(|_| Op::new(OperationType::PopCondition)));
             ops = ops
                 .into_iter()
                 .flat_map(|op| {

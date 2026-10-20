@@ -129,7 +129,7 @@ class BinaryTest(unittest.TestCase):
                       partitions=[dict(partition=0, status='proved')], partition_bits=0,
                       binary_binding=dict(status='proved'),
                       checker_sha256={name: hashlib.sha256((VERIFY/name).read_bytes()).hexdigest()
-                                      for name in ('encoded_operator.py', 'artifacts.py', 'exact.py')},
+                                      for name in ('encoded_operator.py', 'artifacts.py', 'exact.py', 'outcomes.py')},
                       digests={key: row[key+'_sha256'] for key in ('ops', 'lanemap', 'family')},
                       coefficients=dict(off_diagonal_coefficient_l1_Ha=dict(exact='1/8')))
         audit_encoded.check_report(report, row, dict(rounding_error_exact='1/8'))
@@ -233,37 +233,47 @@ class OperatorTest(unittest.TestCase):
             got = self.m.sign_normalized(s)['angles']
             self.assertEqual(got, ((4-a) % 8, (b+4) % 8) if b & 4 else (a, b))
 
-    def test_outcome_phase_polynomials_match_original_mod_eight_arithmetic(self):
-        # Include nonlinear outcome products, outcome-dependent carries and reused
-        # outcomes. No assumption of linearity or independent sign corrections.
-        f = self.m.exact.Boolean(['u0', 'u1', 'm0', 'm1', 'm2', 'm3'])
-        variables = [f.bdd.var(name) for name in f.bdd.vars]
+    def test_outcome_polynomials_against_boolean_and_mod_eight_oracles(self):
+        raw = self.m.exact.Boolean(['u0', 'u1', 'm0', 'm1', 'm2', 'm3'])
+        f = self.m.OutcomeBoolean(raw)
+        names = list(raw.bdd.vars)
+        variables = [(f.bdd.var(v), raw.bdd.var(v)) for v in names]
         rng = random.Random(7023)
+        def value(node, assignment):
+            lane = {k: v for k, v in assignment.items() if not k.startswith('m')}
+            answer = 0
+            for monomial, coefficient in node.terms.items():
+                answer ^= int(raw.bdd.let(lane, coefficient) == raw.one)*int(all(assignment[v] for v in monomial))
+            return answer
         for _ in range(40):
-            phase, original, increments = self.m.OutcomePhase(f), f.word(0, 3), []
+            phase, original, increments = f.word(0, 3), raw.word(0, 3), []
             for _ in range(25):
-                a, b, c = (rng.choice(variables) for _ in range(3))
-                mask = (a & b) | ~c
-                k = rng.choice((0, 2, 4, 6))
-                increments.append((mask, k))
-                phase.add(mask, k)
-                original = f.add(original, tuple(mask if k >> j & 1 else f.zero for j in range(3)))
-                self.assertEqual(phase.equal(original), f.one)
-            for values in itertools.product((False, True), repeat=len(variables)):
-                assignment = dict(zip(f.bdd.vars, values))
-                bit = lambda node: int(f.bdd.let(assignment, node) == f.one)
-                high = 0
-                for monomial, coefficient in phase.high.items():
-                    high ^= bit(coefficient)*int(all(assignment[v] for v in monomial))
-                actual = 2*bit(phase.low)+4*high
-                expected = sum(k*bit(mask) for mask, k in increments) % 8
+                (a, aa), (b, bb), (c, cc) = (rng.choice(variables) for _ in range(3))
+                mask, reference = (a & b) | ~c, (aa & bb) | ~cc
+                k = rng.choice(range(8))
+                increments.append((mask, reference, k))
+                phase = f.add(phase, tuple(mask if k >> j & 1 else f.zero for j in range(3)))
+                original = raw.add(original, tuple(reference if k >> j & 1 else raw.zero for j in range(3)))
+            for values in itertools.product((False, True), repeat=len(names)):
+                assignment = dict(zip(names, values))
+                for mask, reference, _ in increments:
+                    self.assertEqual(value(mask, assignment), int(raw.bdd.let(assignment, reference) == raw.one))
+                actual = sum(value(bit, assignment) << j for j, bit in enumerate(phase))
+                expected = sum(k*value(mask, assignment) for mask, _, k in increments) % 8
                 self.assertEqual(actual, expected)
-            wrong = (original[0], original[1], ~original[2])
-            self.assertNotEqual(phase.equal(wrong), f.one)
-        with self.assertRaises(ValueError): phase.add(f.one, 1)
-        limited = self.m.OutcomePhase(f, term_limit=1)
-        with self.assertRaisesRegex(ValueError, 'term budget'):
-            limited.add(f.bdd.var('m0') | f.bdd.var('m1'), 4)
+                self.assertEqual(actual, sum(int(raw.bdd.let(assignment, bit) == raw.one) << j for j, bit in enumerate(original)))
+            wrong = f.xor(phase[2], f.one)
+            self.assertNotEqual(phase[2], wrong)
+        # A returned polynomial witness really satisfies the represented function.
+        node = (variables[0][0] & variables[2][0]) | (variables[1][0] & variables[3][0])
+        witness = f.bdd.pick(node)
+        complete = {v: witness.get(v, False) for v in names}
+        self.assertEqual(value(node, complete), 1)
+        limited = self.m.OutcomeBoolean(raw, term_limit=1)
+        with self.assertRaisesRegex(ValueError, 'budget'):
+            limited.bdd.var('m0') | limited.bdd.var('m1')
+        with self.assertRaisesRegex(ValueError, 'lane coefficient'):
+            f.lane(raw.bdd.var('m0'))
 
 
 if __name__ == '__main__':

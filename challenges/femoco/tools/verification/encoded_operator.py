@@ -20,102 +20,11 @@ from concurrent.futures import ProcessPoolExecutor
 
 import artifacts
 import exact
+from outcomes import OutcomeBoolean
 
 HERE = pathlib.Path(__file__).resolve().parent
 SCHEMA = 'femoco-encoded-operator-report-v1'
 
-
-class OutcomePhase:
-    """Exact even Z/8 phase: one BDD low bit and GF(2)[outcomes] high bit.
-
-    Phase increments are 0, 2, 4 or 6. Keeping the high bit in algebraic normal form
-    avoids exponential BDDs for sums of many independent HMR signs. Coefficients are
-    BDDs of lane bits only; outcome monomials are square-free. Nonlinear and rare
-    joint outcome dependencies are retained, not assumed absent.
-    """
-    def __init__(self, f, term_limit=65536):
-        self.f, self.low, self.high, self.cache = f, f.zero, {}, {}
-        self.term_limit = term_limit
-
-    def parts(self, node, depth=0):
-        if depth > 128:
-            raise ValueError('outcome phase polynomial depth budget exceeded')
-        if node == self.f.zero:
-            return {}
-        if node in self.cache:
-            return self.cache[node]
-        outcomes = [v for v in node.support if v.startswith('m')]
-        if not outcomes:
-            result = {frozenset(): node}
-        else:
-            variable = min(outcomes, key=lambda v: int(v[1:]))
-            zero = self.f.bdd.let({variable: False}, node)
-            one = self.f.bdd.let({variable: True}, node)
-            # Shannon expansion over GF(2): P = P(0) XOR m*(P(1) XOR P(0)).
-            result = dict(self.parts(zero, depth+1))
-            result.update({monomial | {variable}: coefficient
-                           for monomial, coefficient in self.parts(self.f.xor(one, zero), depth+1).items()})
-        if len(result) > self.term_limit:
-            raise ValueError('outcome phase polynomial term budget exceeded')
-        self.cache[node] = result
-        return result
-
-    def xor_high(self, mask):
-        for monomial, coefficient in self.parts(mask).items():
-            value = self.f.xor(self.high.get(monomial, self.f.zero), coefficient)
-            if value == self.f.zero:
-                self.high.pop(monomial, None)
-            else:
-                self.high[monomial] = value
-            if len(self.high) > self.term_limit:
-                raise ValueError('outcome phase polynomial term budget exceeded')
-        if len(self.cache) > 1024:
-            self.cache.clear()
-
-    def add(self, mask, k):
-        if k not in (0, 2, 4, 6):
-            raise ValueError('phase polynomial supports even Z/8 increments only')
-        if k & 2:
-            self.xor_high(self.low & mask)  # exact carry into the high bit
-            self.low = self.f.xor(self.low, mask)
-        if k & 4:
-            self.xor_high(mask)
-
-    def equal(self, word):
-        if len(word) != 3:
-            raise ValueError('requires a three-bit phase word')
-        # Uniqueness of ANF: equality for every outcome iff every coefficient of
-        # the difference vanishes. The returned BDD checks this for each lane.
-        difference = dict(self.high)
-        for monomial, coefficient in self.parts(word[2]).items():
-            difference[monomial] = self.f.xor(difference.get(monomial, self.f.zero), coefficient)
-        return (~word[0] & ~self.f.xor(self.low, word[1])
-                & self.f.all(~coefficient for coefficient in difference.values()))
-
-
-class PhaseBoolean:
-    """Reuse Boolean/controller machinery; dispatch only the phase-word comparison."""
-    def __init__(self, boolean):
-        self.boolean = boolean
-
-    def __getattr__(self, name):
-        return getattr(self.boolean, name)
-
-    def equal(self, a, b):
-        if isinstance(a, OutcomePhase):
-            return a.equal(b)
-        if isinstance(b, OutcomePhase):
-            return b.equal(a)
-        return self.boolean.equal(a, b)
-
-
-class Controller(exact.Controller):
-    def __init__(self, doc, f, c, uniform, second, count):
-        super().__init__(doc, f, c, uniform, second, count)
-        self.phase = OutcomePhase(f)
-
-    def phase_add(self, mask, k):
-        self.phase.add(mask, k)
 
 
 def sign_normalized(spec):
@@ -149,8 +58,9 @@ def worker(partition):
     started = time.monotonic()
     try:
         f, c, u, after, count = exact.variables(doc, bits, partition)
-        f = PhaseBoolean(f)
-        actual = Controller(doc, f, c, u, after, count)
+        f = OutcomeBoolean(f)
+        c, u, after = f.lane(c), [f.lane(v) for v in u], [f.lane(v) for v in after]
+        actual = exact.Controller(doc, f, c, u, after, count)
         actual.run()
         controller_seconds = time.monotonic()-started
         forms = ('payload', 'sign-normalized') if form == 'auto' else (form,)
@@ -186,8 +96,8 @@ def certify(doc, spec, directory, payload_bytes, input_digest, partition_bits=8,
     report = dict(
         schema=SCHEMA, spec=doc['spec'], digests=doc['digests'], input_sha256=input_digest,
         checker_sha256={name: hashlib.sha256((HERE/name).read_bytes()).hexdigest()
-                        for name in ('encoded_operator.py', 'artifacts.py', 'exact.py')},
-        backend=f'dd.cudd {exact.dd.__version__}', phase_engine='even-Z8-outcome-ANF-v1',
+                        for name in ('encoded_operator.py', 'artifacts.py', 'exact.py', 'outcomes.py')},
+        backend=f'dd.cudd {exact.dd.__version__}', boolean_engine='lane-BDD/outcome-ANF-v1',
         claim=('For all stated inputs and independent measurement records: emitted binary '
                'circuit registers are restored and its lane action is M_b^dagger M_a for the '
                'binary lane map and pinned integer-angle payload, on the trust base in '

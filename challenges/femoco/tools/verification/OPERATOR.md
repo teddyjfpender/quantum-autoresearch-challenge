@@ -76,29 +76,31 @@ This removes the unchecked exporter/lowering correspondence from the old checker
 base. The independent decoder, both interpreters and their agreement test now belong to the
 trust base. It does not turn two implementations into a proof-assistant theorem.
 
-## Exact outcome-phase arithmetic
+## Exact outcome-polynomial Boolean backend
 
-The controller operations generate only even Z/8 phase increments (0, 2, 4 or 6).
-The low nonzero bit is a BDD; the high bit is a square-free polynomial over independent
-measurement variables, with lane-only BDD coefficients. Adding 2 adds the exact carry
-`old_low AND mask` to the high polynomial and XORs the low bit with the mask; adding 4
-XORs the mask into the high polynomial. Adding 6 performs both operations. This is the
-same arithmetic as the original three-bit accumulator, with a different representation.
+Every controller wire, classical bit and scalar-phase bit is a square-free polynomial
+in independent measurement outcomes, with lane-only BDD coefficients. XOR adds coefficients;
+AND multiplies coefficients and unions monomials, using `m*m=m`; NOT toggles the constant
+coefficient. All terms, including nonlinear products of outcomes, are retained. The original
+interpreter, alias decoder, gate-word normalizer and three-bit Z/8 adder from `exact.py` are
+reused unchanged. Thus modular carries and outcome-dependent wire computations use the same
+Boolean semantics throughout, without a BDD that mixes thousands of outcome variables.
 
-Shannon expansion over GF(2), `P = P(0) XOR m*(P(1) XOR P(0))`, derives every coefficient
-exactly. The multilinear representation is unique by induction on the number of outcome
-bits: evaluate at m=0 and m=1 to recover the two smaller polynomials. Two phase functions
-therefore agree for every outcome precisely when every coefficient of their difference
-vanishes. The checker tests that statement as a BDD identity over all lane bits. Products
-of outcomes and outcome-dependent carries are retained; linearity is not assumed. The
-expected system-word phase is decomposed by the same exact expansion, so a controller phase
-may cancel a system-word phase depending on measurements.
+Shannon expansion over GF(2), `P = P(0) XOR m*(P(1) XOR P(0))`, proves by induction that this
+multilinear representation is unique. Two functions agree for every outcome precisely when
+every coefficient of their difference vanishes. Canonical lane BDDs decide that statement
+for every lane. This is an exact representation change, not an assumption of independent
+linear sign corrections. A lane coefficient containing an outcome variable is rejected.
 
-This avoids the exponential BDD for a sum of independent HMR signs. The phase engine uses
-at most 65,536 monomials per polynomial and recursion depth 128; exceeding either refuses
-the proof. It never drops terms or samples outcomes. Tests compare randomized nonlinear
-phase programs with both the original BDD adder and an exhaustive integer-modulo-8 oracle,
-including every outcome assignment, carries, deliberate mismatches and budget refusal.
+For a nonzero polynomial, the checker constructs a genuine witness: fix a lane on which a
+coefficient is nonzero, choose a surviving monomial of minimum degree, and set exactly those
+outcomes to 1. Every other surviving monomial then vanishes, so the function is 1.
+
+The backend refuses functions exceeding 65,536 monomials or degree 128; it never drops terms
+or samples outcomes. Exhaustive tests compare randomized nonlinear Boolean and phase programs
+with the original CUDD backend and an integer-modulo-8 oracle, including odd increments,
+carries, deliberate mismatches, actual satisfying witnesses and budget refusal. Real small
+binary circuits and a defect behind 32 simultaneous outcomes exercise the complete checker.
 
 ## Gate identities, spin transport and vector orientation
 

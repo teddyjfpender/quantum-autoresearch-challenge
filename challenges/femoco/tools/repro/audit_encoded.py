@@ -54,9 +54,9 @@ def check_report(report, row, metrics):
             or report['binary_binding']['status'] != 'proved'):
         raise ValueError('incomplete partition or binary-binding evidence')
     for name, digest in report['checker_sha256'].items():
-        if name not in ('encoded_operator.py', 'artifacts.py', 'exact.py') or sha(ROOT/'tools/verification'/name) != digest:
+        if name not in ('encoded_operator.py', 'artifacts.py', 'exact.py', 'outcomes.py') or sha(ROOT/'tools/verification'/name) != digest:
             raise ValueError('operator evidence is from a different checker')
-    if set(report['checker_sha256']) != {'encoded_operator.py', 'artifacts.py', 'exact.py'}:
+    if set(report['checker_sha256']) != {'encoded_operator.py', 'artifacts.py', 'exact.py', 'outcomes.py'}:
         raise ValueError('missing checker dependency hash')
     for key in ('ops', 'lanemap', 'family'):
         if report['digests'][key] != row[key+'_sha256']:
