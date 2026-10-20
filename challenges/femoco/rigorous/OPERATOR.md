@@ -30,17 +30,35 @@ regressions; they do not certify the complete quantum operator.
 
 ## Full circuit equivalence
 
-At this draft's recording, full-size all-input checks are still in progress. **Neither
-headline circuit is yet claimed certified by this new checker.** Real small Rust-generated
-circuits have complete certificates, including a three-orbital sign-normalized circuit.
-The tests reject altered exports, wrong coefficient magnitudes/normalizations, spin-keyed
-defects, and a defect reached only on a conjunction of 32 independent outcomes.
+The [Reiher certificate](operator-reiher.json) and [Li certificate](operator-li.json)
+both establish **whole-domain encoded-operator equivalence in the documented ideal gate
+model**. All 256 exhaustive address partitions passed for each circuit. All matched the
+payload reference; the alternative sign-normalized reference was unnecessary for these
+two checks. These are computational certificates on the stated trust base, not
+proof-assistant-checked theorems.
 
-The large-run obligation is exact gate-word/scalar-phase agreement and restoration for
-every control, every uniform input, every independent second-pass value and every HMR
-assignment. An incomplete partition run never counts as a whole-domain certificate.
-Reflection certificates and the deeper samples documented in SAMPLING.md remain separate
-evidence; their passing status is not promoted into an operator-equivalence certificate.
+| Circuit | Control values | Uniform bits | Independent second-pass bits | Independent HMR bits | Partitions proved |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Reiher | 2 | 32 | 14 | 4,622 | 256 / 256 |
+| Li | 2 | 33 | 15 | 2,068 | 256 / 256 |
+
+The [complete CI run](https://github.com/teddyjfpender/quantum-autoresearch-challenge/actions/runs/39426490663)
+rebuilt the pinned submissions from clean source commit
+`bac4b2e14b9c0dd28dd2ceddd3e0c1a717cf8dfa`. Sixteen disjoint batch reports per molecule
+were assembled only after coverage, binding and matching metadata checks. The downloaded
+`operator-certificates` archive (artifact 12267092931) had verified SHA-256
+`4d5491a45f7361af5bf8ed8739c6886a071c5a6abcf46630f54878c5670fbf21`.
+Each retained certificate pins the circuit files, payload, symbolic input, four checker
+dependencies and assembly checker. PR updates can reuse these reports only after the
+committed-evidence tests pass; a manual workflow dispatch always reruns the proof.
+
+The checks prove exact gate-word/scalar-phase agreement and restoration for every control,
+every uniform input, every independent second-pass value and every HMR assignment.
+An incomplete partition run never counts as a whole-domain certificate. Reflection checks
+and the deeper samples in SAMPLING.md remain separate evidence. Real small Rust-generated
+circuits additionally exercise a three-orbital sign-normalized reference. Adversarial tests
+reject altered exports, coefficient magnitudes/normalizations, spin-keyed defects, and a
+defect reached only on a conjunction of 32 independent outcomes.
 
 ## Original chemistry target
 
@@ -54,6 +72,13 @@ chemistry certificate.
 | Fit norm lower bound after any scalar shift, mHa | >47.500 | >21.340 |
 | Rotation/preprocessing norm upper bound, mHa | <52.935 | <368.441 |
 | Ground-energy accuracy decided | No | No |
+
+On the stated fixed-electron sector, with consistent scalar conventions, the triangle
+inequality adds the encoded-to-payload, rotation/preprocessing and factorization norm
+bounds. For these estimated maps, that accounting must use the actual 150.389 / 871.882
+mHa coefficient-plus-identity bounds above. The existing chemistry reports' illustrative
+0.2 mHa allowance assumes an accepted **rigorous** coefficient map and cannot be reused
+for these estimated maps.
 
 The lower-bound witnesses concern the operator norm of the uncorrected fit, not its
 ground-energy error. The large upper bounds likewise do not establish a large ground-energy

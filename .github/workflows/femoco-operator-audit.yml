@@ -16,8 +16,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  batch:
+  evidence:
     if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      required: ${{ steps.current.outputs.required }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Check whether complete evidence matches the current inputs and checker
+        id: current
+        run: |
+          # A manual dispatch always reruns the expensive proof. PR updates can reuse
+          # committed evidence only when all source, input and coverage checks pass.
+          if [ '${{ github.event_name }}' != workflow_dispatch ] && \
+             [ -f challenges/femoco/rigorous/operator-reiher.json ] && \
+             [ -f challenges/femoco/rigorous/operator-li.json ] && \
+             python3 -m unittest discover -s tests -p test_encoded_operator_evidence.py -v; then
+            echo 'required=false' >> "$GITHUB_OUTPUT"
+            echo 'Complete committed operator evidence matches the current inputs and checker.'
+          else
+            echo 'required=true' >> "$GITHUB_OUTPUT"
+          fi
+
+  batch:
+    needs: evidence
+    if: github.event.repository.private == false && needs.evidence.outputs.required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -72,8 +102,8 @@ jobs:
             /tmp/operator-audit/audit-results.json
 
   assemble:
-    needs: batch
-    if: github.event.repository.private == false
+    needs: [evidence, batch]
+    if: github.event.repository.private == false && needs.evidence.outputs.required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

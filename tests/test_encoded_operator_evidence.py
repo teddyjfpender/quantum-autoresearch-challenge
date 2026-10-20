@@ -1,4 +1,4 @@
-"""The committed coefficient audit must remain bound to its inputs and implementation."""
+"""Committed operator evidence must remain bound to its inputs and implementation."""
 import csv
 import hashlib
 import json
@@ -14,6 +14,41 @@ def sha(path):
 
 
 class CoefficientEvidenceTest(unittest.TestCase):
+    def test_headline_operator_certificates_cover_the_complete_domain(self):
+        audit = json.loads((FEMOCO/'rigorous/operator-coefficients.json').read_text())
+        domains = {'reiher': (32, 14, 4622), 'li': (33, 15, 2068)}
+        for row in audit['results']:
+            name = row['submission'].split('/')[0]
+            with self.subTest(submission=row['submission']):
+                report = json.loads((FEMOCO/f'rigorous/operator-{name}.json').read_text())
+                self.assertEqual(report['schema'], 'femoco-encoded-operator-report-v1')
+                self.assertIs(report['encoded_operator_equivalence_certified'], True)
+                self.assertIs(report['certifies_energy_error'], False)
+                self.assertIs(report['chemical_accuracy_certified'], False)
+                self.assertEqual(report['spec'], row['spec'])
+                self.assertEqual(report['digests'], dict(row['circuit_digests'], spec=row['payload_sha256']))
+                self.assertEqual(report['input_sha256'], row['sampled_screen']['symbolic_input_sha256'])
+                self.assertEqual(report['coefficients'], row['coefficients'])
+                self.assertEqual(report['binary_binding']['status'], 'proved')
+                self.assertIs(report['binary_binding']['reflection_register_checked'], True)
+                self.assertIs(report['binary_binding']['identical_raw_copies_checked'], True)
+                self.assertEqual(report['partition_bits'], 8)
+                self.assertEqual(report['requested_partitions'], list(range(256)))
+                self.assertEqual([p['partition'] for p in report['partitions']], list(range(256)))
+                self.assertTrue(all(p['status'] == 'proved' and p['network_reference'] in
+                                    ('payload', 'sign-normalized') for p in report['partitions']))
+                uniform, second, outcomes = domains[name]
+                self.assertEqual(report['input_domain'], dict(controls=2, uniform_bits=uniform,
+                                 second_pass_bits=second, independent_measurement_bits=outcomes))
+                self.assertEqual(set(report['checker_sha256']),
+                                 {'artifacts.py', 'exact.py', 'encoded_operator.py', 'outcomes.py'})
+                for source, digest in report['checker_sha256'].items():
+                    self.assertEqual(digest, sha(FEMOCO/'tools/verification'/source))
+                self.assertEqual(report['assembly']['input_reports'], 16)
+                self.assertEqual(report['assembly']['checker_sha256'],
+                                 sha(FEMOCO/'tools/verification/assemble.py'))
+                self.assertTrue(report['unresolved_obligations'])
+
     def test_coefficient_evidence_is_current_and_keeps_energy_claims_false(self):
         report = json.loads((FEMOCO/'rigorous/operator-coefficients.json').read_text())
         self.assertIs(report['authenticated_ledger_result'], False)
