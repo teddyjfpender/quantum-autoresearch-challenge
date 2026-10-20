@@ -206,6 +206,7 @@ def bind_program(data, doc):
         required, allowed = map(set, SHAPES[kind])
         require(required <= present <= allowed, f'invalid operand shape at raw op {index}')
         c2, c1, t, bit, cond, reg = fields
+        require(kind != 40 or reg <= 4, 'unknown segment code')
         qs = [q for q in (t, c1, c2) if q != NONE]
         require(len(set(qs)) == len(qs), 'aliased qubit operands')
         require(all(q < 1 << 20 for q in qs), 'qubit cap exceeded')
@@ -233,7 +234,7 @@ def bind_program(data, doc):
             while len(registers) <= reg:
                 registers.append([])
             if kind == 2:
-                require(t != NONE and not sys(t) and len(registers[reg]) < 64,
+                require(t != NONE and bit == NONE and not sys(t) and len(registers[reg]) < 64,
                         'invalid register append')
                 registers[reg].append(t)
             continue

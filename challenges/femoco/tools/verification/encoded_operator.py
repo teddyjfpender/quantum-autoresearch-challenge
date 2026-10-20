@@ -89,7 +89,9 @@ def certify(doc, spec, directory, payload_bytes, input_digest, partition_bits=8,
     artifacts.require(0 <= partition_bits <= doc['outer']['k'] and jobs >= 1,
                       'invalid exhaustive partition or worker count')
     total = 1 << partition_bits
-    artifacts.require(partition is None or 0 <= partition < total, 'invalid partition')
+    selected = list(range(total)) if partition is None else ([partition] if isinstance(partition, int) else list(partition))
+    artifacts.require(selected and len(set(selected)) == len(selected)
+                      and all(isinstance(i, int) and 0 <= i < total for i in selected), 'invalid partition')
     started = time.monotonic()
     binding, lane_map = artifacts.bind(directory, doc, spec)
     coefficients = artifacts.coefficient_audit(spec, lane_map, payload_bytes)
@@ -109,6 +111,7 @@ def certify(doc, spec, directory, payload_bytes, input_digest, partition_bits=8,
                                                            for o in doc['ops'])),
         binary_binding=binding, coefficients=coefficients, partition_bits=partition_bits,
         partition_domain='most significant outer alias bucket bits', partitions=[],
+        requested_partitions=selected,
         encoded_operator_equivalence_certified=False, certifies_energy_error=False,
         chemical_accuracy_certified=False,
         unresolved_obligations=[
@@ -116,7 +119,7 @@ def certify(doc, spec, directory, payload_bytes, input_digest, partition_bits=8,
             'Physical gate synthesis, phase-gradient preparation and fault-tolerance errors.',
             'Original chemistry target: factorization, preprocessing and rotation error bounds.',
             'Ground-state preparation/selection and complete phase-estimation error budget.'])
-    partitions = range(total) if partition is None else [partition]
+    partitions = selected
     global _inputs
     _inputs = doc, spec, partition_bits, network_form
     pool = None
@@ -147,10 +150,21 @@ def main():
     p.add_argument('--circuit', type=pathlib.Path, required=True)
     p.add_argument('--out', type=pathlib.Path, required=True)
     p.add_argument('--partition-bits', type=int, default=8)
-    p.add_argument('--partition', type=int, help='diagnostic subset only; never certifies')
+    group = p.add_mutually_exclusive_group()
+    group.add_argument('--partition', type=int, help='diagnostic subset only; never certifies')
+    group.add_argument('--partition-range', help='BEGIN:END exclusive subset; never certifies alone')
     p.add_argument('--jobs', type=int, default=1)
     p.add_argument('--network-form', choices=('auto', 'payload', 'sign-normalized'), default='auto')
     args = p.parse_args()
+    partition = args.partition
+    if args.partition_range is not None:
+        try:
+            begin, end = map(int, args.partition_range.split(':'))
+            if not 0 <= begin < end:
+                raise ValueError()
+            partition = list(range(begin, end))
+        except ValueError:
+            p.error('partition range must be BEGIN:END with 0 <= BEGIN < END')
     args.out.unlink(missing_ok=True)
     raw = args.input.read_bytes()
     doc = json.loads(raw)
@@ -163,7 +177,7 @@ def main():
         print(json.dumps(part), flush=True)
 
     report = certify(doc, spec, args.circuit, args.payload.read_bytes(),
-                     hashlib.sha256(raw).hexdigest(), args.partition_bits, args.partition,
+                     hashlib.sha256(raw).hexdigest(), args.partition_bits, partition,
                      args.jobs, args.network_form, progress)
     args.out.write_text(json.dumps(report, indent=2)+'\n')
     # Even a passing diagnostic subset is not a successful whole-domain certificate.

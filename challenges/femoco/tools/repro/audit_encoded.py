@@ -43,13 +43,15 @@ def record_circuit(directory, row):
             raise ValueError(f'{row["submission"]}: rebuilt {name} differs from ledger')
 
 
-def check_report(report, row, metrics):
-    if report.get('encoded_operator_equivalence_certified') is not True:
+def check_report(report, row, metrics, partition_range=None):
+    full = partition_range is None
+    if report.get('encoded_operator_equivalence_certified') is not full:
         raise ValueError('whole-domain equivalence was not established')
     if report.get('certifies_energy_error') is not False or report.get('chemical_accuracy_certified') is not False:
         raise ValueError('operator audit must not certify chemistry or energy accuracy')
     parts = report['partitions']
-    if ([p['partition'] for p in parts] != list(range(1 << report['partition_bits']))
+    expected = list(range(1 << report['partition_bits'])) if full else list(partition_range)
+    if ([p['partition'] for p in parts] != expected
             or any(p['status'] != 'proved' for p in parts)
             or report['binary_binding']['status'] != 'proved'):
         raise ValueError('incomplete partition or binary-binding evidence')
@@ -58,6 +60,8 @@ def check_report(report, row, metrics):
             raise ValueError('operator evidence is from a different checker')
     if set(report['checker_sha256']) != {'encoded_operator.py', 'artifacts.py', 'exact.py', 'outcomes.py'}:
         raise ValueError('missing checker dependency hash')
+    if 'assembly' in report and report['assembly']['checker_sha256'] != sha(ROOT/'tools/verification/assemble.py'):
+        raise ValueError('operator assembly is from a different checker')
     for key in ('ops', 'lanemap', 'family'):
         if report['digests'][key] != row[key+'_sha256']:
             raise ValueError('operator report is for a different circuit')
@@ -70,13 +74,15 @@ def run(args):
     out.mkdir(parents=True, exist_ok=True)
     env = {k: v for k, v in os.environ.items() if not k.startswith('FEMOCO_')}
     env.setdefault('RAYON_NUM_THREADS', str(min(args.jobs, 4)))
-    def command(argv, cwd=ROOT, name=None, local_env=env):
+    def command(argv, cwd=ROOT, name=None, local_env=env, expected_codes=(0,)):
         if name is None:
-            subprocess.run(argv, cwd=cwd, env=local_env, check=True)
+            result = subprocess.run(argv, cwd=cwd, env=local_env, check=False)
         else:
             with name.open('w') as log:
-                subprocess.run(argv, cwd=cwd, env=local_env, stdout=log,
-                               stderr=subprocess.STDOUT, check=True)
+                result = subprocess.run(argv, cwd=cwd, env=local_env, stdout=log,
+                                        stderr=subprocess.STDOUT, check=False)
+        if result.returncode not in expected_codes:
+            raise subprocess.CalledProcessError(result.returncode, argv)
     def git(*argv):
         return subprocess.check_output(['git', *argv], cwd=ROOT, text=True).strip()
     rows = selection(list(csv.DictReader((ROOT/'results.tsv').open(), delimiter='\t')), args.submission)
@@ -112,14 +118,22 @@ def run(args):
                      '--samples', str(args.samples), '--export-symbolic', str(directory/'symbolic-input.json')],
                     name=directory/'sampled-screen.log')
             metrics = json.loads((directory/'score.json').read_text())['metrics']
-            command([sys.executable, str(ROOT/'tools/verification/encoded_operator.py'),
+            operator_command = [sys.executable, str(ROOT/'tools/verification/encoded_operator.py'),
                      str(directory/'symbolic-input.json'), '--payload', str(ROOT/'specs'/row['spec']/'sa.bin'),
                      '--circuit', str(directory), '--partition-bits', str(args.partition_bits),
                      '--jobs', str(args.jobs), '--network-form', 'auto',
-                     '--out', str(directory/'operator-report.json')], name=directory/'operator.log')
+                     '--out', str(directory/'operator-report.json')]
+            partition_range = None
+            if args.partition_range:
+                begin, end = map(int, args.partition_range.split(':'))
+                partition_range = range(begin, end)
+                operator_command += ['--partition-range', args.partition_range]
+            command(operator_command, name=directory/'operator.log',
+                    expected_codes=(0,) if partition_range is None else (2,))
             report = json.loads((directory/'operator-report.json').read_text())
-            check_report(report, row, metrics)
+            check_report(report, row, metrics, partition_range)
             result.update(status='proved', report=f'{row["submission"]}/operator-report.json',
+                          full_operator_equivalence_certified=report['encoded_operator_equivalence_certified'],
                           sampled_screen_samples=args.samples,
                           input_sha256=report['input_sha256'], coefficients=report['coefficients'])
         except (subprocess.CalledProcessError, ValueError, OSError) as error:
@@ -136,10 +150,18 @@ def main():
     p.add_argument('--cargo', default='cargo')
     p.add_argument('--samples', type=int, default=4096)
     p.add_argument('--partition-bits', type=int, default=6)
+    p.add_argument('--partition-range', help='BEGIN:END batch; reports remain incomplete until assembled')
     p.add_argument('--jobs', type=int, default=2)
     args = p.parse_args()
     if min(args.samples, args.jobs) <= 0 or args.partition_bits < 0:
         p.error('samples/jobs must be positive and partition bits nonnegative')
+    if args.partition_range:
+        try:
+            begin, end = map(int, args.partition_range.split(':'))
+            if not 0 <= begin < end <= 1 << args.partition_bits:
+                raise ValueError()
+        except ValueError:
+            p.error('invalid partition range')
     return run(args)
 
 

@@ -6,6 +6,9 @@ reuses `exact.py`'s Boolean controller and gate-word normalization. The historic
 and its rigorous-promotion certificate are unchanged. This is local maintainer evidence;
 it neither authenticates a leaderboard row nor changes acceptance or precision rules.
 
+The [headline-circuit evidence](../../rigorous/OPERATOR.md) records the completed coefficient
+audit, sampled screens and the current status of the full-size operator checks.
+
 ## Separate statements
 
 | Statement | Evidence | Scope |
@@ -60,6 +63,15 @@ CUDD managers. The lowered program is packed into fixed-width records before for
 avoid duplicating GB of Python dictionary pages. Round-trip tests require identical
 interpreter input. The evaluator streams the export one operation at a time, preserving
 the original v1 JSON bytes; the fixture regeneration test checks this.
+
+The `FeMoco operator audit` workflow splits each headline circuit into 16 CI batches.
+Each batch proves 16 of the 256 exhaustive eight-bit address partitions, preserving all
+other inputs and all outcomes symbolically. The public-repository workflow uses standard
+runners with read-only permissions, up to 16 concurrent jobs and one-day retention of small
+reports/logs. `--partition-range BEGIN:END` is also available for local batches; it never
+sets the full-domain flag. `assemble.py` requires both molecules, complete disjoint coverage,
+matching circuit/input/checker hashes, matching coefficient and binding evidence, and no
+unproved part before it writes full-domain certificates. Its own source hash is retained.
 
 ## Independent artifact interpretation
 

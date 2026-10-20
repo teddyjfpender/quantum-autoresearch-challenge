@@ -70,7 +70,7 @@ class BinaryTest(unittest.TestCase):
         doc, data = self.raw_fixture()
         self.assertEqual(artifacts.bind_program(data, doc)['status'], 'proved')
         for mutation in ('phase', 'condition', 'missing', 'register', 'layout', 'reflection',
-                         'raw_copy', 'padding', 'length', 'shape'):
+                         'raw_copy', 'padding', 'length', 'shape', 'bad_append', 'segment'):
             d, raw = copy.deepcopy(doc), bytearray(data)
             with self.subTest(mutation=mutation):
                 if mutation == 'phase': d['ops'][2]['Phase']['k'] = 2
@@ -94,6 +94,8 @@ class BinaryTest(unittest.TestCase):
                 if mutation == 'padding': raw[16+4] = 1
                 if mutation == 'length': raw.append(0)
                 if mutation == 'shape': struct.pack_into('<Q', raw, 16+8, 0)
+                if mutation == 'bad_append': struct.pack_into('<Q', raw, 16+56+32, 0)
+                if mutation == 'segment': struct.pack_into('<Q', raw, 16+56*3+48, 99)
                 with self.assertRaises(ValueError): artifacts.bind_program(raw, d)
 
     def test_packed_program_preserves_every_supported_op(self):
@@ -192,6 +194,32 @@ class OperatorTest(unittest.TestCase):
         report = self.certify('wide', partition=0)
         self.assertEqual(report['partitions'][0]['status'], 'proved')
         self.assertFalse(report['encoded_operator_equivalence_certified'])
+
+    def test_partition_batches_assemble_only_with_complete_matching_evidence(self):
+        import assemble
+        a = self.certify('wide', partition=[0, 1])
+        b = self.certify('wide', partition=[2, 3])
+        self.assertFalse(a['encoded_operator_equivalence_certified'])
+        self.assertFalse(b['encoded_operator_equivalence_certified'])
+        result = assemble.assemble([b, a])
+        self.assertTrue(result['encoded_operator_equivalence_certified'])
+        self.assertEqual([p['partition'] for p in result['partitions']], [0, 1, 2, 3])
+        self.assertIs(result['certifies_energy_error'], False)
+        self.assertIs(result['chemical_accuracy_certified'], False)
+        for mutant in ('missing', 'duplicate', 'wrong_input', 'wrong_coefficients', 'failed', 'stale', 'missing_metadata'):
+            aa, bb = copy.deepcopy(a), copy.deepcopy(b)
+            reports = [aa, bb]
+            if mutant == 'missing': reports = [aa]
+            if mutant == 'duplicate': reports = [aa, aa, bb]
+            if mutant == 'wrong_input': bb['input_sha256'] = '0'*64
+            if mutant == 'wrong_coefficients': bb['coefficients']['identity_shift_Ha']['exact'] = '99'
+            if mutant == 'failed': bb['partitions'][0]['status'] = 'unproved'
+            if mutant == 'stale':
+                aa['checker_sha256']['outcomes.py'] = bb['checker_sha256']['outcomes.py'] = '0'*64
+            if mutant == 'missing_metadata':
+                aa.pop('input_domain'); bb.pop('input_domain')
+            with self.subTest(mutant=mutant), self.assertRaises(ValueError):
+                assemble.assemble(reports)
 
     def test_export_forgery_cannot_hide_behind_matching_file_hashes(self):
         for mutant in ('ops', 'alias', 'registers', 'family_spec'):
