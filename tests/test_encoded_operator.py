@@ -275,6 +275,14 @@ class OperatorTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'lane coefficient'):
             f.lane(raw.bdd.var('m0'))
 
+    def test_polynomial_word_adder_and_negation_exhaustive(self):
+        f = self.m.OutcomeBoolean(self.m.exact.Boolean(()))
+        for width in range(1, 7):
+            for a, b in itertools.product(range(1 << width), repeat=2):
+                aa, bb = f.word(a, width), f.word(b, width)
+                self.assertEqual(f.add(aa, bb), f.word((a+b) % (1 << width), width))
+                self.assertEqual(f.neg(aa), f.word(-a % (1 << width), width))
+
 
 if __name__ == '__main__':
     unittest.main()

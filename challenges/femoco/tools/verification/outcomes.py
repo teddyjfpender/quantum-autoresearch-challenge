@@ -140,3 +140,19 @@ class OutcomeBoolean(exact.Boolean):
         for monomial, value in b.terms.items():
             self.accumulate(out, monomial, value)
         return Polynomial(self, out)
+
+    def add(self, a, b):
+        """The inherited ripple adder, omitting its discarded final carry.
+
+        For a measurement sign, the high bit can have thousands of monomials.
+        Multiplying it into an unused overflow carry is both expensive and needless.
+        The result is still exactly addition modulo 2**min(len(a), len(b)).
+        """
+        carry, out = self.zero, []
+        width = min(len(a), len(b))
+        for i, (x, y) in enumerate(zip(a, b)):
+            xy = self.xor(x, y)
+            out.append(self.xor(xy, carry))
+            if i+1 < width:
+                carry = (x & y) | (carry & xy)
+        return tuple(out)

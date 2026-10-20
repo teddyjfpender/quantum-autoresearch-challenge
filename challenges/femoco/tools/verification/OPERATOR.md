@@ -82,8 +82,9 @@ Every controller wire, classical bit and scalar-phase bit is a square-free polyn
 in independent measurement outcomes, with lane-only BDD coefficients. XOR adds coefficients;
 AND multiplies coefficients and unions monomials, using `m*m=m`; NOT toggles the constant
 coefficient. All terms, including nonlinear products of outcomes, are retained. The original
-interpreter, alias decoder, gate-word normalizer and three-bit Z/8 adder from `exact.py` are
-reused unchanged. Thus modular carries and outcome-dependent wire computations use the same
+interpreter, alias decoder and gate-word normalizer from `exact.py` are reused unchanged.
+The same ripple-carry adder computes Z/8 phases and integer-angle words, omitting only the
+discarded overflow carry. Thus modular carries and outcome-dependent wire computations use the same
 Boolean semantics throughout, without a BDD that mixes thousands of outcome variables.
 
 Shannon expansion over GF(2), `P = P(0) XOR m*(P(1) XOR P(0))`, proves by induction that this
@@ -99,7 +100,8 @@ outcomes to 1. Every other surviving monomial then vanishes, so the function is 
 The backend refuses functions exceeding 65,536 monomials or degree 128; it never drops terms
 or samples outcomes. Exhaustive tests compare randomized nonlinear Boolean and phase programs
 with the original CUDD backend and an integer-modulo-8 oracle, including odd increments,
-carries, deliberate mismatches, actual satisfying witnesses and budget refusal. Real small
+carries, deliberate mismatches, actual satisfying witnesses and budget refusal. Word addition and negation are also checked
+against every integer pair at widths 1 through 6. Real small
 binary circuits and a defect behind 32 simultaneous outcomes exercise the complete checker.
 
 ## Gate identities, spin transport and vector orientation
