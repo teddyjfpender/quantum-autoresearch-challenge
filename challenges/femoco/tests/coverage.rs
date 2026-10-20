@@ -457,20 +457,71 @@ fn exact_checker_fixtures_are_the_evaluator_exports() {
         tiny_payload.extend(v.to_le_bytes());
     }
     tiny_payload.extend(67u32.to_le_bytes());
-    for (name, payload, mutate) in [
-        ("tiny", tiny_payload.clone(), false),
-        ("tiny-spin-mutant", tiny_payload, true),
-        ("wide", wide_payload(), false),
+    for (name, payload, mutate, normalized) in [
+        ("tiny", tiny_payload.clone(), false, false),
+        (
+            "tiny-rare-outcome-mutant",
+            tiny_payload.clone(),
+            false,
+            false,
+        ),
+        ("tiny-spin-mutant", tiny_payload, true, false),
+        ("wide", wide_payload(), false, false),
+        ("wide-normalized", wide_payload(), false, true),
     ] {
         let spec = spec::sa::parse_payload("test-coverage-sa", &payload).unwrap();
-        let (mut ops, lanemap, family) = built(&spec);
+        let (mut ops, lanemap, family) = if normalized {
+            built(&sa_low::signnorm::sign_normalized(&spec))
+        } else {
+            built(&spec)
+        };
         if mutate {
             ops = spin_keyed_mutant(&spec, &ops, &map(&spec));
         }
-        let file = OpsFile {
-            ops,
-            sha256: [0; 32],
-        };
+        if name == "tiny-rare-outcome-mutant" {
+            // Each copy adds a sign only when sixteen independent HMR outcomes are
+            // all 1. Ordinary small samples usually miss it; all-outcome equivalence
+            // must reject it. Both raw copies remain identical and every ancilla is 0.
+            let spare = ops.iter().flat_map(Op::qubits).max().unwrap() + 1;
+            let first_bit = ops
+                .iter()
+                .flat_map(|op| [op.c_target, op.c_condition])
+                .filter(|&bit| bit != femoco_walk::circuit::NONE)
+                .max()
+                .unwrap_or(0)
+                + 1;
+            let mut defect = Vec::new();
+            for bit in first_bit..first_bit + 16 {
+                let mut hmr = Op::new(OperationType::Hmr);
+                hmr.q_target = spare;
+                hmr.c_target = bit;
+                defect.push(hmr);
+            }
+            for bit in first_bit..first_bit + 16 {
+                let mut push = Op::new(OperationType::PushCondition);
+                push.c_condition = bit;
+                defect.push(push);
+            }
+            defect.push(Op::new(OperationType::Neg));
+            defect.extend((0..16).map(|_| Op::new(OperationType::PopCondition)));
+            ops = ops
+                .into_iter()
+                .flat_map(|op| {
+                    let mut before = if op.kind == OperationType::Segment
+                        && op.r_target == femoco_walk::circuit::SEG_INNER_END
+                    {
+                        defect.clone()
+                    } else {
+                        Vec::new()
+                    };
+                    before.push(op);
+                    before
+                })
+                .collect();
+        }
+        let binary_path = scratch.join(format!("{name}.ops.bin"));
+        femoco_walk::circuit::write_ops(&ops, &binary_path).unwrap();
+        let file = femoco_walk::circuit::read_ops(&binary_path).unwrap();
         let input = Inputs {
             spec: &spec,
             lanemap: &lanemap,
@@ -487,6 +538,12 @@ fn exact_checker_fixtures_are_the_evaluator_exports() {
         for (file, bytes) in [
             (format!("{name}.json"), export),
             (format!("{name}.sa.bin"), payload.clone()),
+            (
+                format!("{name}.ops.bin"),
+                std::fs::read(&binary_path).unwrap(),
+            ),
+            (format!("{name}.lanemap.bin"), lanemap.clone()),
+            (format!("{name}.family.json"), family.clone()),
         ] {
             let committed = dir.join(&file);
             if write {

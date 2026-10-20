@@ -1,0 +1,1 @@
+{"taxonomy_version":"1.3.0","name":"sa-low2025-spinswap","parent":null,"axes":{"encoding":"sos-sa","lane_map":"sa-nested-alias-v1","lookup":"qroam-clean","reuse":"serial","rotation":"phase-gradient-givens","select":"givens-sa-nested","uncompute":"measurement-based"},"spec":"test-coverage-sa"}

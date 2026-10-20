@@ -1,5 +1,11 @@
 # Deterministic coverage and symbolic obligations
 
+For the estimated-track leaders, the additional [encoded-operator audit](OPERATOR.md)
+independently binds the binary program and alias map to the symbolic input, supports
+sign-normalized chain references at every length, and separately expands all encoded
+coefficients and their identity shift. It reuses the checker below and keeps its historical
+certificates unchanged. An operator-equivalence certificate is not a chemical-accuracy claim.
+
 The rigorous tracks use the existing stored `reiher-sa-v1` and `li-sa-v1` Hamiltonians and
 their exact **coefficient** 1-norm rounding rule, `sum |c - c_hat| <= 1/10000 Ha`.
 This does not add a rigorous bound for the original DFTHC approximation or the finite-

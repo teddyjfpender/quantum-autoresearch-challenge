@@ -220,21 +220,58 @@ pub fn check(
         // This is an INPUT to the independent SMT checker, never a certificate supplied by
         // the builder. The checker binds its result to these artifact digests.
         let table = |t: &Table| json!({"k":t.k,"mu":t.mu,"keep":t.keep,"alt":t.alt});
-        let doc = json!({
-            "schema":"femoco-symbolic-input-v1", "spec":inp.spec.id(),
-            "digests":{"ops":hex::encode(inp.ops.sha256),
+        // Serialize the borrowed program directly. Building json!({"ops": compiled.ops})
+        // first materializes millions of per-op Value maps (several GB on Li), in
+        // addition to both raw and compiled streams. Keep the v1 bytes/key order.
+        use serde::ser::{SerializeMap, Serializer};
+        struct SortedOps<'a>(&'a [sim::compile::SimOp]);
+        impl serde::Serialize for SortedOps<'_> {
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                use serde::ser::SerializeSeq;
+                let mut seq = serializer.serialize_seq(Some(self.0.len()))?;
+                for op in self.0 {
+                    // Sort the small object's keys just as the old whole-document Value
+                    // did, retaining only one such object at a time.
+                    let value = serde_json::to_value(op).map_err(serde::ser::Error::custom)?;
+                    seq.serialize_element(&value)?;
+                }
+                seq.end()
+            }
+        }
+        let file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+        let mut writer = std::io::BufWriter::new(file);
+        let mut write = || -> Result<(), serde_json::Error> {
+            let mut serializer = serde_json::Serializer::new(&mut writer);
+            let mut doc = serializer.serialize_map(Some(12))?;
+            doc.serialize_entry("b", &spec.b)?;
+            doc.serialize_entry("beta", &spec.beta)?;
+            doc.serialize_entry(
+                "digests",
+                &json!({"ops":hex::encode(inp.ops.sha256),
                 "spec":hex::encode(inp.spec.payload_sha256()),
                 "lanemap":hex::encode(sha2::Sha256::digest(inp.lanemap)),
-                "family":hex::encode(sha2::Sha256::digest(inp.family))},
-            "layout":{"system":layout.system,"uniform":layout.uniform,
-                "num_qubits":compiled.num_qubits,"num_bits":compiled.num_bits},
-            "inner":{"lo":inner.lo,"width":inner.width},
-            "beta":spec.beta, "b":spec.b, "rotation_widths":spec.widths,
-            "registers":compiled.registers, "ops":compiled.ops,
-            "outer":table(&map.outer), "inner_tables":map.inner.iter().map(table).collect::<Vec<_>>(),
-        });
-        std::fs::write(path, serde_json::to_vec(&doc).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
+                "family":hex::encode(sha2::Sha256::digest(inp.family))}),
+            )?;
+            doc.serialize_entry("inner", &json!({"lo":inner.lo,"width":inner.width}))?;
+            doc.serialize_entry(
+                "inner_tables",
+                &map.inner.iter().map(table).collect::<Vec<_>>(),
+            )?;
+            doc.serialize_entry(
+                "layout",
+                &json!({"system":layout.system,"uniform":layout.uniform,
+                "num_qubits":compiled.num_qubits,"num_bits":compiled.num_bits}),
+            )?;
+            doc.serialize_entry("ops", &SortedOps(&compiled.ops))?;
+            doc.serialize_entry("outer", &table(&map.outer))?;
+            doc.serialize_entry("registers", &compiled.registers)?;
+            doc.serialize_entry("rotation_widths", &spec.widths)?;
+            doc.serialize_entry("schema", "femoco-symbolic-input-v1")?;
+            doc.serialize_entry("spec", inp.spec.id())?;
+            doc.end()
+        };
+        write().map_err(|e| e.to_string())?;
+        std::io::Write::flush(&mut writer).map_err(|e| e.to_string())?;
         Ok(())
     };
     let Some(mode) = mode else {

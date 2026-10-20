@@ -443,3 +443,15 @@ reflection check included (about 12 and 39 minutes of each).
 These runs used a local seed, not the judge's, and they are not ledger rows. The bound is
 about the encoded operator, not about energy, and `certifies_energy_error` stays `false`
 (4.1, "What it does not establish").
+
+### 4.3 Beyond sampling: binary-bound operator equivalence
+
+The independent [encoded-operator audit](../tools/verification/OPERATOR.md) compares each
+lane's complete gate word and scalar phase with the specified reference for **every**
+control, uniform input, second-pass input and independent HMR assignment. It independently
+decodes the emitted binary operations and alias tables, checks the actual reflection
+register and identical-copy structure, and expands all encoded coefficients exactly.
+Its full-domain certificate identifies the ideal rounded encoded operator; it does not
+certify chemical accuracy or the energy of the original chemistry target. The audit's
+coefficient/identity-shift error and the existing interval chemistry audit are separate
+systematic-error obligations. Diagnostic partitions and incomplete runs never certify.
