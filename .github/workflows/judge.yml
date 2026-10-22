@@ -386,7 +386,20 @@ jobs:
           git reset --quiet --hard origin/main
           git clean --quiet -fd -e judge
 
-          gh pr merge "$PR" --squash --match-head-commit "$HEAD_SHA" --subject "Submission $id (#$PR)" --body ""
+          # Concurrent records race on main ("Base branch was modified"): retry the merge. The
+          # post-merge comparison against the preview below still decides whether the row is
+          # recorded, so a retry can never record a tree that was not checked.
+          merged_ok=""
+          for attempt in 1 2 3 4 5; do
+            if gh pr merge "$PR" --squash --match-head-commit "$HEAD_SHA" --subject "Submission $id (#$PR)" --body ""; then
+              merged_ok=1; break
+            fi
+            sleep $((attempt * 20))
+          done
+          if [[ -z "$merged_ok" ]]; then
+            say "Valid and recorded as \`front\`-eligible, but the merge kept failing because main moved under it. Re-run the judge with the \`rejudge\` label."
+            exit 1
+          fi
           merged="$(gh pr view "$PR" --json mergeCommit --jq '.mergeCommit.oid')"
           # The merge is final. Before a row names it, the merged tree must carry exactly the
           # tree that was previewed and checked above: a change to a watched path could have
