@@ -23,7 +23,7 @@ on:
         options: [sliced, reference]
         default: sliced
       full_samples:
-        description: Lanes of the full stage; empty for the contract's. A larger count is a deeper audit (challenges/femoco/spec/SAMPLING.md)
+        description: Lanes of the full stage; empty for the contract's. A larger count is a deeper audit (challenges/femoco/spec/SAMPLING.md); from 16777216 lanes the evaluator also requires the reflection check, which needs 13 to 28 GB on the Li circuits
         required: false
         default: ""
 

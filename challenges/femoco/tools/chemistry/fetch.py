@@ -14,20 +14,26 @@ import zlib
 from inputs import HERE, checked
 
 
-def download(url, start=None, size=None):
+def download(url, start=None, size=None, limit=None):
+    """Fetch a whole resource of at most `limit` bytes, or an exact byte range."""
     headers = {}
     if start is not None:
         headers['Range'] = f'bytes={start}-{start+size-1}'
         # Some HTTP caches fail to vary on Range; make ranges distinct URLs.
         url += '&range_start=' + str(start)
+    elif limit is None:
+        raise ValueError('a whole-resource download needs a size limit')
     with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=120) as r:
         if start is not None:
             prefix = f'bytes {start}-{start+size-1}/'
             if r.status != 206 or not r.headers.get('Content-Range', '').startswith(prefix):
                 raise ValueError('server did not honor exact byte range')
-        data = r.read() if size is None else r.read(size+1)
+        # Never read more than one byte past what the pins allow.
+        data = r.read(limit+1) if size is None else r.read(size+1)
     if size is not None and len(data) != size:
         raise ValueError('truncated or oversized range')
+    if size is None and len(data) > limit:
+        raise ValueError('archive exceeds its pinned size')
     return data
 
 
@@ -65,7 +71,8 @@ def fetch(directory):
     if missing:
         archive = directory/'integrals.zip'
         if not archive.exists():
-            archive.write_bytes(download(sources['integrals_archive']['url']))
+            archive.write_bytes(download(sources['integrals_archive']['url'],
+                                         limit=sources['integrals_archive']['size']))
         if hashlib.md5(archive.read_bytes()).hexdigest() != sources['integrals_archive']['md5']:
             raise ValueError('integrals archive checksum mismatch')
         with zipfile.ZipFile(archive) as z:

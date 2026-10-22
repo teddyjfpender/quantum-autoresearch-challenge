@@ -4,21 +4,22 @@ A ledger row says that every sampled lane of a circuit passed. This document sta
 follows from that, what does not, and what it would take to close each gap. The numbers come
 from [`tools/analysis/walk_defect.py`](../tools/analysis/walk_defect.py).
 
-**In short.** At the default `2^19` lanes a row is a strong regression check and a weak
-energy statement. It bounds the operator error at 37 mHa (Reiher) and 114 mHa (Li), and only
-under an assumption that sampling cannot check. Without that assumption a deliberately built
-circuit can pass most draws and still move the energy that phase estimation reports by tens
-of millihartree. No row certifies chemical accuracy, and `score.json` says so
+**In short.** At the judge's full stage (`2^19` lanes) a row bounds the distance between the
+operator the circuit encodes and the one the spec declares at 37 mHa (Reiher) and 114 mHa
+(Li), reported as `metrics.bound_mHa`, and only under an assumption that sampling cannot
+check: that the step is Hermitian on the lanes that were not drawn. The reflection check
+(section 4.1) proves that assumption for a circuit, without sampling; from `2^24` lanes the
+evaluator runs it by default and refuses a circuit it cannot certify, and `score.json` says
+whether a run's bound is unconditional (`metrics.sampling_limits.bound_certified`). At `2^24`
+lanes the bound is 1.15 mHa on Reiher, below chemical accuracy (1.6 mHa), and 3.55 mHa on Li,
+which needs `2^26` (0.89 mHa). The statistics were re-derived and are sound and nearly tight
+(section 1); the one term they left out, the Gaussian tracker's tolerance, is now named and
+added (`7.3e-7` and `3.7e-6` Ha). A `2^24` full stage with the check required is proposed as
+the next contract epoch (VALIDATION.md); what holds it back is the check's memory and time on
+the Li track, measured in sections 4.1 and 4.2. No row certifies the energy of FeMoco: the
+bound is about the encoded operator against the spec's, not about the chemistry or the
+rotation approximation behind the spec, and `score.json` says so
 (`metrics.sampling_limits.certifies_energy_error: false`).
-
-That assumption can now be checked for a circuit, without sampling: the opt-in reflection
-check (section 4, item 2) either proves that the step is Hermitian on every lane or reports
-why it could not. It certifies the Low et al. baseline circuits and the best Reiher and Li
-circuits of the ledger (section 4.1). For those circuits the bound above no longer rests on
-the assumption, and at `2^24` (Reiher) and `2^26` (Li) lanes it is 1.15 and 0.89 mHa
-(section 4.2). The bound itself is unchanged, and so is the statement that no row certifies
-chemical accuracy: the check proves the step is a reflection, not that it encodes the spec's
-operator.
 
 ## 1. What a passing sample bounds
 
@@ -28,8 +29,53 @@ that sits on wrong control-1 lanes is at most
 `g = 2 f_p1 + f_d1`, with `f = ln(1/delta) / K` over each class of control-1 lanes,
 
 (DESIGN.md section 16.4; `metrics.sampling_limits.wrong_weight_bound`). At `K = 2^19` each
-class holds about `K / 4` lanes and `g = 3.2e-4`. What `g` implies depends on what the wrong
-lanes do.
+class holds about `K / 4` lanes and `g = 3.2e-4`; at the full stage `K = 2^24`, `g = 9.9e-6`.
+What `g` implies depends on what the wrong lanes do.
+
+The statement was re-derived for the `v3` epoch (DESIGN.md 16.4 gives each step). It is
+sound and nearly tight: the per-class fraction is the Bernoulli bound `1 - delta^(1/K)` in its
+linear form, looser by `5e-5` relative at `2^19` and `2e-6` at `2^24`
+(`wrong_weight_bound_exact`); lanes are equiprobable in the operator's measure, since the
+alias tables give a term its weight by how many lanes name it, so counting wrong lanes is
+weighting them; the factor 2 on the paired class is the inner reflection's `2 |+><+| - I`;
+and the step from weight to norm is the triangle inequality with a unitary lane operator at
+most 2 from its reference, attained by a sign flip. A re-balanced draw (`sqrt(2) : 1` paired to
+diagonal) would gain 3%. The lever is the lane count: `g ~ 12 ln(1/delta) / K`.
+
+One term is not in `g`. A lane the Gaussian tracker passed is right only to its tolerance
+(`AD_TOL = 1e-11`, DESIGN.md section 15.2): the rotated operator may differ from the reference
+by up to `(pi/2) sqrt(n) (2 n AD_TOL) / sqrt(8)` per lane, `1.3e-8` at `n = 108` and `2.1e-8`
+at `n = 152`, which over the whole operator is `7.3e-7` Ha (Reiher) and `3.7e-6` Ha (Li). It is
+not in `rounding_error` (which is exact, about the lane map's counts) and not in
+`implied_error_bound` (which is about lanes not drawn). `score.json` names it
+(`metrics.sampling_limits.tracker_tolerance_bound_mHa`) and adds it: `metrics.bound_mHa` and
+`certified_bound_mHa` are `implied_error_bound` plus this term. It does not change the
+acceptance rule; folding it into the rule itself would be a contract change.
+
+### 1.1 The bound per lane count
+
+`python3 tools/analysis/walk_defect.py --lanes`. Single draw, confidence `1 - 2 delta`; the
+lane time is the sliced engine on an Apple M5 Max at four threads, the judge runner's core
+count, without the reflection check (section 4.2 has measured runs).
+
+| Lanes | `g` | Reiher bound, mHa | Reiher lanes, min (4 thr) | Li bound, mHa | Li lanes, min (4 thr) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| `2^19` | 3.16e-04 | 36.90 | 0.0 | 113.67 | 0.2 |
+| `2^20` | 1.58e-04 | 18.45 | 0.1 | 56.83 | 0.3 |
+| `2^21` | 7.91e-05 | 9.22 | 0.2 | 28.42 | 0.6 |
+| `2^22` | 3.95e-05 | 4.61 | 0.4 | 14.21 | 1.3 |
+| `2^23` | 1.98e-05 | 2.31 | 0.8 | 7.10 | 2.6 |
+| `2^24` | 9.88e-06 | 1.15 * | 1.6 | 3.55 | 5.1 |
+| `2^25` | 4.94e-06 | 0.58 * | 3.2 | 1.78 | 10.2 |
+| `2^26` | 2.47e-06 | 0.29 * | 6.4 | 0.89 * | 20.5 |
+| `2^27` | 1.24e-06 | 0.14 * | 12.7 | 0.44 * | 40.9 |
+| `2^28` | 6.18e-07 | 0.07 * | 25.4 | 0.22 * | 81.9 |
+
+Chemical accuracy needs `2^23.5` lanes on Reiher and `2^25.2` on Li, so `2^24` and `2^26`
+are the smallest powers of two. The proposed full stage is `2^24` on every track: the smallest
+count that puts one track below chemical accuracy and keeps the Li run, reflection check
+included, inside the judge's 120-minute job in time (section 4.2). Below 1.6 mHa on Li needs
+the `2^26` run of section 4.2, which the re-validation workflow can make (`full_samples`).
 
 ## 2. Three kinds of defect
 
@@ -44,13 +90,15 @@ lanes do.
 If the block encoding is Hermitian on every lane, the step `C` is a reflection whatever the
 wrong lanes do, qubitization is exact for the operator `A'` that the circuit actually encodes,
 and `||A' - A|| <= 2 Lambda g`. This is `implied_error_bound`: 36.9 mHa (Reiher) and
-113.7 mHa (Li) at the default sample.
+113.7 mHa (Li) at the full stage, 1.15 and 3.55 mHa at `2^24` lanes.
 
 **Sampling does not check the condition.** A sampled lane is checked exactly, so it is
 Hermitian there. Nothing in the sample constrains an unsampled lane. The reflection check of
-section 4 (item 2) is a separate, static analysis that can establish the condition for a
+section 4 (item 2) is a separate, static analysis that establishes the condition for a
 circuit; where it certifies, this bound holds for the encoded operator with no assumption
-about the lanes, at the confidence of `g`.
+about the lanes, at the confidence of `g`, and `metrics.sampling_limits.bound_certified` is
+`true`. From `2^24` lanes the evaluator runs it and refuses a circuit it does not certify, so
+every bound reported at that depth is of this kind.
 
 ### 2.2 Non-Hermitian defects: the square root
 
@@ -212,24 +260,32 @@ The baseline writes no qubit under a condition and passes the mode as it stands.
 
 - Every sampled lane applies the declared operator, restores its ancillas and leaves no phase.
 - The Toffoli and qubit counts are those of the sampled executions.
-- **Not** that the unsampled lanes are Hermitian, **not** an energy error, **not** that every
-  conditioned block was executed. The first holds only for a run whose reflection check
-  certified (section 4, item 2: `metrics.reflection.status` is `certified`). The last holds
-  only for a run made in the outcome-coverage mode (2.3), whose `score.json` then carries
-  `metrics.outcome_coverage`, and then for blocks under a classical condition, site by site.
-  It covers blocks reached through a qubit only when that run reports no read of a marked
-  qubit (`qubit_outcomes.covered: true`), which every pass that is not sites-only does. Ledger
-  rows are made with neither flag today.
+- The encoded operator is within `metrics.bound_mHa` of the declared one if the unsampled
+  lanes are Hermitian; with no assumption about the lanes only on a run whose reflection check
+  certified (`metrics.reflection.status` is `certified`, `sampling_limits.bound_certified` is
+  `true`), which every run from `2^24` lanes has by default and a full-stage row has only if
+  the flag was given. A certified check also shows that no outcome pattern changes the
+  operator (2.3, for correctness).
+- **Not** an energy error of FeMoco, and **not** that every conditioned block was executed
+  for its gate count. The last holds only for a run made in the outcome-coverage mode (2.3),
+  whose `score.json` then carries `metrics.outcome_coverage`, and then for blocks under a
+  classical condition, site by site. It covers blocks reached through a qubit only when that
+  run reports no read of a marked qubit (`qubit_outcomes.covered: true`), which every pass
+  that is not sites-only does. Ledger rows are made without that flag.
 
 For comparing circuits built by the same builders under the same rule, which is what the
-board does, this is the standard the challenge started from (every drawn lane passes). It is
-not sufficient for a claim about a ground-state energy.
+board does, this is the standard the challenge started from (every drawn lane passes), with
+its bound on the encoded operator now reported in every `score.json` together with whether it
+is unconditional. It is not a claim about a ground-state energy.
 
 ### 3.1 The evaluator's version
 
-The outcome-coverage mode and the reflection check are opt-in. With the flags absent no code
-of either runs, and a run's `score.json` differs from the one `main` writes by the block
-`metrics.sampling_limits` alone, which an earlier commit of this work added to every run.
+The outcome-coverage mode is opt-in, and the reflection check is opt-in below `2^24` lanes and
+required from `2^24` on (`eval_circuit --reflection-check off|report|require` overrides either
+way). In mode `off` no code of either runs, and a run's `score.json` differs from the one
+`main` wrote before this work by the block `metrics.sampling_limits`, `metrics.bound_mHa` and,
+from the `v3` epoch, the bound fields of `sampling_limits` (`bound_certified`,
+`certified_bound_mHa`, `below_chemical_accuracy`, `wrong_weight_bound_exact`).
 `tests/outcome_coverage.rs` pins the toy circuit's `score.json`; on the three circuits of 2.3
 the two evaluators were compared at `2^19` lanes on the sliced engine and agree on every other
 key, the wall clock aside. The *verifier digest* is not an output of a run. It is a hash over
@@ -245,10 +301,13 @@ trusted files. So:
 - A headline row that is to be compared under the new evaluator has to be re-validated under
   it. Its counts are not expected to change (they did not on the three circuits above), but
   the digest the row carries will.
-- VALIDATION.md ties any change of the evaluator to a new contract epoch. Whether this one
-  starts an epoch or keeps `femoco-sa-est-v1` is a maintainer decision at merge and is not
-  made here: no spec, acceptance rule, score or flag-absent output changes, but the judge's
-  identity does.
+- VALIDATION.md ties any change of the evaluator to a new contract epoch. The reporting
+  fields and the `2^24` default of the reflection check change no judged output at the
+  current full stage (`2^19`), so whether they alone start an epoch is a maintainer decision;
+  the proposed `femoco-certified-bound-v3` epoch (VALIDATION.md, "Changing the contract")
+  would raise the full stage to `2^24` with the check required, once the Li memory and time
+  of 4.1 and 4.2 fit the judge's runner. No spec, acceptance rule, score or per-lane check
+  changes; the counts of a re-validated row are not expected to.
 
 ## 4. Closing the gaps
 
@@ -262,13 +321,11 @@ In order of strength.
    (`eval_circuit --reflection-check report|require`, `src/sim/reflection.rs`, rule set
    `reflection-v3`, DESIGN.md section 16.6). See 4.1 below for what it establishes and what
    the ledger's circuits get.
-3. **More lanes.** Under the Hermitian assumption `2^24` lanes bound the Reiher error at
-   1.2 mHa and `2^26` the Li error at 0.9 mHa. Without it, lanes alone do not reach chemical
-   accuracy at any practical count. The re-validation workflow takes a lane count, so a
-   headline row can be re-run deeper; with the sliced engine `2^24` lanes take about
-   1.5 minutes (Reiher) and 4 minutes (Li) on four threads. Section 4.2 gives the two headline
-   circuits at these counts, with the reflection check, so the bound there rests on no
-   assumption about the lanes.
+3. **More lanes.** With the step proved a reflection, `2^24` lanes bound the Reiher error at
+   1.15 mHa and `2^26` the Li error at 0.89 mHa (section 1.1). Without it, lanes alone do not
+   reach chemical accuracy at any practical count. The re-validation workflow takes a lane
+   count, so a headline row can be re-run deeper than the full stage today. Section 4.2 gives
+   the measured cost.
 4. **Coverage of conditioned blocks.** Implemented as the opt-in outcome-coverage mode of 2.3:
    every conditioned site not proved unreachable must execute on at least 256 control-1 lanes
    that pass, with directed lanes for the sites uniform outcomes rarely reach, and uniform
@@ -415,12 +472,46 @@ the tenth altered unreachable code, which was removed. This is testing, not a pr
 implementation. The check is one implementation, by one author, of semantics that the lane
 engine implements separately; where both have run, they agree.
 
-**Status.** Opt-in and report-only by default. With `--reflection-check report` a run passes
-or fails exactly as without the flag. With `require`, a circuit that is not certified is a
-`FAIL` row. Whether the judge requires it is a maintainer decision; the acceptance rules of
-`benchmark.json` are unchanged.
+**Status.** From `2^24` lanes on the evaluator's default mode is `require`: a circuit that is
+not certified is a `FAIL` row, named with its first obstruction. Below `2^24`, and so at the
+judge's full stage of `2^19` today, the default is `off`; `--reflection-check report` runs it
+and reports without refusing, `require` refuses, and `off` turns it off at any count. The
+acceptance rules of `benchmark.json` are unchanged. Requiring it at the judge's full stage is
+part of the proposed epoch (VALIDATION.md).
 
-### 4.2 Deep runs of the headline circuits
+**Would requiring it exclude an architecture?** Every architecture on the ledger has a
+circuit the check certifies: measured on the best row of each architecture on each track plus
+the two baselines, built from their manifests (`ops.bin` equal to the ledger digest), on an
+Apple M5 Max (18 cores, 64 GB) on 2026-10-22:
+
+| Circuit (architecture) | Result | Wall / CPU | Peak memory |
+| --- | --- | ---: | ---: |
+| reiher/est-low-r (qroam-word, baseline) | certified | 405 s / 255 s | 4.4 GB |
+| reiher/est-toff-r (qroam-word) | certified | 416 s / 254 s | 6.8 GB |
+| reiher/est-rs3 (streamed) | certified | 377 s / 245 s | 4.3 GB |
+| reiher/fa-r1tr-m8 (onehot) | certified | 224 s / 159 s | 5.7 GB |
+| reiher/pf-r3p-m8 (onehot-split) | certified | 1,029 s / 672 s | 4.2 GB |
+| reiher/outer-hi-reconstruct-r1 (rank-scheduled, best) | certified | 1,519 s / 1,140 s | 13.4 GB |
+| li/low2025-reference (qroam-word, baseline) | certified | 1,494 s / 979 s | 28.3 GB |
+| li/pf-l1c-m8 (onehot) | certified | 1,228 s / 744 s | 15.3 GB |
+| li/composed-alias-m8 (onehot-split, best) | certified | 3,243 s / 2,804 s | 10.7 GB |
+| li/kn-l4fhq24-m9 (rank-scheduled) | certified | 5,344 s / 4,881 s | 12.2 GB |
+
+Wall and CPU are `/usr/bin/time` on macOS with up to ten checks and a 16-thread lane run
+sharing 18 cores, so wall is an upper estimate; the peak memory is the resident set as macOS
+reports it and is well above the 2.7 to 12.6 GB measured earlier for rule set v3 on a Linux
+laptop. The verdicts are what matters here: no architecture is excluded.
+
+What it would exclude is a circuit written outside the rule set above (an `S` gate, a
+conditioned rotation, an outcome that steers a system op, a non-palindromic SELECT), and such
+a refusal names the op. The rules are the discipline that every recorded architecture already
+follows, so a submitter can check a new design with `--reflection-check report` at the quick
+tier before submitting. Memory is the practical limit: the judge's `ubuntu-24.04` runner has
+16 GB, and the Li circuits measured above need 11 to 28 GB as macOS counts them, so the check
+cannot be required on the Li track until it runs on a larger runner or its node store is
+sized to the runner (a store too small refuses with kind `budget`, never a wrong verdict).
+
+### 4.2 Deep runs of the headline circuits, and what the judge pays
 
 The two best circuits of the ledger, rebuilt from their manifests (`ops.bin` equal to the
 ledger digest), evaluated by this evaluator with `--engine sliced --reflection-check report` at
@@ -443,3 +534,49 @@ reflection check included (about 12 and 39 minutes of each).
 These runs used a local seed, not the judge's, and they are not ledger rows. The bound is
 about the encoded operator, not about energy, and `certifies_energy_error` stays `false`
 (4.1, "What it does not establish").
+
+**Measured cost of the lanes** (sliced engine, same two circuits, Apple M5 Max, 2026-10-22,
+`--reflection-check off`; the reflection check is a separate single-threaded cost, above):
+
+| Circuit | Lanes | Threads | Wall | Peak memory | `implied_error_bound` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| reiher/outer-hi-reconstruct-r1 | `2^19` | 16 | 2.1 s | 0.6 GB | 36.8 mHa |
+| | `2^22` | 16 | 9.3 s | 0.7 GB | 4.61 mHa |
+| | `2^24` | 16 | 38 s | 1.0 GB | 1.15 mHa |
+| | `2^19` | 4 | 6.8 s | 0.3 GB | 36.8 mHa |
+| | `2^22` | 4 | 28 s | 0.5 GB | 4.61 mHa |
+| | `2^24` | 4 | 192 s (loaded: six reflection checks running; 95 s from the per-lane rate) | 0.6 GB | 1.15 mHa |
+| li/composed-alias-m8 | `2^19` | 16 | 8.0 s | 0.9 GB | 113.7 mHa |
+| | `2^22` | 16 | 33 s | 1.3 GB | 14.2 mHa |
+| | `2^24` | 16 | 138 s | 1.7 GB | 3.55 mHa |
+| | `2^26` | 16 | 567 s | 3.1 GB | 0.89 mHa |
+| | `2^19` | 4 | 24 s | 0.6 GB | 113.7 mHa |
+| | `2^22` | 4 | 91 s | 1.0 GB | 14.2 mHa |
+| | `2^24` | 4 | 322 s (loaded as above; 310 s from the per-lane rate) | 1.2 GB | 3.55 mHa |
+
+The screen stage (reference engine, 4,096 lanes, 4 threads) takes 8 s (Reiher) and 20 s (Li).
+
+The engine is linear in lanes once the fixed cost of reading `ops.bin` (about 1 s) is out:
+per lane, Reiher costs 1.9 us at 16 threads and 5.7 us at 4, Li 6.8 us and 18 us. Four
+threads are 2.9 to 3.5 times slower than sixteen, so the engine also scales nearly linearly
+in threads at this size. Peak memory is below 2 GB at `2^26`.
+
+**The judge's budget.** The `evaluate` job runs on a 4-vCPU, 16 GB `ubuntu-24.04` runner with
+a 120-minute limit and runs the screen stage, then the full stage, then the reflection check
+in the same process, one after the other. Taking the runner at half the per-core speed of
+this machine (an estimate to be replaced by a measured judge run):
+
+| Track | Lanes | Lanes, this machine, 4 threads | Lanes, runner (x2) | Reflection check, runner (x2 CPU time) | Total | Bound (certified) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Reiher | `2^24` | 3.2 min (loaded) | 6.5 min | 38 min | about 45 min | 1.15 mHa |
+| Li | `2^24` | 5.4 min | 11 min | 60 to 95 min (2,800 s CPU here under load; 39 min on one laptop core earlier) | 70 to 105 min | 3.55 mHa |
+| Li | `2^26` | 21 min (from the per-lane rate) | 42 min | 60 to 95 min | 100 to 140 min | 0.89 mHa |
+
+So in time, `2^24` fits on both tracks with margin and makes Reiher certified below chemical
+accuracy; Li below 1.6 mHa needs `2^26`, which fits only with the reflection check run
+concurrently with the lanes (it is single-threaded and the engine then has three cores), a
+larger runner, or a job split: lanes in one job, the certificate in another, joined by the
+circuit's digests. In memory, the check on the Li circuits does not fit the runner (4.1).
+That is why the full stage is still `2^19` and the epoch is a proposal. The re-validation
+workflow (180-minute limit, `full_samples`) can make the `2^24` and `2^26` rows today with
+`--reflection-check require` on a machine with the memory.

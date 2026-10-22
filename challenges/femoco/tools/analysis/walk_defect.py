@@ -23,15 +23,25 @@ Defects compared, each on a fraction f of lanes:
   pair      half the defect on each of e^{+i theta0}, e^{-i theta0}: both branches split.
 
     python3 walk_defect.py            the table for both tracks, and the lanes needed
+    python3 walk_defect.py --lanes    the linear bound per lane count (SAMPLING.md section 1.1)
 """
 from __future__ import annotations
 
 import cmath
 import math
+import sys
 
 DELTA = 1e-6
 EPSILON_HA = 1.6e-3
 DEFAULT_LANES = 2 ** 19
+# The proposed full stage (score::CERTIFYING_SAMPLES; the judge's full stage is 2^19 today).
+FULL_STAGE_LANES = 2 ** 24
+# Measured sliced-engine cost per lane in microseconds, by thread count, for the two headline
+# circuits (reiher/outer-hi-reconstruct-r1, li/composed-alias-m8), from the difference of a
+# 2^22-lane and a 2^19-lane run so that the fixed cost of reading ops.bin drops out. Apple
+# M5 Max, 2026-10-22, RAYON_NUM_THREADS as given. The judge's runner (ubuntu-24.04, 4 vCPU) is
+# slower per core; the projections below are for this machine and are labelled so.
+LANE_MICROSECONDS = {"reiher": {4: 5.68, 16: 1.94}, "li": {4: 18.3, 16: 6.76}}
 # Lambda and lambda_eff in Ha (Low et al. 2025, Table V; challenges/femoco/targets.json).
 TRACKS = {"reiher": (58.344, 21.3674), "li": (179.7296, 43.6538)}
 DEFECTS = ("sign", "phase-i", "resonant", "pair")
@@ -161,7 +171,44 @@ def rare_branch_hit_probability(lambda_eff: float, lanes: int = DEFAULT_LANES) -
     return 1 - math.exp(-steps * f)
 
 
+def linear_bound_mha(lanes: int, big_lambda: float) -> float:
+    """`2 Lambda g` in mHa after `lanes` sampled lanes all passed: the bound on the encoded
+    operator's distance from the declared one, which the reflection check makes unconditional
+    (spec/SAMPLING.md section 2.1). Single draw, confidence 1 - 2 delta."""
+    return 2 * big_lambda * nested_wrong_weight(lanes) * 1e3
+
+
+def lanes_table(threads: int = 4) -> str:
+    """The linear bound per lane count for both tracks, with the sliced engine's projected
+    wall time on this machine at `threads` threads (LANE_MICROSECONDS), as a Markdown table."""
+    head = "| Lanes | `g` |" + "".join(f" {t.capitalize()} bound, mHa | {t.capitalize()} lanes, min ({threads} thr) |" for t in TRACKS)
+    rows = [head, "| ---: | ---: |" + " ---: | ---: |" * len(TRACKS)]
+    for e in range(19, 29):
+        lanes = 2 ** e
+        cells = [f"`2^{e}`", f"{nested_wrong_weight(lanes):.2e}"]
+        for track, (big_lambda, _) in TRACKS.items():
+            bound = linear_bound_mha(lanes, big_lambda)
+            mark = " *" if bound < EPSILON_HA * 1e3 else ""
+            minutes = lanes * LANE_MICROSECONDS[track][threads] / 60e6
+            cells += [f"{bound:.2f}{mark}", f"{minutes:.1f}"]
+        rows.append("| " + " | ".join(cells) + " |")
+    return "\n".join(rows)
+
+
 def main() -> None:
+    if "--lanes" in sys.argv[1:]:
+        print(lanes_table())
+        print()
+        print("* below chemical accuracy (1.6 mHa). Lane time is the sliced engine on the machine of "
+              "LANE_MICROSECONDS, without the reflection check.")
+        for track, (big_lambda, _) in TRACKS.items():
+            need = lanes_needed(big_lambda, 0.0)["hermitian"]
+            print(f"{track}: 1.6 mHa needs 2^{math.log2(need):.1f} lanes; the smallest power of two is "
+                  f"2^{math.ceil(math.log2(need))}, where the bound is "
+                  f"{linear_bound_mha(2 ** math.ceil(math.log2(need)), big_lambda):.2f} mHa; "
+                  f"at the proposed full stage 2^{int(math.log2(FULL_STAGE_LANES))} it is "
+                  f"{linear_bound_mha(FULL_STAGE_LANES, big_lambda):.2f} mHa")
+        return
     for track, (big_lambda, lambda_eff) in TRACKS.items():
         g = nested_wrong_weight(DEFAULT_LANES)
         print(f"{track}: Lambda {big_lambda} Ha, lambda_eff {lambda_eff} Ha")

@@ -2197,6 +2197,7 @@ mod sa {
             let refl = m.remove("reflection").unwrap();
             assert_eq!(refl["status"], "certified");
             assert_eq!(refl["version"], "reflection-v3");
+            let bound_mha = m["bound_mHa"].clone();
             let s = m["sampling_limits"].as_object_mut().unwrap();
             assert_eq!(s.remove("hermitian_on_every_lane").unwrap(), "certified");
             assert_eq!(
@@ -2204,6 +2205,20 @@ mod sa {
                 false
             );
             assert_eq!(s["certifies_energy_error"], false);
+            // The certified bound: unconditional, in millihartree, compared with 1.6 mHa.
+            assert_eq!(s["bound_certified"], true);
+            assert_eq!(s["certified_bound_mHa"], bound_mha);
+            assert_eq!(
+                s["below_chemical_accuracy"],
+                ev.certified_bound() < femoco_walk::score::CHEMICAL_ACCURACY_HA
+            );
+            for key in [
+                "bound_certified",
+                "certified_bound_mHa",
+                "below_chemical_accuracy",
+            ] {
+                s.insert(key.into(), limits[key].clone());
+            }
             let cond = s.insert(
                 "implied_error_bound_holds_if".into(),
                 limits["implied_error_bound_holds_if"].clone(),

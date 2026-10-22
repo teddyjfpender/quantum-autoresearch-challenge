@@ -15,26 +15,29 @@
     "python_flint": "0.8.0",
     "flint": "3.3.1",
     "numpy": "2.3.5",
-    "python": "3.12.14",
+    "python": "3.14.6",
     "precision_bits": 128,
     "proposal_reproducibility": "eigenpair bytes can vary with BLAS; every proposal is re-certified"
   },
   "checker_sha256": {
-    "bounds.py": "a93f51396e9c063a18c81451032977ba0593c34757b562d4131ce5a4be0388ff",
-    "certify.py": "9b90c750490ee273c035c8ae87fc2fb7c70c6cceece301fa8e3fd177b50017ad",
-    "corrected.py": "c5637fc9041b919e7029543c6418807029b685d59d478ca9dbac605d1bfcdc96",
-    "fetch.py": "63a3dbe757ca6b5675828b0742ec846f02b34e70d26874de9de5b2ff5ee0b27c",
-    "inputs.py": "e35896e8b039c1de67070dea7f35a7f92a8b82a3aed85cc7c0e49c20e64abe9d"
+    "bounds.py": "3418006d163853dc12ac60576f2c393f7ca992acbde777818c98209af35b11a7",
+    "certify.py": "727b273d864627af51526b51be92e1d7e397dac51daf9890993e0b2828c86167",
+    "combined.py": "bf15839633e7f58311fc6653ecedd665efe813eadd7d5beb52573fa02cdb9dcc",
+    "corrected.py": "65b0c5d56329905f8f4c1dbc2a5b9205d42ec04216afcf032b213d787b98dd8d",
+    "fetch.py": "dfc86cc171ca0280d6a39522ca939fcfcc37640feab0b523350ac0ab99c33224",
+    "inputs.py": "63ddcd3d60c7efe8786624191d91e5dd672024f25c5260e00314b094520b1c6f",
+    "signed_df.py": "38efc4e0e4c4e93ddf19942308bfe65a96b53a8e0af0ee80299704f9c832877a"
   },
-  "base_payload_sha256": "63dc4e431b18982404bfbc15ca2ec96a93471ab684403b6ed45bda498c6a16f8",
-  "base_normalization_Ha": "3645348901122035841220290055864465/20282409603651670423947251286016",
+  "base_payload_sha256": "dd3e03c5e2546055d7c576262c7711c91428c433bc084871eb6637b5084203e0",
+  "base_normalization_Ha": "3645348901122035827040438348251281/20282409603651670423947251286016",
   "rotation_and_preprocessing": {
-    "upper_Ha": "8013504976832961747688258453597536252211/178405961588244985132285746181186892047843328",
-    "upper_mHa_display": 0.04491724887158123,
-    "one_body_upper_Ha": "216571481855462266841518673370073588723/178405961588244985132285746181186892047843328",
-    "squares_upper_Ha": "121827085593429476822808492506355385013/2787593149816327892691964784081045188247552",
+    "upper_Ha": "789701937803012979224092389478091747/21778071482940061661655974875633165533184",
+    "upper_mHa_display": 0.03626133463753341,
+    "one_body_upper_Ha": "147847129279855168065090970409317/170141183460469231731687303715884105728",
+    "squares_upper_Ha": "3010849621797807669118760950754113/85070591730234615865843651857942052864",
     "scalar_upper_Ha": "2074952754417357941872646243/21778071482940061661655974875633165533184",
-    "rotation_bits": 28
+    "rotation_bits": 28,
+    "proposal_source": "existing payload re-validated"
   },
   "compression": {
     "triangle_entries": 4282201,
@@ -189,18 +192,18 @@
         ]
       },
       "artifact_sha256": "870a18e0c5ebdb3204648b895e43029173383ea571bcef0581b561d706298d19",
-      "explicit_hamiltonian_error_upper_Ha": "10793251997744850012099829435303038935251/178405961588244985132285746181186892047843328",
-      "explicit_hamiltonian_error_upper_mHa_display": 0.06049826979804249,
+      "explicit_hamiltonian_error_upper_Ha": "289030790481067830944229244884688446077/5575186299632655785383929568162090376495104",
+      "explicit_hamiltonian_error_upper_mHa_display": 0.05184235556399466,
       "conditional_encoded_budget": {
-        "rotation_preprocessing_Ha": "8013504976832961747688258453597536252211/178405961588244985132285746181186892047843328",
+        "rotation_preprocessing_Ha": "789701937803012979224092389478091747/21778071482940061661655974875633165533184",
         "correction_Ha": "86867094403496508262861593178296958845/5575186299632655785383929568162090376495104",
         "correction_alias_Ha": "10465126896386567277/1208925819614629174706176",
         "base_nested_coefficients_reserved_Ha": "1/5000",
         "outer_combination_reserved_Ha": "1/100000",
         "phase_estimation_reserved_Ha": "1/1000",
-        "hamiltonian_total_upper_Ha": "155634012724151861349244279231553096319856559/557518629963265578538392956816209037649510400000",
-        "total_with_QPE_Ha": "713152642687417439887637236047762133969366959/557518629963265578538392956816209037649510400000",
-        "total_with_QPE_mHa_display": 1.2791548198746407,
+        "hamiltonian_total_upper_Ha": "4712755602478312129870476147959373257965537/17422457186352049329324779900506532426547200000",
+        "total_with_QPE_Ha": "22135212788830361459195256048465905684512737/17422457186352049329324779900506532426547200000",
+        "total_with_QPE_mHa_display": 1.2704989056405929,
         "budget_fits_1_6_mHa": true,
         "chemical_accuracy_certified": false,
         "missing": [
@@ -214,10 +217,12 @@
       "conditional_qpe_plan": {
         "energy_error_Ha": "1/1000",
         "failure_probability": "1/100",
-        "normalization_Ha": "5088644502227761707705381541478545/20282409603651670423947251286016",
-        "phase_register_qubits": 27,
-        "controlled_walk_uses": 134217727,
-        "tail_bins": 51,
+        "normalization_Ha": "5088644502227761693525529833865361/20282409603651670423947251286016",
+        "phase_register_qubits": 26,
+        "controlled_walk_uses": 67108863,
+        "tail_bins": 22,
+        "tail_probability_upper": "216358040065114050964969174718829079423/21778071482940061661655974875633165533184",
+        "tail_rule": "min(c(1/L+1/(L-1))+2^(4-m), 1/[2(L-1)]), c=1/(pi^2(1-pi^2/384)^2)",
         "conditional_on": "exact eigenstate and exact controlled walk/QFT",
         "includes_state_preparation_or_gate_synthesis": false
       }
@@ -358,18 +363,18 @@
         ]
       },
       "artifact_sha256": "219b7f5457336ab16823aa3a6cc48363ff800573add8dbbb502d86db2bab546e",
-      "explicit_hamiltonian_error_upper_Ha": "46453713412238450261064287890399483161651/178405961588244985132285746181186892047843328",
-      "explicit_hamiltonian_error_upper_mHa_display": 0.2603820690670196,
+      "explicit_hamiltonian_error_upper_Ha": "175427526210499104840546071450806541019/696898287454081973172991196020261297061888",
+      "explicit_hamiltonian_error_upper_mHa_display": 0.2517261548329718,
       "conditional_encoded_budget": {
-        "rotation_preprocessing_Ha": "8013504976832961747688258453597536252211/178405961588244985132285746181186892047843328",
+        "rotation_preprocessing_Ha": "789701937803012979224092389478091747/21778071482940061661655974875633165533184",
         "correction_Ha": "150157064200802689505375114987507605115/696898287454081973172991196020261297061888",
         "correction_alias_Ha": "10395980138819279523/1208925819614629174706176",
         "base_nested_coefficients_reserved_Ha": "1/5000",
         "outer_combination_reserved_Ha": "1/100000",
         "phase_estimation_reserved_Ha": "1/1000",
-        "hamiltonian_total_upper_Ha": "267041066330935097215549261621314791765756559/557518629963265578538392956816209037649510400000",
-        "total_with_QPE_Ha": "824559696294200675753942218437523829415266959/557518629963265578538392956816209037649510400000",
-        "total_with_QPE_mHa_display": 1.4789814222863373,
+        "hamiltonian_total_upper_Ha": "1024278253461286031336563355954928280081239/2177807148294006166165597487563316553318400000",
+        "total_with_QPE_Ha": "3202085401755292197502160843518244833399639/2177807148294006166165597487563316553318400000",
+        "total_with_QPE_mHa_display": 1.4703255080522895,
         "budget_fits_1_6_mHa": true,
         "chemical_accuracy_certified": false,
         "missing": [
@@ -383,10 +388,12 @@
       "conditional_qpe_plan": {
         "energy_error_Ha": "1/1000",
         "failure_probability": "1/100",
-        "normalization_Ha": "5088640445928640006029994422534289/20282409603651670423947251286016",
-        "phase_register_qubits": 27,
-        "controlled_walk_uses": 134217727,
-        "tail_bins": 51,
+        "normalization_Ha": "5088640445928639991850142714921105/20282409603651670423947251286016",
+        "phase_register_qubits": 26,
+        "controlled_walk_uses": 67108863,
+        "tail_bins": 22,
+        "tail_probability_upper": "216358040065114050964969174718829079423/21778071482940061661655974875633165533184",
+        "tail_rule": "min(c(1/L+1/(L-1))+2^(4-m), 1/[2(L-1)]), c=1/(pi^2(1-pi^2/384)^2)",
         "conditional_on": "exact eigenstate and exact controlled walk/QFT",
         "includes_state_preparation_or_gate_synthesis": false
       }

@@ -129,6 +129,7 @@ class CorrectedTest(unittest.TestCase):
     def test_reports_keep_certificates_separate_from_cost_models(self):
         for name in ('reiher', 'li'):
             r = json.loads((ROOT/f'challenges/femoco/rigorous/corrected-{name}.json').read_text())
+            self.assertEqual(set(r['checker_sha256']), {p.name for p in inputs.HERE.glob('*.py')})
             for file, digest in r['checker_sha256'].items():
                 self.assertEqual(inputs.sha256(inputs.HERE/file), digest)
             base = json.loads((ROOT/f'challenges/femoco/rigorous/corrected-base-{name}.json').read_text())

@@ -58,6 +58,10 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
             "grinding_draws_log2": crate::score::GRINDING_LOG2,
             "f_bound_grinding": ev.f_bound_at(crate::score::GRINDING_LOG2),
             "implied_error_bound_grinding": ev.implied_error_bound_at(crate::score::GRINDING_LOG2),
+            // The single-draw bound in millihartree (sampling plus the tracker's tolerance), the
+            // figure of a ledger row's `bound_mHa`; whether it is unconditional is
+            // `sampling_limits.bound_certified`.
+            "bound_mHa": ev.certified_bound() * 1e3,
             "reflection_toffoli": ev.reflection_toffoli,
             "executed": {
                 "ccx": ev.facts.executed_ccx,
@@ -155,10 +159,25 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
     // What the sampled check leaves open (spec/SAMPLING.md). Reported beside the implied
     // error bound so that the bound is never read without its condition.
     let grinding = crate::score::GRINDING_LOG2;
+    let chem = crate::score::CHEMICAL_ACCURACY_HA;
     out["metrics"]["sampling_limits"] = json!({
         "document": "spec/SAMPLING.md",
         "wrong_weight_bound": ev.wrong_weight_bound_at(0),
         "wrong_weight_bound_grinding": ev.wrong_weight_bound_at(grinding),
+        "wrong_weight_bound_exact": ev.wrong_weight_bound_exact_at(0),
+        "wrong_weight_formula": "per class of control-1 lanes f = ln(1/delta) / K, delta = 1e-6; exact Bernoulli form 1 - delta^(1/K) is smaller by about ln(1/delta) / (2 K) relative (wrong_weight_bound_exact); nested g = 2 f_paired + f_diagonal, flat g = f; lanes are equiprobable in the operator's measure, so counting them is weighting them",
+        "implied_error_bound_mHa": ev.implied_error_bound() * 1e3,
+        "implied_error_bound_grinding_mHa": ev.implied_error_bound_at(grinding) * 1e3,
+        "tracker_tolerance_bound_Ha": ev.tracker_tolerance,
+        "tracker_tolerance_bound_mHa": ev.tracker_tolerance * 1e3,
+        "tracker_tolerance_formula": "lambda x (pi/2) sqrt(n) (2 n AD_TOL) / sqrt(8), n system qubits, AD_TOL = 1e-11 (spec/DESIGN.md section 15.2): what a passed lane's Gaussian comparison leaves open, summed over the operator; 0 when the comparison is exact; not in rounding_error or implied_error_bound, included in bound_mHa and certified_bound_mHa",
+        "bound_formula": "bound_mHa = implied_error_bound_mHa + tracker_tolerance_bound_mHa",
+        "chemical_accuracy_mHa": chem * 1e3,
+        // Set below when the reflection check certified.
+        "bound_certified": false,
+        "certified_bound_mHa": serde_json::Value::Null,
+        "below_chemical_accuracy": false,
+        "reflection_required_from_samples": crate::score::CERTIFYING_SAMPLES,
         "implied_error_bound_holds_if": "the block encoding is Hermitian on every lane, sampled or not; sampling does not establish this",
         "non_hermitian_phase_scale_rad": ev.non_hermitian_phase_scale_at(0),
         "non_hermitian_phase_scale_rad_grinding": ev.non_hermitian_phase_scale_at(grinding),
@@ -191,6 +210,10 @@ pub fn score_json(ev: &Evaluation) -> serde_json::Value {
             s["implied_error_bound_holds_if"] = json!(CERTIFIED_HERMITIAN);
             s["measurement_outcomes"] = json!(CERTIFIED_OUTCOMES);
             s["non_hermitian_phase_scale_applies"] = json!(false);
+            let bound = ev.certified_bound();
+            s["bound_certified"] = json!(true);
+            s["certified_bound_mHa"] = json!(bound * 1e3);
+            s["below_chemical_accuracy"] = json!(bound < chem);
         }
     }
     // Nested runs only, so flat runs' score.json is unchanged (spec/DESIGN.md section 16).

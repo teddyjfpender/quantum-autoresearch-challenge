@@ -11,11 +11,14 @@ import sys
 import time
 
 from . import check as repo_check
-from . import ledger, manifest, policy, report, site, verifier
+from . import ledger, manifest, policy, recorded, report, site, verifier
 from .common import ROOT, Challenge, ContractError, challenges, load_json, sha256_file
 
 KEY_ENV = "QAC_LEDGER_KEY"
 CIRCUIT_FILES = ("ops.bin", "lanemap.bin", "family.out.json")
+# The family file is a small JSON object the evaluator reads whole; the op stream and lane map
+# are bounded by the evaluator's own caps as it parses them.
+CIRCUIT_MAX_BYTES = {"family.out.json": 1 << 20}
 
 
 def ledger_key(required: bool) -> bytes | None:
@@ -152,12 +155,38 @@ def cmd_overlay(args) -> int:
     return 0
 
 
+def build_stage(challenge: Challenge, checked: dict) -> int:
+    """Run the untrusted build stage (sandboxed by the challenge's benchmark script) for a checked manifest."""
+    env = {**build_env(challenge, checked), challenge.contract["build"]["stageEnv"]: "build"}
+    return subprocess.run(challenge.contract["benchmarkCommand"], cwd=challenge.dir, env=env, check=False).returncode
+
+
 def cmd_build(args) -> int:
     """[judge] Run only the untrusted build stage for a checked manifest."""
     challenge = Challenge(args.challenge)
-    checked = load_json(pathlib.Path(args.manifest))
-    env = {**build_env(challenge, checked), challenge.contract["build"]["stageEnv"]: "build"}
-    return subprocess.run(challenge.contract["benchmarkCommand"], cwd=challenge.dir, env=env, check=False).returncode
+    return build_stage(challenge, load_json(pathlib.Path(args.manifest)))
+
+
+def cmd_rebuild_recorded(args) -> int:
+    """[judge] Every recorded circuit no pin test covers is rebuilt from its manifest, in the
+    sandbox, and its three digests must equal its ledger row (spec/SUBMISSIONS.md, step 3)."""
+    challenge = Challenge(args.challenge)
+
+    def build(checked: dict) -> tuple[str, str, str]:
+        started = time.monotonic()
+        status = build_stage(challenge, checked)
+        if status != 0:
+            raise ContractError(f"the build stage exited with status {status}")
+        digests = circuit_digests(challenge.dir)
+        print(f"  rebuilt in {time.monotonic() - started:.0f} s", flush=True)
+        return digests
+
+    errors = recorded.rebuild(challenge, build, only=args.only, log=lambda message: print(message, flush=True))
+    for error in errors:
+        print(f"FAIL: {error}", file=sys.stderr)
+    if not errors:
+        print("every recorded circuit without a pin still builds byte for byte")
+    return 1 if errors else 0
 
 
 def cmd_manifest(args) -> int:
@@ -175,6 +204,8 @@ def circuit_digests(root: pathlib.Path) -> tuple[str, str, str]:
     for name in CIRCUIT_FILES:
         if not (root / name).is_file() or (root / name).stat().st_size == 0:
             raise ContractError(f"{name} is missing or empty")
+        if (root / name).stat().st_size > CIRCUIT_MAX_BYTES.get(name, float("inf")):
+            raise ContractError(f"{name} is larger than {CIRCUIT_MAX_BYTES[name]} bytes")
     return tuple(sha256_file(root / name) for name in CIRCUIT_FILES)
 
 
@@ -459,6 +490,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("challenge")
     p.add_argument("--manifest", required=True)
     p.set_defaults(run=cmd_build)
+    p = sub.add_parser("rebuild-recorded", help="[judge] recorded circuits without a pin still build byte for byte")
+    p.add_argument("challenge")
+    p.add_argument("--only", nargs="*", default=None, help="ledger submission names, <track>/<id>")
+    p.set_defaults(run=cmd_rebuild_recorded)
     p = sub.add_parser("manifest", help="[judge] check a submission directory")
     p.add_argument("challenge")
     p.add_argument("directory")

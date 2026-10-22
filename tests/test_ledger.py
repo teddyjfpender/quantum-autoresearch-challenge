@@ -25,6 +25,33 @@ def row(toffoli, qubits, arch="a", track="reiher", ops="1", when=100):
 
 
 class LedgerTest(unittest.TestCase):
+    def test_row_from_score_bounds_the_family_name(self):
+        def score(name):
+            return {"metrics": {"spec": "reiher-sa-est-v1", "toffoli": 10.5, "qubits": 3, "samples": 4,
+                                "digests": {"ops": "aa" * 32, "lanemap": "bb" * 32, "family": "cc" * 32},
+                                "family": {"name": name}}}
+        kwargs = dict(track=TRACKS["reiher"], architecture="a", engine="e", seed="ab" * 32, verifier="12" * 32,
+                      unix_time=1, commit="c", pr="1", author="x", model="m", harness="h",
+                      submission="reiher/x", kind="submission", note="n")
+        self.assertEqual(ledger.row_from_score(score("sa-low2025-toff"), **kwargs)["family_name"], "sa-low2025-toff")
+        for name in ("", "x" * 129, "name\twith|pipes", "<b>x</b>", "-leading"):
+            with self.assertRaises(ledger.ContractError, msg=name):
+                ledger.row_from_score(score(name), **kwargs)
+
+    def test_circuit_digests_bound_the_family_file(self):
+        from qac import cli
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            for name in cli.CIRCUIT_FILES:
+                (root / name).write_bytes(b"x")
+            self.assertEqual(len(cli.circuit_digests(root)), 3)
+            (root / "family.out.json").write_bytes(b"x" * (cli.CIRCUIT_MAX_BYTES["family.out.json"] + 1))
+            with self.assertRaises(ledger.ContractError):
+                cli.circuit_digests(root)
+            (root / "family.out.json").write_bytes(b"")
+            with self.assertRaises(ledger.ContractError):
+                cli.circuit_digests(root)
+
     def test_seed_is_keyed_and_bound_to_the_circuit(self):
         a = ledger.derive_seed(KEY, "aa" * 32, "bb" * 32, "cc" * 32)
         self.assertRegex(a, r"^[0-9a-f]{64}$")

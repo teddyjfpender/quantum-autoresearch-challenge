@@ -55,6 +55,18 @@ fn log_term(draws_log2: u32) -> f64 {
 /// roughly 75 million ops on that machine, less on slower cores. `f_bound = ln(1e6) / 2^19 =
 /// 2.6e-5`.
 pub const DEFAULT_SAMPLES: usize = 1 << 19;
+/// Lane count from which a run is a *certifying* run (spec/SAMPLING.md section 1.1,
+/// spec/DESIGN.md section 9); the judge's full stage is `DEFAULT_SAMPLES` today and a
+/// proposed epoch would raise it to this. At `2^24` lanes the single-draw bound `2 lambda g` is 1.15 mHa on Reiher and
+/// 3.55 mHa on Li, figures a reader will compare with chemical accuracy, and the bound means
+/// nothing without the Hermiticity certificate of the reflection check. So at or above this
+/// count `eval_circuit` runs the check in `require` mode unless told otherwise
+/// ([`ReflectionCheck::default_for`]), and `metrics.sampling_limits.bound_certified` says
+/// whether the bound holds unconditionally. Below it a run is a regression check and the
+/// check stays opt-in.
+pub const CERTIFYING_SAMPLES: usize = 1 << 24;
+/// Chemical accuracy, the figure `metrics.sampling_limits` compares the certified bound with.
+pub const CHEMICAL_ACCURACY_HA: f64 = EPSILON;
 
 /// `family.out.json`: the declared family plus the spec id the walk implements.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -121,6 +133,12 @@ pub struct Evaluation {
     pub outcome_coverage: Option<CoverageReport>,
     /// Reflection check only ([`Options::reflection`]); `None` for every other run.
     pub reflection: Option<reflection::Report>,
+    /// What the Gaussian tracker's tolerance leaves open on a lane it passed, in Ha, over the
+    /// whole encoded operator (spec/DESIGN.md section 15.2): `lambda_decl x (pi / 2) sqrt(n)
+    /// (2 n AD_TOL) / sqrt(8)` for `n` system qubits, `7.3e-7` Ha on Reiher and `3.7e-6` Ha
+    /// on Li. Zero for a run whose lane comparison is exact (no tracker). It is not in
+    /// `rounding_error` and not in `implied_error_bound`; `certified_bound` adds it.
+    pub tracker_tolerance: f64,
 }
 
 /// `eval_circuit --reflection-check` (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6).
@@ -133,6 +151,19 @@ pub enum ReflectionCheck {
     Report,
     /// As `Report`, and a step that is not certified is rejected.
     Require,
+}
+
+impl ReflectionCheck {
+    /// The mode `eval_circuit` uses when `--reflection-check` is absent: `Require` at or
+    /// above [`CERTIFYING_SAMPLES`], `Off` below.
+    #[must_use]
+    pub fn default_for(samples: usize) -> Self {
+        if samples >= CERTIFYING_SAMPLES {
+            Self::Require
+        } else {
+            Self::Off
+        }
+    }
 }
 
 /// Lane-map families the reflection check covers: nested, and no family here overrides
@@ -263,6 +294,36 @@ impl Evaluation {
                 2.0 * fp + fd
             }
         }
+    }
+    /// [`Self::wrong_weight_bound_at`] in its exact Bernoulli form. Zero failures among `K`
+    /// draws of a class have probability `(1 - f)^K`; against `T` draws of the seed that is at
+    /// most `delta` once `f >= 1 - (delta / T)^(1/K) = -expm1(-ln(T/delta) / K)`. The linear
+    /// form `ln(T/delta) / K` the bound reports is `1 - x` to `x` for `x = ln(T/delta) / K`,
+    /// larger by about `x / 2` relative: `5e-5` at `2^19` lanes, `2e-6` at `2^24`. Reported so
+    /// that the slack is visible; the linear form stays the bound.
+    #[must_use]
+    pub fn wrong_weight_bound_exact_at(&self, draws_log2: u32) -> f64 {
+        let f = |k: usize| -(-log_term(draws_log2) / k.max(1) as f64).exp_m1();
+        match &self.nested {
+            None => f(self.control_one_samples),
+            Some(n) => 2.0 * f(n.paired_control_one) + f(n.diagonal_control_one),
+        }
+    }
+    /// The certified bound on the encoded operator's distance from the declared one, in Ha:
+    /// [`Self::implied_error_bound`] (what the unsampled lanes may do) plus
+    /// [`Self::tracker_tolerance`] (what the tracker's tolerance leaves open on every lane).
+    /// It is unconditional only when [`Self::bound_certified`]; `metrics.bound_mHa` reports
+    /// it in millihartree either way.
+    #[must_use]
+    pub fn certified_bound(&self) -> f64 {
+        self.implied_error_bound() + self.tracker_tolerance
+    }
+    /// Whether [`Self::implied_error_bound`] holds for the encoded operator with no assumption
+    /// about the unsampled lanes: the reflection check ran and certified the step Hermitian on
+    /// every lane and outcome record (spec/SAMPLING.md section 4.1).
+    #[must_use]
+    pub fn bound_certified(&self) -> bool {
+        self.reflection.as_ref().is_some_and(|r| r.certified)
     }
     /// How far a defect that is **not** Hermitian can move the walk's eigenphase, in radians,
     /// when it sits on unsampled lanes of weight up to [`Self::wrong_weight_bound_at`]:
@@ -602,7 +663,26 @@ pub fn evaluate_opts(
         facts,
         outcome_coverage,
         reflection,
+        tracker_tolerance: tracker_tolerance(
+            inp.tracker.is_some(),
+            layout.system,
+            &lm.lambda_decl(),
+        ),
     })
+}
+
+/// [`Evaluation::tracker_tolerance`]: `lambda x (pi / 2) sqrt(n) |Ad - I|_F / sqrt(8)` with
+/// `|Ad - I|_F <= 2 n AD_TOL` (spec/DESIGN.md section 15.2), or 0 without a tracker.
+#[must_use]
+pub fn tracker_tolerance(tracked: bool, system_qubits: usize, lambda: &Exact) -> f64 {
+    if !tracked {
+        return 0.0;
+    }
+    let n = system_qubits as f64;
+    let per_lane =
+        std::f64::consts::FRAC_PI_2 * n.sqrt() * (2.0 * n * crate::sim::gaussian::AD_TOL)
+            / 8f64.sqrt();
+    lambda.to_f64() * per_lane
 }
 
 /// Toffolis charged per executed `SpinSwap` on `2N` system qubits: `N + 1` (spec/SPEC-SA.md

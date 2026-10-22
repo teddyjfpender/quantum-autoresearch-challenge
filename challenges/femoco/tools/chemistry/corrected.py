@@ -226,18 +226,58 @@ def resources(n, report):
                          'physical error correction and gate synthesis']}
 
 
+def read_payload(data, spec, beta):
+    """Parse an existing base payload as an untrusted proposal for this spec."""
+    n, r, b, c = (spec[k] for k in ('n', 'r', 'b', 'c'))
+    if data[:8] != b'FEMOSAS1' or struct.unpack_from('<7I', data, 8) != (1, n, r, b, c, beta, spec['eta']):
+        raise ValueError('existing payload does not match this spec and precision')
+    at = 36
+    def take(code, count):
+        nonlocal at
+        try:
+            out = struct.unpack_from('<'+str(count)+code, data, at)
+        except struct.error as error:
+            raise ValueError('existing payload is truncated') from error
+        at += struct.calcsize(code)*count
+        return out
+    const, = take('d', 1)
+    eigs, ea = take('d', n), take('I', n*(n-1))
+    wb, w = take('d', r*c), take('d', r*c*b)
+    angles = take('I', r*b*(n-1))
+    if at != len(data) or wb != tuple(spec['wb']) or w != tuple(spec['w']):
+        raise ValueError('existing payload length or coefficients differ')
+    if any(a >= 1 << beta for a in (*ea, *angles)) or not all(math.isfinite(v) for v in (const, *eigs)):
+        raise ValueError('existing payload has invalid angles or values')
+    return const, eigs, ea, angles
+
+
 def propose_payload(spec, us, hshift, const, beta, path):
+    """Write a validated higher-precision base payload, or re-validate an existing one.
+
+    A payload already at `path` is reused as the proposal, so the same artifact
+    can serve several certificates across machines whose BLAS proposes
+    different eigenvectors. Either way the interval residual check decides.
+    """
     n = spec['n']
-    eigs, vecs = np.linalg.eigh(np.array([[float(hshift[i, j].mid()) for j in range(n)] for i in range(n)]))
-    ea = [a for j in range(n) for a in proposal_words([arb(float(vecs[i, j])) for i in range(n)], beta)]
-    angles = [a for u in us for a in proposal_words(u, beta)]
-    proposed = dict(spec, const=arb(float(const.mid())))
+    if path.exists():
+        proposed_const, eigs, ea, angles = read_payload(path.read_bytes(), spec, beta)
+        source = 'existing payload re-validated'
+        print(f'{path.name}: re-validating existing base payload', file=sys.stderr, flush=True)
+    else:
+        eigs, vecs = np.linalg.eigh(np.array([[float(hshift[i, j].mid()) for j in range(n)] for i in range(n)]))
+        ea = [a for j in range(n) for a in proposal_words([arb(float(vecs[i, j])) for i in range(n)], beta)]
+        angles = [a for u in us for a in proposal_words(u, beta)]
+        proposed_const = float(const.mid())
+        source = 'eigensolver proposal'
+    proposed = dict(spec, const=arb(proposed_const))
     proof = rotation_bound(proposed, us, hshift, const, ea, angles, beta, tuple(map(float, eigs)))
-    out = bytearray(b'FEMOSAS1')
-    out.extend(struct.pack('<7Id', 1, n, spec['r'], spec['b'], spec['c'], beta, spec['eta'], float(proposed['const'])))
-    for vals, kind in ((eigs, 'd'), (ea, 'I'), (spec['wb'], 'd'), (spec['w'], 'd'), (angles, 'I')):
-        out.extend(struct.pack('<'+str(len(vals))+kind, *vals))
-    path.write_bytes(out)
+    proof['proposal_source'] = source
+    if not path.exists():
+        out = bytearray(b'FEMOSAS1')
+        out.extend(struct.pack('<7Id', 1, n, spec['r'], spec['b'], spec['c'], beta, spec['eta'], proposed_const))
+        for vals, kind in ((eigs, 'd'), (ea, 'I'), (spec['wb'], 'd'), (spec['w'], 'd'), (angles, 'I')):
+            out.extend(struct.pack('<'+str(len(vals))+kind, *vals))
+        path.write_bytes(out)
     norm = sum((Fraction.from_float(abs(float(e))) for e in eigs), Fraction(0))
     b = spec['b']
     norm += sum(((Fraction.from_float(abs(wb))+sum((Fraction.from_float(abs(w)) for w in spec['w'][j*b:(j+1)*b]), Fraction(0)))**2/4 for j, wb in enumerate(spec['wb'])), Fraction(0))

@@ -55,7 +55,11 @@
 //! the mode existed.
 //!
 //! Reflection check (spec/SAMPLING.md section 4, spec/DESIGN.md section 16.6):
-//! `--reflection-check MODE`, opt-in, `MODE` = `report` or `require`. After every sampled lane
+//! `--reflection-check MODE`, `MODE` = `off`, `report` or `require`. Without the flag the mode
+//! is `require` at or above `score::CERTIFYING_SAMPLES` (`2^24` lanes) and `off` below it: a
+//! run deep enough to state a bound a reader will compare with
+//! chemical accuracy must also carry the certificate that makes the bound unconditional, and
+//! a quick run stays a quick run. After every sampled lane
 //! has passed, a static analysis of the op stream (`sim::reflection`, rule set `reflection-v3`)
 //! tries to prove, for every lane and every measurement-outcome record and without reading a
 //! sampled lane, that the step restores its registers, that its system operator does not depend
@@ -66,8 +70,9 @@
 //! the rule set, not that the step is wrong: with `report` the run passes either way and no
 //! count or bound changes; with `require` a step that is not certified is a `FAIL` row. The
 //! check does not establish that the step encodes the spec's operator (that stays sampled) and
-//! `certifies_energy_error` stays `false`. Without the flag no code of the check runs and every
-//! output is unchanged.
+//! `certifies_energy_error` stays `false`. With the mode `off` no code of the check runs and
+//! every output is unchanged. `metrics.sampling_limits.bound_certified` says whether the run's
+//! bound is unconditional, and `metrics.bound_mHa` is the bound in millihartree.
 //!
 //! Deterministic input coverage: `--coverage terms|exhaustive` adds a separate lane set after
 //! the sampled run, without changing resource tallies. `--export-symbolic FILE` writes the
@@ -107,7 +112,8 @@ struct Args {
     dump_verdicts: Option<PathBuf>,
     outcome_coverage: OutcomeCoverage,
     dump_coverage: Option<PathBuf>,
-    reflection: ReflectionCheck,
+    /// `None`: not given, resolved per the lane count (`ReflectionCheck::default_for`).
+    reflection: Option<ReflectionCheck>,
 }
 
 fn args() -> Result<Args, String> {
@@ -128,7 +134,7 @@ fn args() -> Result<Args, String> {
         dump_verdicts: None,
         outcome_coverage: OutcomeCoverage::Off,
         dump_coverage: None,
-        reflection: ReflectionCheck::Off,
+        reflection: None,
     };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
@@ -196,15 +202,16 @@ fn args() -> Result<Args, String> {
             }
             "--dump-coverage" => a.dump_coverage = Some(val()?.into()),
             "--reflection-check" => {
-                a.reflection = match val()?.as_str() {
+                a.reflection = Some(match val()?.as_str() {
+                    "off" => ReflectionCheck::Off,
                     "report" => ReflectionCheck::Report,
                     "require" => ReflectionCheck::Require,
                     other => {
                         return Err(format!(
-                            "--reflection-check {other}: expected report or require"
+                            "--reflection-check {other}: expected off, report or require"
                         ))
                     }
-                };
+                });
             }
             other => return Err(format!("unknown argument {other}")),
         }
@@ -475,12 +482,28 @@ fn run(
             "  coverage    : outcome-coverage mode, sites only (spec/SAMPLING.md section 2.3)"
         ),
     }
-    if a.reflection != ReflectionCheck::Off {
-        println!("  reflection  : static Hermiticity check (spec/SAMPLING.md section 4)");
+    let reflection = a
+        .reflection
+        .unwrap_or_else(|| ReflectionCheck::default_for(samples));
+    match reflection {
+        ReflectionCheck::Off => {}
+        ReflectionCheck::Report => {
+            println!(
+                "  reflection  : static Hermiticity check, report (spec/SAMPLING.md section 4)"
+            );
+        }
+        ReflectionCheck::Require => println!(
+            "  reflection  : static Hermiticity check, required{} (spec/SAMPLING.md section 4)",
+            if a.reflection.is_none() {
+                " by default at this lane count"
+            } else {
+                ""
+            }
+        ),
     }
     let opts = score::Options {
         outcome_coverage: a.outcome_coverage,
-        reflection: a.reflection,
+        reflection,
     };
     let eval = || score::evaluate_opts(&inputs, engine, probe_ref, opts);
     let ev = match (audit, a.server_seed) {

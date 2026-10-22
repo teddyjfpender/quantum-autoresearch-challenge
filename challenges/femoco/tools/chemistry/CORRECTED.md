@@ -13,7 +13,8 @@ the original published factors. No judged payload, circuit or ledger is changed.
 
 The [Reiher](../../rigorous/corrected-reiher.json) and
 [Li](../../rigorous/corrected-li.json) reports were recomputed from all target
-integrals and factors with 128-bit Arb. Bounds below are rounded upward.
+integrals and factors with 128-bit Arb. Bounds below are rounded upward; the
+"explicit" rows are the sums of the rotation and correction rows.
 
 | Quantity | Reiher | Li |
 | --- | ---: | ---: |
@@ -23,21 +24,36 @@ integrals and factors with 128-bit Arb. Bounds below are rounded upward.
 | Nonzero entries after budgeted sparse compression | 1,101,579 | 4,252,735 |
 | Entries removed, relative to full table (display) | 0.1610% | 0.6882% |
 | Coefficient fractional bits | 34 | 36 |
-| Rotation + preprocessing error | <0.0510 mHa | <0.0450 mHa |
+| Rotation + preprocessing error | <0.0452 mHa | <0.0363 mHa |
 | Baseline correction quantization error | <0.0161 mHa | <0.0156 mHa |
 | Compressed correction error (dropping + quantization) | <0.2160 mHa | <0.2155 mHa |
-| **Explicit corrected baseline Hamiltonian error** | **<0.0671 mHa** | **<0.0605 mHa** |
-| **Explicit compressed Hamiltonian error** | **<0.2669 mHa** | **<0.2604 mHa** |
+| **Explicit corrected baseline Hamiltonian error** | **<0.0612 mHa** | **<0.0519 mHa** |
+| **Explicit compressed Hamiltonian error** | **<0.2611 mHa** | **<0.2518 mHa** |
 | Compressed correction alias-distribution error | <0.00670 mHa | <0.00860 mHa |
-| Conditional total, including reserved encoding and QPE errors | <1.484 mHa | <1.479 mHa |
+| Conditional total, including reserved encoding and QPE errors | <1.478 mHa | <1.471 mHa |
 
 The last row adds actual rotation, correction and alias bounds, 0.2 mHa for the
 base's nested coefficient encoding, 0.01 mHa reserved for outer combination,
 and 1 mHa for a conditional QPE plan. It is **budget feasibility**, not completed
 implementation evidence. The outer combination, physical synthesis, state
 preparation/selection and QPE failure accounting are outstanding. The remaining
-0.116/0.121 mHa margin is available for further systematic implementation errors;
+0.122/0.130 mHa margin is available for further systematic implementation errors;
 no synthesis algorithm is asserted to meet it here.
+
+**Methodology changes (2026-10-22).** The base rotation/preprocessing bound now
+uses the audit's certified nuclear-norm bounds (`nuclear_norm_upper`), which
+lowered it from 0.0510/0.0450 to 0.0452/0.0363 mHa and the explicit Hamiltonian
+errors accordingly (baseline 0.0671/0.0605 -> 0.0612/0.0519 mHa; compressed
+0.2669/0.2604 -> 0.2611/0.2518 mHa). The conditional QPE plans use the audit's
+sharper textbook tail bound (27 -> 26 phase bits, 134,217,727 -> 67,108,863
+controlled walk uses). Both pipelines now share the signed experiment's released
+base payloads: `propose_payload` re-validates an existing payload instead of
+proposing a new one, so the base circuits below were rebuilt from those payloads.
+Every Toffoli and qubit count is unchanged; because the base payload is now the
+released artifact (`rotation_and_preprocessing.proposal_source`), the
+`corrected-base-*` reports carry its payload and lane-map digests and a
+last-digit change in the exact coefficient 1-norm (about 2e-11 relative). The
+compression results, alias tables and correction resource bounds are unchanged.
 
 ## Why this proves ground-energy proximity for the new approximation
 

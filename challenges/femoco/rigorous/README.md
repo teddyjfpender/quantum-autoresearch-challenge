@@ -70,7 +70,18 @@ the pinned original integrals and the published DFTHC factors. Its
 a lower bound on the operator norm of the fit residual of the published, unrounded factors:
 more than 47.500 mHa and 21.340 mHa respectively, whatever scalar is subtracted. So those
 factors cannot meet a chemical-accuracy budget stated as an operator norm over the whole
-electron-number sector.
+electron-number sector. The certified upper bounds on that residual norm are 64.793 Ha
+and 45.010 Ha (signed-square spectral bound; the entrywise triangle bound gives
+213.690/71.160 Ha), and the 16/15-bit rotation and preprocessing error is below
+46.838/296.298 mHa.
+
+**Methodology changes (2026-10-22).** The chemistry reports were regenerated with a
+certified signed-square spectral bound on the fit residual, nuclear-norm bounds in the
+rotation terms and a sharper textbook QPE tail bound; see the
+[chemistry README](../tools/chemistry/README.md#results). Inputs, witnesses, factor
+artifacts, layouts and resource counts are unchanged; the `corrected-base-*` reports
+now name the released base payload, so their payload and lane-map digests and the
+last digits of their coefficient 1-norms differ from the earlier reports.
 
 This does not determine their ground-energy errors, and at the current rotation precision it
 establishes nothing about the rounded Hamiltonians the circuits encode. Both reports say
@@ -80,8 +91,8 @@ proposals, which are not circuit specs, and Slater energy bounds for the stored 
 ## Corrected-Hamiltonian experiment
 
 The [explicit correction and compression experiment](../tools/chemistry/CORRECTED.md)
-constructs new approximations with certified Hamiltonian errors below 0.267 mHa
-(Reiher) and 0.261 mHa (Li). It rebuilds all eight base circuits at the validated
+constructs new approximations with certified Hamiltonian errors below 0.262 mHa
+(Reiher) and 0.252 mHa (Li). It rebuilds all eight base circuits at the validated
 26/28-bit rotation precisions. Sparse correction retains over 99.3% of the packed
 residual entries; separate analytical correction-block resource bounds quantify
 the cost of that construction. The combined block encoding and complete
@@ -94,7 +105,7 @@ The [signed correction follow-up](../tools/chemistry/SIGNED.md) replaces the lar
 sparse table with 1,386/2,153 signed factors. Correction normalization falls from
 213.689/71.160 Ha to 32.396/22.505 Ha. The new numerical certificates
 ([Reiher](signed-reiher.json), [Li](signed-li.json)) bound the explicit combined
-Hamiltonian errors below 0.161357/0.150233 mHa.
+Hamiltonian errors below 0.148472/0.135661 mHa.
 
 The emitted combined programs are checked exactly for their layout, every lookup
 record and their coefficient errors ([Reiher](combined-reiher.json),
@@ -109,6 +120,6 @@ qubits. This is much more expensive than Low et al.'s published estimate, and it
 is a different Hamiltonian from the challenge tracks': 28.7x/37.8x in total
 Toffolis under the paper's query convention, and 43x/69x in Toffolis x qubits
 for one step. The conditional
-budgets fit below 1.179 mHa; physical synthesis, state preparation/selection and
+budgets fit below 1.165 mHa; physical synthesis, state preparation/selection and
 implemented QPE accounting are still outstanding. Both combined reports keep
 `chemical_accuracy_certified: false`.

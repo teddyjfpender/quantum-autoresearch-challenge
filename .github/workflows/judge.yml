@@ -19,15 +19,11 @@ on:
 
 permissions: {}
 
-# A new push or a judge label supersedes the run in progress. Any other label lands in a group
-# of its own, so it cannot cancel a run.
-concurrency:
-  group: >-
-    judge-${{ github.event.pull_request.number }}-${{
-      github.event.action != 'labeled' ||
-      github.event.label.name == 'architecture-approved' ||
-      github.event.label.name == 'rejudge' }}
-  cancel-in-progress: true
+# Concurrency is per job, not per workflow: a new push or a judge label supersedes the judging
+# jobs of the run in progress (any other label lands in a group of its own, so it cannot cancel
+# a run), but `record` is never cancelled once it has started, so a merge is always followed by
+# its row. A superseded `record` cannot merge stale code: `gh pr merge --match-head-commit`
+# refuses a head that has moved.
 
 env:
   PR: ${{ github.event.pull_request.number }}
@@ -45,11 +41,19 @@ jobs:
        github.event.label.name == 'rejudge')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    concurrency:
+      group: >-
+        judge-${{ github.event.pull_request.number }}-${{
+          github.event.action != 'labeled' ||
+          github.event.label.name == 'architecture-approved' ||
+          github.event.label.name == 'rejudge' }}
+      cancel-in-progress: true
     permissions:
       contents: read
     outputs:
       is_submission: ${{ steps.intake.outputs.is_submission }}
       ready: ${{ steps.intake.outputs.ready }}
+      touches_code: ${{ steps.intake.outputs.touches_code }}
       challenge: ${{ steps.intake.outputs.challenge }}
       policy: ${{ steps.intake.outputs.policy }}
       manifest: ${{ steps.intake.outputs.manifest }}
@@ -80,6 +84,7 @@ jobs:
           checked = json.loads(manifest.read_text()) if manifest.exists() else None
           print(f"is_submission={'true' if policy['is_submission'] else 'false'}")
           print(f"ready={'true' if policy['is_submission'] and policy['ok'] and checked else 'false'}")
+          print(f"touches_code={'true' if policy.get('touches_code') else 'false'}")
           print(f"challenge={policy.get('challenge') or ''}")
           print(f"policy={json.dumps(policy, separators=(',', ':'))}")
           print(f"manifest={json.dumps(checked, separators=(',', ':')) if checked else ''}")
@@ -91,6 +96,13 @@ jobs:
     if: needs.intake.outputs.ready == 'true' && needs.intake.outputs.challenge == 'femoco'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    concurrency:
+      group: >-
+        judge-${{ github.event.pull_request.number }}-${{
+          github.event.action != 'labeled' ||
+          github.event.label.name == 'architecture-approved' ||
+          github.event.label.name == 'rejudge' }}
+      cancel-in-progress: true
     permissions:
       contents: read
     env:
@@ -122,9 +134,16 @@ jobs:
       - name: Toolchain and sandbox
         working-directory: /opt/qac/challenges/femoco
         run: ./setup.sh
-      - name: Recorded circuits still build byte for byte
+      - name: Recorded circuits still build byte for byte (pinned starting board)
         working-directory: /opt/qac/challenges/femoco
         run: tools/ci/pins_sandboxed.sh
+      # Rows no pin test covers (every judged submission) are rebuilt from their manifests through
+      # the same sandboxed build stage and must match the ledger. Knobs are compiled in, so each
+      # costs a rebuild; a pull request that leaves the circuit code alone cannot move them.
+      - name: Recorded circuits still build byte for byte (judged submissions)
+        if: needs.intake.outputs.touches_code == 'true'
+        working-directory: /opt/qac
+        run: python3 challenge.py rebuild-recorded femoco
       - name: Build the submitted circuit
         working-directory: /opt/qac
         run: python3 challenge.py build femoco --manifest judge/manifest.json
@@ -144,6 +163,13 @@ jobs:
     needs: [intake, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    concurrency:
+      group: >-
+        judge-${{ github.event.pull_request.number }}-${{
+          github.event.action != 'labeled' ||
+          github.event.label.name == 'architecture-approved' ||
+          github.event.label.name == 'rejudge' }}
+      cancel-in-progress: true
     permissions:
       contents: read
     outputs:
@@ -257,9 +283,13 @@ jobs:
   record:
     name: Report, merge and record
     needs: [intake, build, evaluate]
-    if: ${{ !cancelled() && needs.intake.result == 'success' && needs.intake.outputs.is_submission == 'true' }}
+    # Job-level cancellation of a superseded build or evaluate must not reach record either.
+    if: ${{ !cancelled() && needs.build.result != 'cancelled' && needs.evaluate.result != 'cancelled' && needs.intake.result == 'success' && needs.intake.outputs.is_submission == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    concurrency:
+      group: judge-record-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     permissions:
       contents: write
       pull-requests: write
@@ -342,6 +372,10 @@ jobs:
           git fetch --quiet origin "+refs/pull/${PR}/head:refs/remotes/pr/head"
           test "$(git rev-parse refs/remotes/pr/head)" = "$HEAD_SHA"
           git merge --quiet --squash "$HEAD_SHA"
+          # The squash preview is the tree the merge must reproduce: main plus this circuit.
+          # Keep it as a dangling commit so the post-merge check compares against it, not
+          # against the pull request head, which may be behind main in watched paths.
+          preview="$(git commit-tree "$(git write-tree)" -p HEAD -m "judge preview #$PR")"
           jq --arg now "$(date +%s)" '.unix_time = $now' judge/row.json > judge/row-preview.json
           if ! python3 challenge.py record femoco --row judge/row-preview.json > judge/preview.log 2>&1 \
              || ! python3 challenge.py check --signed >> judge/preview.log 2>&1; then
@@ -352,8 +386,30 @@ jobs:
           git reset --quiet --hard origin/main
           git clean --quiet -fd -e judge
 
-          gh pr merge "$PR" --squash --match-head-commit "$HEAD_SHA" --subject "Submission $id (#$PR)" --body ""
+          # Concurrent records race on main ("Base branch was modified"): retry the merge. The
+          # post-merge comparison against the preview below still decides whether the row is
+          # recorded, so a retry can never record a tree that was not checked.
+          merged_ok=""
+          for attempt in 1 2 3 4 5; do
+            if gh pr merge "$PR" --squash --match-head-commit "$HEAD_SHA" --subject "Submission $id (#$PR)" --body ""; then
+              merged_ok=1; break
+            fi
+            sleep $((attempt * 20))
+          done
+          if [[ -z "$merged_ok" ]]; then
+            say "Valid and recorded as \`front\`-eligible, but the merge kept failing because main moved under it. Re-run the judge with the \`rejudge\` label."
+            exit 1
+          fi
           merged="$(gh pr view "$PR" --json mergeCommit --jq '.mergeCommit.oid')"
+          # The merge is final. Before a row names it, the merged tree must carry exactly the
+          # tree that was previewed and checked above: a change to a watched path could have
+          # landed on main between the preview and the merge, and the squash would then
+          # combine it with this circuit.
+          git fetch --quiet origin main
+          if ! python3 challenge.py unchanged femoco --base "$preview" --head "$merged"; then
+            say "The submission is merged at $merged, but the merged tree differs from the previewed tree in a trusted or editable path: another change landed between the check and the merge. No row was recorded; a maintainer must re-validate it (spec/OPERATIONS.md, recovery)."
+            exit 1
+          fi
 
           # Record. Another row may land between the merge and the push, so re-read main and
           # re-sign on top of it until the push goes through.
