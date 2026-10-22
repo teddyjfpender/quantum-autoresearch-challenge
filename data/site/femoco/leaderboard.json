@@ -21,14 +21,14 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 280,
- "ledgerHead": "ad64ae059663a8d473e27843b129ae29691080f6f50ee899fd2d1ac10dbb40cd",
+ "ledgerRows": 281,
+ "ledgerHead": "7b43901355d23bb9706044a12e4e5493059a6b8d532811c4596eef86cc0039e4",
  "tracks": [
   {
    "track": "reiher",
    "title": "Reiher active space (54 orbitals)",
    "spec": "reiher-sa-est-v1",
-   "circuits": 151,
+   "circuits": 152,
    "best": {
     "unixTime": 1791561484,
     "track": "reiher",
@@ -85,7 +85,7 @@
      "id": "rank-scheduled",
      "name": "Rank-scheduled delivery",
      "parent": "onehot-split",
-     "circuits": 88,
+     "circuits": 89,
      "firstUnixTime": 1790937749,
      "elite": {
       "unixTime": 1791561484,
@@ -137,29 +137,28 @@
       "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabfHKVITXSNOBWUs_~q15_1.12, keep 8+8, blocks 2/1"
      },
      "fewestToffoli": {
-      "unixTime": 1790937749,
+      "unixTime": 1792692173,
       "track": "reiher",
       "architecture": "rank-scheduled",
-      "toffoli": 8825.423,
-      "qubits": 520,
-      "toffoliTimesQubits": 4589219.96,
-      "score": 4589219.96,
+      "toffoli": 8654.531,
+      "qubits": 505,
+      "toffoliTimesQubits": 4370538.155,
+      "score": 4370538.155,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "5f5475006815540b1a6f4f6e9f7b297fbb4d94a7b79e413df093f8831032ecc6",
-      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-      "commit": "genesis",
-      "pr": null,
+      "opsSha256": "c8bea0802822c92697a7d55c645f88dc054646ab0683153847f020575423b44d",
+      "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+      "commit": "f4252872c260fdf04fc88222a5a87998d51d408c",
+      "pr": 24,
       "author": "teddyjfpender",
-      "model": "Claude Opus 5.5",
+      "model": "Claude Mythos 5.1",
       "harness": "Claude Code",
-      "submission": "reiher/rdr-r3lq210-m8",
-      "kind": "historical",
+      "submission": "reiher/lowc-r3fq210-m8",
+      "kind": "submission",
       "standing": [
-       "new-architecture",
        "front"
       ],
-      "note": "Rank-scheduled delivery: sa-toff imchxlgrdky3zabCHKVIDXtNBWsq210, keep 8+8, blocks 3/3"
+      "note": "Rank-scheduled delivery with folded inner read and hosted index at budget 210: sa-toff imchxgrdky3zabCHKVIXtNBWs+-_q210_1.edu, keep 8+8, blocks 3/3"
      },
      "history": [
       {
@@ -1723,28 +1722,28 @@
      "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq195_1, keep 8+8, blocks 3/3"
     },
     {
-     "unixTime": 1790939349,
+     "unixTime": 1792692173,
      "track": "reiher",
      "architecture": "rank-scheduled",
-     "toffoli": 8832.673,
-     "qubits": 510,
-     "toffoliTimesQubits": 4504663.23,
-     "score": 4504663.23,
+     "toffoli": 8654.531,
+     "qubits": 505,
+     "toffoliTimesQubits": 4370538.155,
+     "score": 4370538.155,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "f223e4a969ea80a62bc6372505d7786372b681722408a6f850e5b0fdb305a31f",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "c8bea0802822c92697a7d55c645f88dc054646ab0683153847f020575423b44d",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "f4252872c260fdf04fc88222a5a87998d51d408c",
+     "pr": 24,
      "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
+     "model": "Claude Mythos 5.1",
      "harness": "Claude Code",
-     "submission": "reiher/rdr-r3q210b-m8",
-     "kind": "historical",
+     "submission": "reiher/lowc-r3fq210-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq210_1, keep 8+8, blocks 3/3"
+     "note": "Rank-scheduled delivery with folded inner read and hosted index at budget 210: sa-toff imchxgrdky3zabCHKVIXtNBWs+-_q210_1.edu, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1792692068,
