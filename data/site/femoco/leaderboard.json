@@ -21,8 +21,8 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 283,
- "ledgerHead": "d8974baaded43b0c74f8dbbf3c45c1dded2023eba9fc6321b1bab6e70a9473b6",
+ "ledgerRows": 284,
+ "ledgerHead": "8aa66f735206c3a87f00c032bdbc85a22c88ffbed31cdf34d9180cad37bf30e1",
  "tracks": [
   {
    "track": "reiher",
@@ -2164,7 +2164,7 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 131,
+   "circuits": 132,
    "best": {
     "unixTime": 1791555788,
     "track": "li",
@@ -2220,7 +2220,7 @@
      "id": "onehot-split",
      "name": "Split one-hot with paired corrections",
      "parent": "onehot",
-     "circuits": 78,
+     "circuits": 79,
      "firstUnixTime": 1790414311,
      "elite": {
       "unixTime": 1791555788,
@@ -3380,28 +3380,28 @@
      "note": "Five-group split one-hot with the composed alias witnesses: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPsU+-_.eh4bfijklu, keep 8+8, blocks 3/3"
     },
     {
-     "unixTime": 1790963522,
+     "unixTime": 1792692325,
      "track": "li",
-     "architecture": "rank-scheduled",
-     "toffoli": 19467.456,
-     "qubits": 467,
-     "toffoliTimesQubits": 9091301.952,
-     "score": 9091301.952,
+     "architecture": "onehot-split",
+     "toffoli": 18030.02,
+     "qubits": 464,
+     "toffoliTimesQubits": 8365929.28,
+     "score": 8365929.28,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "acd7fbe858b5531153e99543209d9a40dcd08a8fa4e1bbbf3bedf350eadb7513",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "b316bc070a4a2c1623bdf350709da1da1c3d29dac002efd77bcc9d5c273249c9",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "3cea7952f5979f0f45274ca98f903227cc748411",
+     "pr": 29,
      "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
+     "model": "Claude Mythos 5.1",
      "harness": "Claude Code",
-     "submission": "li/kn-l5fhq50-m9",
-     "kind": "historical",
+     "submission": "li/lowq-l4w-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q50_1, keep 9+9, blocks 3/3"
+     "note": "Four-group split one-hot with the inner keep released through the item one-hot: sa-toff imchxgrdky4zabCHVIXZJtNOBWsYU+-_~.geh4cbfijklu, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1791555788,
