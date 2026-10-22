@@ -21,8 +21,8 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 281,
- "ledgerHead": "7b43901355d23bb9706044a12e4e5493059a6b8d532811c4596eef86cc0039e4",
+ "ledgerRows": 282,
+ "ledgerHead": "e2e0598c0c9d0ddf00553e1d3216f9947ca4c0d498d69d0f9eec43acacf9d6cc",
  "tracks": [
   {
    "track": "reiher",
@@ -2164,7 +2164,7 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 129,
+   "circuits": 130,
    "best": {
     "unixTime": 1791555788,
     "track": "li",
@@ -2220,7 +2220,7 @@
      "id": "onehot-split",
      "name": "Split one-hot with paired corrections",
      "parent": "onehot",
-     "circuits": 76,
+     "circuits": 77,
      "firstUnixTime": 1790414311,
      "elite": {
       "unixTime": 1791555788,
@@ -2272,28 +2272,28 @@
       "note": "Split one-hot with paired corrections: sa-toff imchxgrdky7zabCHKVIXJOBWsotU+_~.e, keep 8+8, blocks 3/2"
      },
      "fewestToffoli": {
-      "unixTime": 1790965281,
+      "unixTime": 1792692211,
       "track": "li",
       "architecture": "onehot-split",
-      "toffoli": 16039.493,
-      "qubits": 555,
-      "toffoliTimesQubits": 8901918.615,
-      "score": 8901918.615,
+      "toffoli": 15703.468,
+      "qubits": 546,
+      "toffoliTimesQubits": 8574093.528,
+      "score": 8574093.528,
       "samples": 524288,
       "engine": "reference-4096+sliced-524288",
-      "opsSha256": "f17c015335726dfaaa3b13eb6a8aa3c11d729965b425c94b19e6277f55ae293a",
-      "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-      "commit": "genesis",
-      "pr": null,
+      "opsSha256": "11ee78ccf9ada88ff9054e7be70bac1b6267d1bcf2c9a94793497017fc24e096",
+      "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+      "commit": "54dd7a4e919874ff1a8ec7f13e47c9960552019f",
+      "pr": 28,
       "author": "teddyjfpender",
-      "model": "Claude Opus 5.5",
+      "model": "Claude Mythos 5.1",
       "harness": "Claude Code",
-      "submission": "li/kl-l3pgh-m9",
-      "kind": "historical",
+      "submission": "li/lowc-l3fh-m8",
+      "kind": "submission",
       "standing": [
        "front"
       ],
-      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCAXJSRNOBWMnFsU.pgh4, keep 9+9, blocks 8/3"
+      "note": "Three-group split one-hot with item one-hot folded read, hosted index and composed alias witnesses: sa-toff imchxgrdky3zabCAHVIXJtRNOBWs+-_.ebfijklu, keep 8+8, blocks 3/3"
      },
      "history": [
       {
@@ -3501,53 +3501,28 @@
      "note": "Rank-scheduled delivery: sa-toff imchxgrdky4zabCAXZJBMnFsYUq62_1, keep 9+9, blocks 8/3"
     },
     {
-     "unixTime": 1790965281,
+     "unixTime": 1792692211,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 16039.493,
-     "qubits": 555,
-     "toffoliTimesQubits": 8901918.615,
-     "score": 8901918.615,
+     "toffoli": 15703.468,
+     "qubits": 546,
+     "toffoliTimesQubits": 8574093.528,
+     "score": 8574093.528,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "f17c015335726dfaaa3b13eb6a8aa3c11d729965b425c94b19e6277f55ae293a",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "11ee78ccf9ada88ff9054e7be70bac1b6267d1bcf2c9a94793497017fc24e096",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "54dd7a4e919874ff1a8ec7f13e47c9960552019f",
+     "pr": 28,
      "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
+     "model": "Claude Mythos 5.1",
      "harness": "Claude Code",
-     "submission": "li/kl-l3pgh-m9",
-     "kind": "historical",
+     "submission": "li/lowc-l3fh-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCAXJSRNOBWMnFsU.pgh4, keep 9+9, blocks 8/3"
-    },
-    {
-     "unixTime": 1790943804,
-     "track": "li",
-     "architecture": "rank-scheduled",
-     "toffoli": 15809.594,
-     "qubits": 600,
-     "toffoliTimesQubits": 9485756.4,
-     "score": 9485756.4,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "aafa9df08327acc845fca1c1d7ced23bf7313448ef775c62e1e6d74e3d5b1ad1",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "li/rdl-l3q50-m9",
-     "kind": "historical",
-     "standing": [
-      "architecture-elite",
-      "front"
-     ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCAXJBMnFsUq50_1, keep 9+9, blocks 8/3"
+     "note": "Three-group split one-hot with item one-hot folded read, hosted index and composed alias witnesses: sa-toff imchxgrdky3zabCAHVIXJtRNOBWs+-_.ebfijklu, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790943804,
