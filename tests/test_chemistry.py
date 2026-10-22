@@ -5,6 +5,7 @@ import io
 import json
 import pathlib
 import pickle
+import struct
 import sys
 import tempfile
 import unittest
@@ -114,6 +115,15 @@ class ChemistryTest(unittest.TestCase):
         norm_bound = bounds.upper(bounds.fit_norm(d, n))
         dense = np.array([[float(arb(residual[i, j])) for j in range(ident.nrows())] for i in range(ident.nrows())])
         self.assertLessEqual(np.max(np.abs(np.linalg.eigvalsh(dense))), float(norm_bound)+1e-14)
+        # The signed-square spectral bound is a second, independent certificate
+        # of the same operator norm; the checker reports the smaller of the two.
+        spectral = bounds.spectral_fit_norm(d, n)
+        self.assertLessEqual(np.max(np.abs(np.linalg.eigvalsh(dense))), float(Fraction(spectral['upper_Ha']))+1e-14)
+        self.assertEqual(Fraction(spectral['upper_Ha']),
+                         Fraction(spectral['signed_squares_upper_Ha'])+Fraction(spectral['remainder_triangle_upper_Ha']))
+        self.assertLess(Fraction(spectral['remainder_triangle_upper_Ha']), Fraction(1, 10**12))
+        with self.assertRaises(ValueError):
+            bounds.spectral_fit_norm(arb_mat(2, 2), n)
 
     def test_interval_slater_energy_against_exact_normalized_fock_state(self):
         # Non-orthonormal input columns require the Gram inverse, not C C^T.
@@ -167,13 +177,90 @@ class ChemistryTest(unittest.TestCase):
     def test_qpe_tail_and_lipschitz_budget(self):
         for norm in (1, 60, 180):
             plan = bounds.qpe_plan(norm)
-            self.assertLessEqual(Fraction(1, 2*(plan['tail_bins']-1)), Fraction(plan['failure_probability']))
-            error = bounds.upper(2*arb.pi()*norm*plan['tail_bins']/(1 << plan['phase_register_qubits']))
+            tail, bits = plan['tail_bins'], plan['phase_register_qubits']
+            self.assertLessEqual(bounds.qpe_tail_bound(tail, bits), Fraction(plan['failure_probability']))
+            self.assertEqual(Fraction(plan['tail_probability_upper']), bounds.qpe_tail_bound(tail, bits))
+            error = bounds.upper(2*arb.pi()*norm*tail/(1 << bits))
             self.assertLessEqual(error, Fraction(plan['energy_error_Ha']))
             self.assertFalse(plan['includes_state_preparation_or_gate_synthesis'])
+            # Never more phase bits than the classical 1/[2(L-1)] rule needs.
+            classical = 1
+            while bounds.upper(2*arb.pi()*norm*51/(1 << classical)) > Fraction(1, 1000):
+                classical += 1
+            self.assertLessEqual(bits, classical)
         for args in ((0,), (1, 0), (1, Fraction(1, 1000), 0)):
             with self.assertRaises(ValueError):
                 bounds.qpe_plan(*args)
+        with self.assertRaises(ValueError):
+            bounds.qpe_tail_bound(1, 4)
+
+    def test_qpe_tail_bound_against_exact_outcome_distribution(self):
+        # Exact m-bit QPE statistics of an eigenstate with phase (b+delta)/2^m:
+        # the probability of landing more than L bins (circularly) from the true
+        # phase must never exceed the certified tail, for every offset delta.
+        rng = np.random.default_rng(7)
+        for bits in (5, 7, 9):
+            size = 1 << bits
+            k = np.arange(size)
+            for delta in (0.0, 1e-9, 0.25, 0.5, 0.75, 1-1e-9, *rng.random(5)):
+                amplitudes = np.exp(2j*np.pi*k[None, :]*(delta-k[:, None])/size).sum(axis=1)/size
+                p = np.abs(amplitudes)**2
+                self.assertAlmostEqual(p.sum(), 1.0, places=12)
+                signed = ((k+size//2) % size)-size//2
+                distance = np.abs(signed-delta)
+                for tail in range(2, 25):
+                    exact = p[distance > tail].sum()
+                    self.assertLessEqual(exact, float(bounds.qpe_tail_bound(tail, bits))+1e-12)
+
+    def test_nuclear_norm_certificate_against_exact_rational_spectrum(self):
+        # Rational Householder reflection and integer eigenvalues 1, -2, 3.
+        v = fmpq_mat([[1], [2], [2]])
+        q = fmpq_mat([[int(i == j) for j in range(3)] for i in range(3)]) - fmpq(2, 9)*v*v.transpose()
+        self.assertEqual(q*q.transpose(), fmpq_mat([[int(i == j) for j in range(3)] for i in range(3)]))
+        m = q*fmpq_mat([[1, 0, 0], [0, -2, 0], [0, 0, 3]])*q.transpose()
+        a = arb_mat([[arb(m[i, j]) for j in range(3)] for i in range(3)])
+        bound = bounds.nuclear_norm_upper(a)
+        self.assertGreaterEqual(bound, 6)
+        # Tightness is limited by the float64 proposal's orthogonality defect.
+        self.assertLess(bound-6, Fraction(1, 10**12))
+        self.assertEqual(bound.denominator & (bound.denominator-1), 0)
+        self.assertEqual(bounds.dyadic_upper(Fraction(1, 3), 4), Fraction(6, 16))
+        self.assertEqual(bounds.dyadic_upper(Fraction(-1, 3), 4), Fraction(-5, 16))
+        entry = sum(abs(Fraction(str(m[i, j]))) for i in range(3) for j in range(3))
+        self.assertLess(bound, entry)
+        # A widened ball still encloses the exact value, from below as well.
+        wide = arb_mat([[a[i, j]+arb('0 +/- 1e-6') for j in range(3)] for i in range(3)])
+        self.assertGreaterEqual(bounds.nuclear_norm_upper(wide), 6)
+        self.assertEqual(bounds.one_body_norm(arb_mat(2, 2)), 0)
+        with self.assertRaises(ValueError):
+            bounds.nuclear_norm_upper(arb_mat(2, 3))
+
+    def test_rotation_bound_encloses_exact_fock_operator_difference(self):
+        # ||H_spec - H_fit|| on the full two-orbital Fock space, computed from the
+        # exact quantized network vectors, never exceeds the certified bound.
+        n = 2
+        spec = dict(n=n, r=1, b=1, c=1, beta=3, e=[0.5, -0.25],
+                    ea=[0, 2], angles=[1], wb=[0.125], w=[0.75], const=arb('1/8'))
+        h = arb_mat([['1/2', 0], [0, '-1/4']])
+        us = [[arb(1), arb(0)]]
+        report = bounds.rotation_bound(spec, us, h, spec['const'])
+        ident, _, e = fock(n)
+        et = [[e[p][q]-(ident if p == q else 0*ident) for q in range(n)] for p in range(n)]
+        def one_body(matrix):
+            return sum((matrix[p][q]*et[p][q] for p in range(n) for q in range(n)), 0*ident)
+        v = bounds.network([1], 3)
+        rows = [[v[p]*v[q] for q in range(n)] for p in range(n)]
+        dim = ident.nrows()
+        def dense(op):
+            return np.array([[float(arb(op[i, j])) for j in range(dim)] for i in range(dim)])
+        et_v = sum((float(rows[p][q])*dense(et[p][q]) for p in range(n) for q in range(n)), np.zeros((dim, dim)))
+        et_u = dense(et[0][0])
+        ideal = 0.125*np.eye(dim)+0.5*dense(et[0][0])-0.25*dense(et[1][1])+0.5*(0.125*np.eye(dim)+0.75*et_u)@(0.125*np.eye(dim)+0.75*et_u)
+        stored = 0.125*np.eye(dim)+0.5*dense(et[0][0])-0.25*dense(et[1][1])+0.5*(0.125*np.eye(dim)+0.75*et_v)@(0.125*np.eye(dim)+0.75*et_v)
+        exact_norm = np.max(np.abs(np.linalg.eigvalsh(stored-ideal)))
+        self.assertGreater(exact_norm, 0.1)
+        self.assertLessEqual(exact_norm, float(Fraction(report['upper_Ha']))+1e-12)
+        self.assertLessEqual(float(Fraction(report['squares_upper_Ha'])), 0.875*0.75*2*np.sqrt(1-np.cos(np.pi/4)**2)+1e-12)
 
     def test_pinned_integrals_exact_decimal_core_sector_and_tampering(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -190,6 +277,17 @@ class ChemistryTest(unittest.TestCase):
             path.write_text(path.read_text()+'1 2 2 0 0\n')
             with self.assertRaises(ValueError):
                 inputs.integrals(path, source, 2, 1)
+            # Repeated packed pairs must agree to the decimal text; a dense
+            # FCIDUMP that lists (pq|rs) and (rs|pq) differently is refused.
+            for extra in ('0.1000000001 1 1 1 1\n', '0.2 2 1 0 0\n0.3 1 2 0 0\n'):
+                path.write_text('&FCI NORB=2,NELEC=1,MS2=1,\n&END\n0.1 1 1 1 1\n0.2 1 1 0 0\n3.5 0 0 0 0\n'+extra)
+                source['integrals_sha256'] = inputs.sha256(path)
+                with self.assertRaises(ValueError):
+                    inputs.integrals(path, source, 2, 1)
+            path.write_text('&FCI NORB=2,NELEC=1,MS2=1,\n&END\n0.1 1 1 2 2\n0.1 2 2 1 1\n0.2 2 1 0 0\n0.2 1 2 0 0\n')
+            source['integrals_sha256'] = inputs.sha256(path)
+            h, g, _ = inputs.integrals(path, source, 2, 1)
+            self.assertTrue(g[0, 2].contains(arb(fmpq(1, 10))) and h[1, 0].contains(arb(fmpq(1, 5))))
 
     def test_pickle_globals_and_non_range_http_fail_closed(self):
         with self.assertRaises(ValueError):
@@ -198,6 +296,32 @@ class ChemistryTest(unittest.TestCase):
             opener.return_value.__enter__.return_value.status = 200
             with self.assertRaises(ValueError):
                 fetch.download('https://example.org/a?download=1', 0, 10)
+        # Whole-resource downloads need a pinned size and stop one byte past it.
+        with self.assertRaises(ValueError):
+            fetch.download('https://example.org/a?download=1')
+        with patch('urllib.request.urlopen') as opener:
+            response = opener.return_value.__enter__.return_value
+            response.status = 200
+            response.read = lambda count=None: b'x'*min(count, 100)
+            with self.assertRaises(ValueError):
+                fetch.download('https://example.org/a?download=1', limit=50)
+            self.assertEqual(fetch.download('https://example.org/a?download=1', limit=100), b'x'*100)
+            self.assertEqual(fetch.download('https://example.org/a?download=1', limit=200), b'x'*100)
+        sources = json.loads((inputs.HERE/'sources.json').read_text())
+        self.assertGreater(sources['integrals_archive']['size'], 0)
+
+    def test_existing_base_payload_is_parsed_or_refused(self):
+        import corrected
+        spec = dict(n=2, r=1, b=1, c=1, eta=1, wb=[0.125], w=[0.75])
+        data = bytearray(b'FEMOSAS1')+struct.pack('<7Id', 1, 2, 1, 1, 1, 3, 1, 0.5)
+        data += struct.pack('<2d2I1d1d1I', 0.25, -0.5, 1, 2, 0.125, 0.75, 3)
+        const, eigs, ea, angles = corrected.read_payload(bytes(data), spec, 3)
+        self.assertEqual((const, eigs, ea, angles), (0.5, (0.25, -0.5), (1, 2), (3,)))
+        for bad in (data[:-4], data[:8]+struct.pack('<7Id', 1, 2, 1, 1, 1, 4, 1, 0.5)+data[44:],
+                    data[:44]+struct.pack('<2d2I1d1d1I', 0.25, -0.5, 1, 8, 0.125, 0.75, 3),
+                    data[:44]+struct.pack('<2d2I1d1d1I', 0.25, -0.5, 1, 2, 0.125, 0.5, 3)):
+            with self.assertRaises(ValueError):
+                corrected.read_payload(bytes(bad), spec, 3)
 
     def test_shipped_reports_remain_explicit_about_scope_and_obstruction(self):
         for name in ('reiher', 'li'):
@@ -208,6 +332,9 @@ class ChemistryTest(unittest.TestCase):
             self.assertFalse(r['end_to_end']['chemical_accuracy_certified'])
             self.assertFalse(r['factorization']['ground_energy_accuracy_decided'])
             self.assertGreater(Fraction(r['factorization']['witnesses']['any_scalar_shift_norm_lower_Ha']), Fraction(1, 625))
+            # Every module in the tool directory is pinned, so a planted file is
+            # detected, and every pinned hash is current.
+            self.assertEqual(set(r['checker_sha256']), {p.name for p in inputs.HERE.glob('*.py')})
             for file, digest in r['checker_sha256'].items():
                 self.assertEqual(inputs.sha256(inputs.HERE/file), digest)
             self.assertEqual(inputs.sha256(inputs.HERE/'sources.json'), r['inputs']['sources_sha256'])

@@ -115,16 +115,22 @@ def run(name, data, artifacts, out, proposal=None, precision=128):
     base_path = artifacts/(name+'-base.bin')
     base_proof, base_norm = propose_payload(spec, us, hshift, const, 26 if name == 'reiher' else 28, base_path)
     print(f'{name}: proposing signed factors', file=sys.stderr, flush=True)
+    path = artifacts/(name+'-signed.npz')
     if proposal is None:
         rows, signs, es, angles = propose(d, spec['n'])
     else:
         # A saved numerical proposal is untrusted and passes identical checks.
+        # Either eigenvector matrices or already-quantized angle words serve.
         with np.load(proposal, allow_pickle=False) as a:
-            rows, signs, es = a['rows'], a['signs'].astype(np.int8), a['e']
-            angles = np.array([[proposal_words([arb(float(x)) for x in mat[:, j]], 26)
-                                for j in range(spec['n'])] for mat in a['u']], dtype=np.uint32)
-    path = artifacts/(name+'-signed.npz')
-    np.savez_compressed(path, rows=rows, signs=signs, eigenvalues=es, angles=angles)
+            rows, signs = a['rows'], a['signs'].astype(np.int8)
+            es = a['eigenvalues'] if 'eigenvalues' in a else a['e']
+            if 'angles' in a:
+                angles = a['angles'].astype(np.uint32)
+            else:
+                angles = np.array([[proposal_words([arb(float(x)) for x in mat[:, j]], 26)
+                                    for j in range(spec['n'])] for mat in a['u']], dtype=np.uint32)
+    if proposal is None or proposal.resolve() != path.resolve():
+        np.savez_compressed(path, rows=rows, signs=signs, eigenvalues=es, angles=angles)
     print(f'{name}: interval-checking {len(rows)} signed factors', file=sys.stderr, flush=True)
     fit = certify_factorization(d, rows, signs, spec['n'])
     del d

@@ -124,6 +124,9 @@ def integrals(path, source, n, eta):
     checked(path, source['integrals_sha256'])
     m = n*(n+1)//2
     g, h, core = arb_mat(m, m), arb_mat(n, n), arb(0)
+    # A dense FCIDUMP repeats each packed pair up to eight times. The target is
+    # only well defined if every repetition carries the same decimal text.
+    seen_g, seen_h = {}, {}
     with pathlib.Path(path).open() as f:
         header = ''
         for line in f:
@@ -142,8 +145,12 @@ def integrals(path, source, n, eta):
                 raise ValueError('invalid FCIDUMP coefficient/index')
             if min(p, q, s, t) > 0:
                 a, b = pair(p-1, q-1), pair(s-1, t-1)
+                if seen_g.setdefault((min(a, b), max(a, b)), value) != value:
+                    raise ValueError('conflicting FCIDUMP two-electron coefficient')
                 g[a, b] = g[b, a] = v
             elif p > 0 and q > 0 and s == t == 0:
+                if seen_h.setdefault(pair(p-1, q-1), value) != value:
+                    raise ValueError('conflicting FCIDUMP one-electron coefficient')
                 h[p-1, q-1] = h[q-1, p-1] = v
             elif p == q == s == t == 0:
                 core = v

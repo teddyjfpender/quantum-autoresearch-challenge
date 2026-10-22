@@ -71,6 +71,39 @@ class PolicyTest(unittest.TestCase):
         changes = policy.parse_raw(raw)
         self.assertEqual([(c.status, c.path) for c in changes], [("M", "challenges/femoco/src/walk/a.rs"), ("A", "x y")])
 
+    def test_source_scan_closes_indirections(self):
+        bad = {
+            "cfg_attr path (loads an unscanned .md as a module)": '#[cfg_attr(all(), path = "notes.md")]\nmod evil;\n',
+            "cfg_attr no_mangle": "#[cfg_attr(any(), no_mangle)]\npub fn getenv() {}\n",
+            "inner attribute": "#![cfg_attr(all(), link_section = \"x\")]\n",
+            "macro-forwarded attribute": 'macro_rules! m { ($m:meta) => { #[$m] mod evil; } }\nm!(path = "notes.md");\n',
+            "macro-forwarded attribute, spaced": "macro_rules! m { ($a:ident) => { # [ $a ] fn f() {} } }\n",
+            "aliased include": 'use std::include_str as rd;\nconst X: &str = rd!("/etc/passwd");\n',
+            "core include in a use list": "use core::{include_bytes as b};\n",
+            "unix socket": "use std::os::unix::net::UnixStream;\n",
+            "unix socket by name": 'fn f() { let _ = UnixStream::connect("/run/x"); }\n',
+            "embedded http server": 'fn f() { tiny_http::Server::http("0.0.0.0:80").unwrap(); }\n',
+            "process": "use std::{io, process};\n",
+        }
+        for name, body in bad.items():
+            self.assertTrue(policy.scan_source(f"{F}/src/walk/x.rs", body.encode()), name)
+        fine = (
+            "#[allow(unused)]\n#[allow(clippy::used_underscore_binding, clippy::path_buf_push_overwrite)]\n"
+            "#[cfg_attr(test, allow(dead_code))]\n#[must_use]\n#[derive(Clone)]\nstruct S { path: u32 }\n"
+            "pub fn include_terms() -> u32 { let path = std::process::id(); path }\n"
+            '// include!("not code") #[path = "x"]\nconst T: &str = "include_str!(\\"x\\") #[path = \\"y\\"]";\n'
+            'pub const ARCH: Option<&str> = option_env!("FEMOCO_WALK_ARCH");\n'
+        )
+        self.assertEqual(policy.scan_source(f"{F}/src/walk/ok.rs", fine.encode()), [])
+
+    def test_parse_raw_tolerates_non_utf8_paths(self):
+        raw = b":000000 100644 0000 cccc A\0challenges/femoco/src/walk/\xff.rs\0"
+        changes = policy.parse_raw(raw)
+        self.assertEqual(len(changes), 1)
+        verdict = policy.evaluate(self.submission(*changes))
+        self.assertFalse(verdict.ok)
+        self.assertIn("characters outside", " ".join(verdict.errors))
+
     def test_registry_append_only(self):
         entry = {"id": "new-arch", "name": "New", "mechanism": "m" * 200, "distinguishing": "d" * 100, "references": []}
         old = {"schema": "s", "architectures": [{"id": "a"}]}

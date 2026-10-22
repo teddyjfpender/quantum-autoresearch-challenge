@@ -54,16 +54,22 @@ is published in the row, so the run can be repeated exactly.
 
 FeMoco runs two stages, set in its `benchmark.json`:
 
-| Stage | Engine | Lanes |
-| --- | --- | ---: |
-| Screen | reference | 4,096 |
-| Full | sliced | 524,288 |
+| Stage | Engine | Lanes | Reflection check |
+| --- | --- | ---: | --- |
+| Screen | reference | 4,096 | off |
+| Full | sliced | 524,288 | opt-in (`--reflection-check`); required by the evaluator's default from 16,777,216 lanes |
 
 The reference engine is the original, straightforward evaluator. The sliced engine is a faster
 implementation of the same checks; its design, its equivalence evidence and its limits are in
 `challenges/femoco/spec/FAST-EVALUATOR.md`. Both must pass. Every lane must satisfy every
 check; no failed lane is allowed. Gaussian quantum comparisons use the tolerances specified
-by that tracker.
+by that tracker. `score.json` reports the bound the sampled lanes give on the encoded
+operator's distance from the declared one (`metrics.bound_mHa`: 37 mHa on Reiher and 114 mHa
+on Li at the full stage) and whether it is unconditional
+(`metrics.sampling_limits.bound_certified`), which it is only when the reflection check
+(`challenges/femoco/spec/SAMPLING.md` section 4.1) certified the step Hermitian on every
+lane. It is a bound on the operator the circuit encodes, not on the chemistry or the rotation
+approximation.
 
 The staging `reiher-rigorous` and `li-rigorous` tracks add deterministic coverage at the full
 stage: one representative of every reachable selected-term pair, under both controls and
@@ -136,3 +142,20 @@ capabilities. Historical estimated rows retain their original verifier digest. A
 track may declare a pending baseline linked to its local promotion catalogue while it waits
 for fresh authenticated submissions. Local promotion evidence never becomes a signed row
 through a maintainer edit, and pending baselines are forbidden for live tracks.
+
+**Proposed, not yet started: a `femoco-certified-bound-v3` epoch.** It would change the full
+stage of every FeMoco track in two ways: `2^24` lanes instead of `2^19`, which brings the
+sampled bound on the encoded operator from 37 / 114 mHa (Reiher / Li) to 1.15 / 3.55 mHa; and
+the reflection check in `require` mode, which the evaluator already applies by default at or
+above `2^24` lanes, so that the bound no longer rests on the Hermiticity assumption that
+sampling cannot check (`challenges/femoco/spec/SAMPLING.md` sections 1.1 and 4.2). A circuit
+the check does not certify would be refused at the full stage. The acceptance rule, the score
+and every per-lane check would be unchanged, and the counts of rows made under the earlier
+epochs are not expected to change on re-validation. What holds it back is measured in
+SAMPLING.md 4.1 and 4.2: the check's peak memory on the Li circuits (13 to 28 GB as measured
+on macOS, against the 16 GB of the `ubuntu-24.04` runner) and its single-threaded time on the
+Li track, so the epoch needs a larger runner or a split of the certificate into a job of its
+own before `benchmark.json` changes. Meanwhile `score.json` carries `metrics.bound_mHa` and
+`metrics.sampling_limits.bound_certified` on every run; the ledger row does not carry the
+bound until the row schema is extended (`tools/qac/ledger.py`, LEDGER.md), a separate
+change.

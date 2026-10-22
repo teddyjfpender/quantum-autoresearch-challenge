@@ -16,7 +16,8 @@ from flint import arb, arb_mat, ctx
 from inputs import HERE, ROOT, factors, integrals, payload, sha256
 from bounds import (ball, determinant_energy, determinant_witnesses, enclosure,
                     factor_rows, fit_norm, precision_sweep, projector, qpe_plan,
-                    rational, residual, rotation_bound, shifted_one_body, upper)
+                    rational, residual, rotation_bound, shifted_one_body,
+                    spectral_fit_norm, upper)
 
 
 def budget(fit, rotation, coefficient=Fraction(1, 5000), phase=Fraction(1, 1000)):
@@ -92,7 +93,11 @@ def certify(name, data, precision=128):
     d = residual(rows, g, hs, spec['n'])
     fit = fit_norm(d, spec['n'])
     witnesses = determinant_witnesses(d, spec['n'], spec['eta'])
+    print(f'{name}: certifying signed-square spectral bound on the residual', file=sys.stderr, flush=True)
+    spectral = spectral_fit_norm(d, spec['n'])
     del d, g
+    # Both are certified upper bounds on the same operator norm; take the smaller.
+    fit_upper = min(upper(fit), Fraction(spectral['upper_Ha']))
     rotation = rotation_bound(spec, us, hshift, const)
     print(f'{name}: validating rotation proposals and Slater witness', file=sys.stderr, flush=True)
     sweep = precision_sweep(spec, us, hshift, const, (20, 24, 26, 28))
@@ -121,9 +126,11 @@ def certify(name, data, precision=128):
                    'slater_certificate_sha256': sha256(directory/'certificate.json'),
                    'sources_sha256': sha256(HERE/'sources.json')},
         'checker_sha256': {p.name: sha256(p) for p in sorted(HERE.glob('*.py'))},
-        'factorization': {'operator_norm_upper_Ha': str(upper(fit)),
+        'factorization': {'operator_norm_upper_Ha': str(fit_upper),
+                          'operator_norm_upper_rule': 'min(entrywise triangle bound, signed-square spectral bound)',
                           'triangle_bound_expression_enclosure': enclosure(fit),
                           'enclosure_scope': 'interval for the triangle-bound expression, not an interval for the operator norm',
+                          'spectral_bound': spectral,
                           'witnesses': witnesses,
                           'chemical_accuracy_operator_norm_excluded_even_after_scalar_shift':
                               Fraction(witnesses['any_scalar_shift_norm_lower_Ha']) > Fraction(1, 625),
@@ -132,7 +139,7 @@ def certify(name, data, precision=128):
         'rotation_precision_proposals': sweep,
         'stored_hamiltonian_variational_certificate': variational_report,
         'conditional_qpe_plan': qpe_plan(norm),
-        'end_to_end': budget(upper(fit), rotation['upper_Ha']),
+        'end_to_end': budget(fit_upper, rotation['upper_Ha']),
         'full_quantum_equivalence_scope': 'See PR #7; this checker proves Hamiltonian inequalities, not circuit equivalence.',
     }
     return result

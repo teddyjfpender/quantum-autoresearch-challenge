@@ -15,26 +15,29 @@
     "python_flint": "0.8.0",
     "flint": "3.3.1",
     "numpy": "2.3.5",
-    "python": "3.12.14",
+    "python": "3.14.6",
     "precision_bits": 128,
     "proposal_reproducibility": "eigenpair bytes can vary with BLAS; every proposal is re-certified"
   },
   "checker_sha256": {
-    "bounds.py": "a93f51396e9c063a18c81451032977ba0593c34757b562d4131ce5a4be0388ff",
-    "certify.py": "9b90c750490ee273c035c8ae87fc2fb7c70c6cceece301fa8e3fd177b50017ad",
-    "corrected.py": "c5637fc9041b919e7029543c6418807029b685d59d478ca9dbac605d1bfcdc96",
-    "fetch.py": "63a3dbe757ca6b5675828b0742ec846f02b34e70d26874de9de5b2ff5ee0b27c",
-    "inputs.py": "e35896e8b039c1de67070dea7f35a7f92a8b82a3aed85cc7c0e49c20e64abe9d"
+    "bounds.py": "3418006d163853dc12ac60576f2c393f7ca992acbde777818c98209af35b11a7",
+    "certify.py": "727b273d864627af51526b51be92e1d7e397dac51daf9890993e0b2828c86167",
+    "combined.py": "bf15839633e7f58311fc6653ecedd665efe813eadd7d5beb52573fa02cdb9dcc",
+    "corrected.py": "65b0c5d56329905f8f4c1dbc2a5b9205d42ec04216afcf032b213d787b98dd8d",
+    "fetch.py": "dfc86cc171ca0280d6a39522ca939fcfcc37640feab0b523350ac0ab99c33224",
+    "inputs.py": "63ddcd3d60c7efe8786624191d91e5dd672024f25c5260e00314b094520b1c6f",
+    "signed_df.py": "38efc4e0e4c4e93ddf19942308bfe65a96b53a8e0af0ee80299704f9c832877a"
   },
-  "base_payload_sha256": "1870647d120215b68418a1baef000bd83d356ee48c8c5aacaa6e037d667befff",
-  "base_normalization_Ha": "144452684779959335937452516245/2475880078570760549798248448",
+  "base_payload_sha256": "c14f590d01c5d67735f3fd715a7f1e864cb0cc2a65c83ac1ccbd849ca6f8e017",
+  "base_normalization_Ha": "144452684779959342111593833365/2475880078570760549798248448",
   "rotation_and_preprocessing": {
-    "upper_Ha": "142074210196381750080983055190495199467/2787593149816327892691964784081045188247552",
-    "upper_mHa_display": 0.05096662337749786,
-    "one_body_upper_Ha": "4954525432358709659264808550075399511/1393796574908163946345982392040522594123776",
-    "squares_upper_Ha": "132165157173510121347073082690024514141/2787593149816327892691964784081045188247552",
+    "upper_Ha": "3928747133311368213419520435982378783/87112285931760246646623899502532662132736",
+    "upper_mHa_display": 0.04509980528336689,
+    "one_body_upper_Ha": "834856380652072703980755736039141/340282366920938463463374607431768211456",
+    "squares_upper_Ha": "14511811845398900613163323676938915/340282366920938463463374607431768211456",
     "scalar_upper_Ha": "67442319044230636106259996447/87112285931760246646623899502532662132736",
-    "rotation_bits": 26
+    "rotation_bits": 26,
+    "proposal_source": "existing payload re-validated"
   },
   "compression": {
     "triangle_entries": 1103355,
@@ -189,18 +192,18 @@
         ]
       },
       "artifact_sha256": "3dda442a27dc24f073adf2bf8473c22993f71df76ceb0652fb22831405a5ab9f",
-      "explicit_hamiltonian_error_upper_Ha": "373642014569424516844634035303462852099/5575186299632655785383929568162090376495104",
-      "explicit_hamiltonian_error_upper_mHa_display": 0.06701874959659078,
+      "explicit_hamiltonian_error_upper_Ha": "340933410708588582341517232825344695277/5575186299632655785383929568162090376495104",
+      "explicit_hamiltonian_error_upper_mHa_display": 0.061151931502459816,
       "conditional_encoded_budget": {
-        "rotation_preprocessing_Ha": "142074210196381750080983055190495199467/2787593149816327892691964784081045188247552",
+        "rotation_preprocessing_Ha": "3928747133311368213419520435982378783/87112285931760246646623899502532662132736",
         "correction_Ha": "89493594176661016682667924922472453165/5575186299632655785383929568162090376495104",
         "correction_alias_Ha": "253096836241452145/37778931862957161709568",
         "base_nested_coefficients_reserved_Ha": "1/5000",
         "outer_combination_reserved_Ha": "1/100000",
         "phase_estimation_reserved_Ha": "1/1000",
-        "hamiltonian_total_upper_Ha": "4943067618763673079843972547446478630384287/17422457186352049329324779900506532426547200000",
-        "total_with_QPE_Ha": "22365524805115722409168752447953011056931487/17422457186352049329324779900506532426547200000",
-        "total_with_QPE_mHa_display": 1.2837181670697888,
+        "hamiltonian_total_upper_Ha": "4840853231698560784521732539702359390315537/17422457186352049329324779900506532426547200000",
+        "total_with_QPE_Ha": "22263310418050610113846512440208891816862737/17422457186352049329324779900506532426547200000",
+        "total_with_QPE_mHa_display": 1.2778513489756578,
         "budget_fits_1_6_mHa": true,
         "chemical_accuracy_certified": false,
         "missing": [
@@ -214,10 +217,12 @@
       "conditional_qpe_plan": {
         "energy_error_Ha": "1/1000",
         "failure_probability": "1/100",
-        "normalization_Ha": "673521514721256932939836138389/2475880078570760549798248448",
-        "phase_register_qubits": 27,
-        "controlled_walk_uses": 134217727,
-        "tail_bins": 51,
+        "normalization_Ha": "673521514721256939113977455509/2475880078570760549798248448",
+        "phase_register_qubits": 26,
+        "controlled_walk_uses": 67108863,
+        "tail_bins": 22,
+        "tail_probability_upper": "216358040065114050964969174718829079423/21778071482940061661655974875633165533184",
+        "tail_rule": "min(c(1/L+1/(L-1))+2^(4-m), 1/[2(L-1)]), c=1/(pi^2(1-pi^2/384)^2)",
         "conditional_on": "exact eigenstate and exact controlled walk/QFT",
         "includes_state_preparation_or_gate_synthesis": false
       }
@@ -358,18 +363,18 @@
         ]
       },
       "artifact_sha256": "52ca355ac6eaf61dda1882ed5221e093d58c350dd052c354f6008aff84a39b69",
-      "explicit_hamiltonian_error_upper_Ha": "2975699996177107202941059660616891854061/11150372599265311570767859136324180752990208",
-      "explicit_hamiltonian_error_upper_mHa_display": 0.26687000543579803,
+      "explicit_hamiltonian_error_upper_Ha": "2910282788455435333934826055660655540417/11150372599265311570767859136324180752990208",
+      "explicit_hamiltonian_error_upper_mHa_display": 0.26100318734166705,
       "conditional_encoded_budget": {
-        "rotation_preprocessing_Ha": "142074210196381750080983055190495199467/2787593149816327892691964784081045188247552",
+        "rotation_preprocessing_Ha": "3928747133311368213419520435982378783/87112285931760246646623899502532662132736",
         "correction_Ha": "2407403155391580202617127439854911056193/11150372599265311570767859136324180752990208",
         "correction_alias_Ha": "63207311882218267/9444732965739290427392",
         "base_nested_coefficients_reserved_Ha": "1/5000",
         "outer_combination_reserved_Ha": "1/100000",
         "phase_estimation_reserved_Ha": "1/1000",
-        "hamiltonian_total_upper_Ha": "16849688327497004955739944090443444557490449/34844914372704098658649559801013064853094400000",
-        "total_with_QPE_Ha": "51694602700201103614389503891456509410584849/34844914372704098658649559801013064853094400000",
-        "total_with_QPE_mHa_display": 1.4835623398947502,
+        "hamiltonian_total_upper_Ha": "16645259553366780365095464074955206077352949/34844914372704098658649559801013064853094400000",
+        "total_with_QPE_Ha": "51490173926070879023745023875968270930447349/34844914372704098658649559801013064853094400000",
+        "total_with_QPE_mHa_display": 1.4776955218006191,
         "budget_fits_1_6_mHa": true,
         "chemical_accuracy_certified": false,
         "missing": [
@@ -383,10 +388,12 @@
       "conditional_qpe_plan": {
         "energy_error_Ha": "1/1000",
         "failure_probability": "1/100",
-        "normalization_Ha": "673521019851174243474074215317/2475880078570760549798248448",
-        "phase_register_qubits": 27,
-        "controlled_walk_uses": 134217727,
-        "tail_bins": 51,
+        "normalization_Ha": "673521019851174249648215532437/2475880078570760549798248448",
+        "phase_register_qubits": 26,
+        "controlled_walk_uses": 67108863,
+        "tail_bins": 22,
+        "tail_probability_upper": "216358040065114050964969174718829079423/21778071482940061661655974875633165533184",
+        "tail_rule": "min(c(1/L+1/(L-1))+2^(4-m), 1/[2(L-1)]), c=1/(pi^2(1-pi^2/384)^2)",
         "conditional_on": "exact eigenstate and exact controlled walk/QFT",
         "includes_state_preparation_or_gate_synthesis": false
       }

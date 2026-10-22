@@ -612,8 +612,14 @@ fn flag_absent_output_is_unchanged() {
 }
 
 /// SHA-256 of the toy circuit's `score.json` (wall clock removed) at 4,096 lanes, computed at
-/// the commit before the outcome-coverage mode (6190b2e) with the same serialization.
-const GOLDEN: &str = "2684f06b451c8efb1e21731536a9546954eab09b30040c6a71bc9f956ce06a87";
+/// the commit before the outcome-coverage mode (6190b2e) with the same serialization, and
+/// re-pinned when the evaluator gained (ahead of the proposed `femoco-certified-bound-v3` epoch) `metrics.bound_mHa` and the
+/// bound fields of `metrics.sampling_limits` (`wrong_weight_bound_exact`, `wrong_weight_formula`,
+/// `implied_error_bound_mHa`, `implied_error_bound_grinding_mHa`, `tracker_tolerance_bound_*`,
+/// `bound_formula`, `chemical_accuracy_mHa`, `bound_certified`, `certified_bound_mHa`,
+/// `below_chemical_accuracy`, `reflection_required_from_samples`) to every run. The previous
+/// pin was 2684f06b451c8efb1e21731536a9546954eab09b30040c6a71bc9f956ce06a87.
+const GOLDEN: &str = "8c7f34d9271783b675d7b759b7f1427c56da84a57b7d82f15d1f51c92e29157e";
 
 /// (i) More distinct rare conditions than the cap: refused, stating the cap.
 #[test]

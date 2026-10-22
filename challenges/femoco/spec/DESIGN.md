@@ -405,6 +405,14 @@ Hermitian) or a `Rotated` product (section 6).
 - **Sample count.** `K = 2^19` by default; `--samples K` overrides. Every sampled lane must pass.
   `score.json` records `K` and `f_bound = ln(1/delta) / K` with `delta = 1e-6`: with confidence
   `1 - delta`, at most a fraction `f_bound` of lanes are wrong (`2.6e-5` at the default `K`).
+  The judge's full stage draws `2^19` lanes (`benchmark.json` `validation.full.samples`). From
+  `2^24` lanes (`score::CERTIFYING_SAMPLES`, the count at which the Reiher bound is below
+  chemical accuracy) the reflection check below runs in `require` mode unless
+  `--reflection-check off|report` is given, so that a bound a reader will compare with
+  chemical accuracy is never reported without the certificate that makes it unconditional.
+  `metrics.bound_mHa` is the single-draw bound in millihartree, the tracker's tolerance term
+  included (16.4), and `metrics.sampling_limits.bound_certified` says whether the check
+  certified it.
 - **Implied error bound.** Only control-1 lanes test the encoded operator, and about half the
   lanes have control 0, so the bound counts control-1 lanes only. A circuit wrong on every
   control-1 lane of a fraction `g` of uniform values has only `g / 2` of its lanes wrong but is
@@ -422,11 +430,12 @@ Hermitian) or a `Rotated` product (section 6).
   [SAMPLING.md](SAMPLING.md) works this out, with the lanes each kind of statement would need,
   and `score.json` reports the condition and the scale beside the bound
   (`metrics.sampling_limits`).
-- **Reflection check** (`eval_circuit --reflection-check report|require`, opt-in;
-  `src/sim/reflection.rs`, tests in `tests/reflection.rs`). A static analysis of the op stream
-  that either proves the condition above for the circuit at hand, on every lane and for every
-  outcome record, or reports the first obstruction. Section 16.6 gives its rules. Without the
-  flag it does not run and every output is unchanged.
+- **Reflection check** (`eval_circuit --reflection-check off|report|require`; by default
+  `require` at or above `2^24` lanes and `off` below; `src/sim/reflection.rs`, tests in
+  `tests/reflection.rs`). A static analysis of the op stream that either proves the condition
+  above for the circuit at hand, on every lane and for every outcome record, or reports the
+  first obstruction. Section 16.6 gives its rules. In mode `off` it does not run and every
+  output is unchanged.
 - **Grinding.** The seed commits to every input, but any byte of `family.out.json` or `ops.bin`
   is a free nonce, so a submitter who knows which lanes are wrong can search offline for a draw
   that misses them. This is inherent to Fiat-Shamir with a cheap verifier. `score.json` therefore
@@ -975,6 +984,52 @@ the identity, not `A`: counting all lanes would understate the bound by about a 
 `score.json` `metrics.nested` reports `f_paired` and `f_diagonal` over all paired and diagonal
 lanes, and the control-1 counts the bound uses.
 
+Why each step holds, and how tight it is:
+
+- *The per-class fraction.* The lanes of a class are drawn independently and uniformly from
+  it (section 9), so if a fraction `f` of the class is wrong, `K` draws all pass with
+  probability `(1 - f)^K`. That is below `delta` exactly when `f > 1 - delta^(1/K)`, so with
+  confidence `1 - delta` the wrong fraction is at most `1 - delta^(1/K) = 1 - exp(-x)` for
+  `x = ln(1/delta) / K`, which is below `x`. The bound uses `x`; the exact form is smaller by
+  about `x / 2` relative, `5e-5` at `2^19` lanes and `2e-6` at `2^24`
+  (`metrics.sampling_limits.wrong_weight_bound_exact`). The class sizes `K_p1`, `K_d1` are
+  the drawn counts, so the statement is conditional on them and needs no estimate of
+  `K / 4`. The two classes are joined by a union bound: confidence `1 - 2 delta`.
+- *Lanes are the operator's measure.* `A = lambda_decl E_s [2 E_b R(s, b) - R(s, a)]` (16.2)
+  averages uniformly over uniform values and second-pass values, because the uniform register
+  is prepared in `|+>^u` and the alias tables give a term its weight by the *number* of lanes
+  that name it, not by an amplitude. A paired tuple `(s, b)` carries weight `2 / 2^(u + w)`
+  of `lambda_decl` and a diagonal lane `s` weight `1 / 2^u`, every tuple of a class the
+  same. So the fraction of wrong tuples is the fraction of the class's operator weight on
+  wrong tuples, and counting lanes is weighting them. The factor 2 on the paired class is the
+  `2 |+><+| - I` of the inner reflection.
+- *From weight to norm.* Each lane operator is a unitary on the system register (a
+  permutation-and-phase circuit), or, on a lane that leaves an ancilla dirty, the projection
+  of one onto the ancilla-0 subspace, of norm at most 1; so is the reference. A wrong tuple
+  therefore moves its term by at most 2 in operator norm, and the triangle inequality over
+  the tuples gives `2 lambda_decl (2 f_p1 + f_d1)`. The factor 2 is attained by a sign flip.
+  By Weyl's inequality the same figure bounds the shift of every eigenvalue of
+  `lambda_decl A`, the encoded `H_SA`, once both operators are Hermitian; that is what the
+  reflection check (16.6) establishes.
+- *The tracker's tolerance.* A lane the Gaussian tracker passed is right to `AD_TOL = 1e-11`
+  (15.2), which leaves up to `(pi/2) sqrt(n) (2 n AD_TOL) / sqrt(8)` per lane open: `1.3e-8` at
+  `n = 108`, `2.1e-8` at `n = 152`, and `lambda_decl` times that over the whole operator,
+  `7.3e-7` Ha (Reiher) and `3.7e-6` Ha (Li). It is in neither `rounding_error` nor
+  `implied_error_bound`; `score.json` names it
+  (`metrics.sampling_limits.tracker_tolerance_bound_mHa`) and adds it to `metrics.bound_mHa`
+  and `certified_bound_mHa`. It is 0 for a spec whose lane comparison is exact.
+- *What is not in the bound.* Control-0 lanes are not part of `A`; they are checked on
+  `K_0 ~ K / 2` lanes and a wrong one is a stochastic error of the controlled walk, not a shift
+  of its eigenphase. Lanes that were not drawn are bounded only in weight, never excluded.
+  The grinding variant (`2^40` re-draws) applies to a self-chosen seed; a judge row's seed is
+  keyed (spec/LEDGER.md) and the single-draw figure is its bound.
+- *What would tighten it, and by how much.* The exact Bernoulli form: `5e-5` relative.
+  Drawing the paired and diagonal classes in the ratio `sqrt(2) : 1` instead of `1 : 1`: 3%.
+  Deterministic coverage of the lane space: the `terms` mode enumerates one lane per reachable
+  term pair, a `2^-30` fraction of the `2^(u + w)` tuples of a headline circuit, and no lane
+  it did not run is covered by it. None is worth a seed-stream change; the lever is the lane
+  count, `g ~ 12 ln(1/delta) / K`, and the certificate that makes the bound unconditional.
+
 What it cannot certify:
 
 - Lanes that were not drawn, as for a flat lane map.
@@ -1015,12 +1070,15 @@ item count has `keep = 0`, and every `keep` is below `2^mu`.
 
 ### 16.6 The reflection check
 
-`eval_circuit --reflection-check report|require` (opt-in; `src/sim/reflection.rs`, decision
-diagrams in `src/sim/reflection/bdd.rs`, rule set `reflection-v3`). It runs after every sampled
-lane has passed, reads the op stream and the compiled registers only, and changes no count or
-bound. With `report` its result goes to `metrics.reflection` and the run passes or fails as
-without the flag. With `require` a step that is not certified is rejected with
-`reflection-check: not certified: op I (KIND): reason [kind]`. [SAMPLING.md](SAMPLING.md) section
+`eval_circuit --reflection-check off|report|require` (`src/sim/reflection.rs`, decision
+diagrams in `src/sim/reflection/bdd.rs`, rule set `reflection-v3`). Without the flag the mode
+is `require` at or above `score::CERTIFYING_SAMPLES` (`2^24` lanes) and `off` below it. It runs after every sampled lane has passed, reads the op stream and the
+compiled registers only, and changes no count or bound. With `report` its result goes to
+`metrics.reflection` and the run passes or fails as without the flag. With `require` a step
+that is not certified is rejected with
+`reflection-check: not certified: op I (KIND): reason [kind]`. When it certifies,
+`metrics.sampling_limits.bound_certified` is `true` and `certified_bound_mHa` repeats the
+bound. [SAMPLING.md](SAMPLING.md) section
 4.1 states what a certificate does and does not mean, and what the ledger's circuits get.
 
 **Scope.** Nested lane maps whose control-1 lanes keep their uniform value (`df-nested-alias-v1`,

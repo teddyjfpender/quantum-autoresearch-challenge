@@ -23,15 +23,27 @@ SAFE_PATH = re.compile(r"\A[A-Za-z0-9_./-]+\Z")
 FORBIDDEN_SOURCE = [
     (re.compile(r"\bunsafe\b"), "unsafe"),
     (re.compile(r"\bextern\b"), "extern"),
-    (re.compile(r"\binclude(?:_bytes|_str)?\s*!"), "include!, include_str! or include_bytes!"),
+    # The macro itself, not only its invocation: `use std::include_str as rd; rd!(..)` would
+    # otherwise read any file at compile time under a name the scan does not know.
+    (re.compile(r"\binclude(?:_bytes|_str)?\b"), "include!, include_str! or include_bytes!"),
     (re.compile(r"\b(?:global_)?asm\s*!"), "asm!"),
-    (re.compile(r"#\s*!?\s*\[\s*(?:link|no_mangle|export_name|path|used|link_section)\b"), "a linkage or path attribute"),
+    # Anywhere inside the attribute, so `#[cfg_attr(all(), path = "notes.md")]` (which loads an
+    # unscanned .md file as a module) is seen as well as the bare `#[path = ..]`.
+    (
+        re.compile(r"#\s*!?\s*\[[^\]]*?\b(?:link|no_mangle|export_name|path|used|link_section)\b\s*(?:=|\(|,|\)|\])"),
+        "a linkage or path attribute",
+    ),
+    # An attribute built from a macro fragment (`#[$m]`) can carry any of the above past the
+    # scan, so attributes are never assembled from fragments in circuit code.
+    (re.compile(r"#\s*!?\s*\[\s*\$"), "a macro-generated attribute"),
     (re.compile(r"\bstatic\s+mut\b"), "static mut"),
     (
         re.compile(
             r"\bstd\s*::\s*(?:process\s*::\s*(?!id\b)|net\b)"
             r"|\buse\s+std\s*::\s*\{[^}]*\b(?:process|net)\b"
             r"|\bCommand\b|\bTcp(?:Stream|Listener)\b|\bUdpSocket\b"
+            # Unix-domain sockets live under std::os, and the crate depends on an HTTP server.
+            r"|\bstd\s*::\s*os\s*::\s*\w+\s*::\s*net\b|\bUnix(?:Stream|Listener|Datagram)\b|\btiny_http\b"
         ),
         "process or network access",
     ),
@@ -85,7 +97,8 @@ def parse_raw(raw: bytes) -> list[Change]:
         parts = meta[1:].split()
         if len(parts) != 5:
             raise ContractError("unreadable diff record")
-        path = fields[i + 1].decode("utf-8", "strict")
+        # A path that is not UTF-8 is refused by the policy as unsafe, not by a crash of the judge.
+        path = fields[i + 1].decode("utf-8", "replace")
         changes.append(Change(parts[4][0], parts[0], parts[1], path))
         i += 2
     return changes

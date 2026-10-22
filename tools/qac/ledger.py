@@ -12,6 +12,7 @@ import decimal
 import hashlib
 import hmac
 import pathlib
+import re
 
 from .common import HEX64, ContractError
 
@@ -27,6 +28,9 @@ UNSIGNED = "unsigned"
 GENESIS = "0" * 64
 SEED_DOMAIN = b"qac-lane-seed-v1"
 MAC_DOMAIN = b"qac-ledger-row-v1"
+# The family name is copied by the evaluator from the builder's family.out.json, so it is the
+# one cell of a row that submission code writes; keep it a short plain identifier.
+FAMILY_NAME = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9 _.:+/-]{0,127}\Z")
 
 
 def derive_seed(key: bytes, ops: str, lanemap: str, family: str) -> str:
@@ -178,6 +182,9 @@ def row_from_score(score: dict, *, track: dict, architecture: str, engine: str, 
     if metrics["spec"] != track["spec"]:
         raise ContractError(f"score.json is for spec {metrics['spec']}, the track needs {track['spec']}")
     digests = metrics["digests"]
+    family_name = clean(metrics["family"]["name"])
+    if not FAMILY_NAME.match(family_name):
+        raise ContractError("score.json: the family name must be 1-128 characters of A-Z a-z 0-9 space _.:+/-")
     toffoli, qubits = f"{float(metrics['toffoli']):.3f}", int(metrics["qubits"])
     return {
         "unix_time": str(unix_time), "track": track["name"], "spec": track["spec"], "architecture": architecture,
@@ -186,7 +193,7 @@ def row_from_score(score: dict, *, track: dict, architecture: str, engine: str, 
         "toffoli": toffoli, "qubits": str(qubits), "score": score_of(toffoli, qubits),
         "samples": str(int(metrics["samples"])), "engine": engine, "seed": seed,
         "ops_sha256": digests["ops"], "lanemap_sha256": digests["lanemap"], "family_sha256": digests["family"],
-        "family_name": metrics["family"]["name"], "verifier_sha256": verifier, "commit": commit, "pr": pr,
+        "family_name": family_name, "verifier_sha256": verifier, "commit": commit, "pr": pr,
         "author": author, "model": model, "harness": harness, "submission": submission, "kind": kind,
         "standing": "", "status": "OK", "note": clean(note), "mac": UNSIGNED,
     }

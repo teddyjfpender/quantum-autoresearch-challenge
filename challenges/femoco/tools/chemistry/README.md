@@ -10,7 +10,7 @@ convention, 43x/69x in Toffolis x qubits for one step. What is assumed and what
 is missing for a full algorithm is stated there.
 
 The follow-up [explicit correction experiment](CORRECTED.md) constructs new
-Hamiltonians with certified target errors below 0.267/0.261 mHa, rebuilds the
+Hamiltonians with certified target errors below 0.262/0.252 mHa, rebuilds the
 higher-precision base circuits and measures sparse compression's limited benefit.
 Its correction resource counts are analytical bounds; it is not a complete
 ground-energy algorithm.
@@ -30,18 +30,34 @@ decisions use outward rational endpoints, never rounded display values.
 
 | Quantity | Reiher | Li |
 | --- | ---: | ---: |
-| Certified DFTHC fit norm upper bound | 213.690 Ha | 71.160 Ha |
+| Certified DFTHC fit norm upper bound (entrywise triangle bound) | 213.690 Ha | 71.160 Ha |
+| Certified DFTHC fit norm upper bound (signed-square spectral bound, reported) | 64.793 Ha | 45.010 Ha |
 | Certified fit norm lower bound, valid after **every** scalar shift | >47.500 mHa | >21.340 mHa |
-| Current rotation + preprocessing upper bound | <52.935 mHa | <368.441 mHa |
-| Proposed 26-bit rotation + preprocessing upper bound | <0.0510 mHa | <0.1794 mHa |
-| Proposed 28-bit rotation + preprocessing upper bound | <0.0129 mHa | <0.0450 mHa |
+| Current rotation + preprocessing upper bound | <46.838 mHa | <296.298 mHa |
+| Proposed 26-bit rotation + preprocessing upper bound | <0.0452 mHa | <0.1444 mHa |
+| Proposed 28-bit rotation + preprocessing upper bound | <0.0115 mHa | <0.0363 mHa |
 | Stored-Hamiltonian Slater energy (display only, Ha) | -13481.964620369854 | -1118.3560829297053 |
 
 Upper-bound rows are conservatively rounded upward; lower-bound rows downward.
-The fit upper bounds are about four times smaller than the old float64-evaluated
-`2 sum |D|` estimates. They still do not fit a chemical-accuracy budget. **A large
-upper bound is not evidence of a large ground-energy error.** The determinant
-witnesses establish a lower bound on an operator norm, not on ground-energy error.
+The triangle bounds are about four times smaller than the old float64-evaluated
+`2 sum |D|` estimates, and the spectral bounds a further 3.3x/1.6x smaller. They
+still do not fit a chemical-accuracy budget. **A large upper bound is not
+evidence of a large ground-energy error.** The determinant witnesses establish
+a lower bound on an operator norm, not on ground-energy error.
+
+**Methodology changes (2026-10-22).** Three certified bounds were tightened; no
+input, target or witness changed, and every unchanged quantity is bit-identical.
+(1) A signed-square *spectral bound* on the fit residual, `||R|| <= (1/2) sum_t
+||W_t||_*^2 + triangle(Delta)`, is certified next to the entrywise triangle bound
+and the smaller is reported (previously 213.690/71.160 Ha, now 64.793/45.010 Ha).
+(2) The rotation bound's one-body and per-square terms use a certified
+*nuclear-norm* bound (`nuclear_norm_upper`) instead of only `min(entrywise,
+sqrt(N) Frobenius)` and the per-vector triangle sum (16/15-bit: 52.935/368.441 ->
+46.838/296.298 mHa; 26-bit: 0.0510/0.1794 -> 0.0452/0.1444 mHa). (3) The
+conditional QPE plan uses a sharper textbook tail bound, `c(1/L+1/(L-1)) +
+2^(4-m)` with `c = 1/(pi^2(1-pi^2/384)^2)`, so `L = 22` bins suffice for 1%
+failure (25/26 -> 23/25 phase bits). All three are enclosed with Arb, decided on
+outward endpoints, and tested against exact Fock-space and exact QPE oracles.
 
 Higher-precision rotations are *validated numerical proposals*, not new circuit
 specs or measured resource results. They use newly proposed one-body eigenpairs
@@ -67,6 +83,9 @@ OPENBLAS_NUM_THREADS=1 python3 challenges/femoco/tools/chemistry/certify.py \
   --instance li --data /tmp/femoco-chemistry --out /tmp/energy-li.json
 python3 -m unittest discover -s tests -p test_chemistry.py -v
 ```
+
+Certify takes well under a minute for Reiher and about four minutes for Li; the
+spectral bound's `m x m` Arb products dominate.
 
 Add `--require-chemical-accuracy` to make either run exit **2** after writing the
 negative result. Without that flag, exit 0 means the audit completed, not that the
@@ -127,8 +146,21 @@ With `k_pp=1`, `k_pq=2`,
 ```
 
 All tensor entries, products and sums are enclosed. The pair multiplicities and
-the factor 1/2 are essential. Both the norm inequality and determinant formula
-are tested against a separately constructed small Fock-space Hamiltonian.
+the factor 1/2 are essential. A second certificate factors the same residual:
+a float64 eigendecomposition proposes rows `w_t = sqrt|lambda_t| l_t` and signs
+`s_t`; with exact dyadic copies, `D = sum_t s_t w_t w_t^T + Delta` exactly, so
+
+```
+R = (1/2) sum_t s_t G_t^2 + (1/2) sum_ab Delta_ab A_a A_b,
+G_t = sum_pq W_t,pq Et_pq,    ||G_t|| <= ||W_t||_*,
+||R|| <= (1/2) sum_t ||W_t||_*^2 + (1/2) sum_ab |Delta_ab| k_a k_b,
+```
+
+where `W_t` is the symmetric spatial unpacking of `w_t` and `||.||_*` the
+nuclear norm, certified by `nuclear_norm_upper` below. The report records both
+bounds and uses the smaller as `operator_norm_upper_Ha`. Both norm
+inequalities and the determinant formula are tested against a separately
+constructed small Fock-space Hamiltonian.
 
 For a computational Slater determinant with occupations `n_p,s`, Wick's theorem
 gives
@@ -153,11 +185,18 @@ budget for these factors, even with a fitted constant correction. It does not
 refute a low-energy or ground-energy-specific certificate.
 
 For rotations, `||Et(u)-Et(v)|| <= 2 sqrt(1-(u.v)^2)`. Each squared generator has
-norm at most `S=|wB|+sum|w|`; its half-square changes by at most `S*delta`.
+norm at most `S=|wB|+sum|w|`; its half-square changes by at most `S*delta`,
+where `delta` bounds `||sum_b w_b (Et(u_b)-Et(v_b))||` either by the triangle
+sum `sum_b |w_b| 2 sqrt(1-(u_b.v_b)^2)` or by the nuclear norm of the symmetric
+matrix `sum_b w_b (u_b u_b^T - v_b v_b^T)`, whichever is smaller.
 The one-body residual is compared directly with the algebraically constructed
 shifted matrix, so eigenpair error is included. A centered spin-free one-body
-operator has norm at most its matrix nuclear norm, bounded by `sqrt(N)*Frobenius`
-and by a separate entrywise bound. Scalar discrepancies are added, never dropped.
+operator has norm exactly its matrix nuclear norm. `nuclear_norm_upper` encloses
+three valid bounds and keeps the smallest: the entrywise sum, `sqrt(N)*Frobenius`,
+and an approximate-diagonalization certificate: for any invertible `Q`,
+`||A||_* <= sum_jk |(Q^T A Q)_jk| / (1 - ||Q^T Q - I||_F)` when the denominator
+is positive, with `Q` a float64 eigenvector proposal used only as exact dyadic
+data. Scalar discrepancies are added, never dropped.
 
 The Slater certificate uses `P=C(C^T C)^(-1)C^T` rather than assuming the supplied
 columns are orthonormal. For each square its expectation is `mean^2 + variance`,
@@ -174,14 +213,20 @@ The report adds the certified factorization and rotation/preprocessing bounds,
 quadrature. `energy_budget_met` is false for both shipped instances.
 
 An optional resource *plan* derived in the report uses ordinary textbook QPE on
-an exact qubitized walk with the stated normalization. The geometric-series tail
-bound is `P(circular bin error >= L) <= 1/[2(L-1)]`. The energy map
-`E=offset+Lambda*cos(theta)` is Lambda-Lipschitz. Choosing the register so
-`2*pi*Lambda*L/2^m <= 1 mHa` and `L=51` gives failure probability at most 1%.
-This deliberately conservative plan has 25/26 phase bits and 33,554,431/67,108,863
-controlled walk uses. It is **not** an implementation or a replacement for Low's
-optimized spectral-amplification cost model; it demonstrates why a 99% absolute
-error claim cannot inherit a standard-deviation cost unchanged.
+an exact qubitized walk with the stated normalization. For an `m`-bit register
+and a signed bin error more than `L` bins from the true phase, the outcome
+probabilities `sin^2(pi delta)/(2^2m sin^2(pi y))`, `y=(l-delta)/2^m`, are
+bounded in two regions: `|y| >= 1/8` by Jordan's inequality (at most `2^(4-m)` in
+total) and `|y| < 1/8` by `sin x >= x - x^3/6`, giving
+`P(error > L) <= c (1/L + 1/(L-1)) + 2^(4-m)`, `c = 1/(pi^2 (1-pi^2/384)^2)`;
+the classical `1/[2(L-1)]` bound is kept as a fallback and the smaller is used.
+The energy map `E=offset+Lambda*cos(theta)` is Lambda-Lipschitz. The register is
+the smallest for which some `L` has both the tail at most 1% and
+`2*pi*Lambda*L/2^m <= 1 mHa`; with `L = 22` this is 23/25 phase bits and
+8,388,607/33,554,431 controlled walk uses (previously `L = 51`, 25/26 bits and
+33,554,431/67,108,863 uses). It is **not** an implementation or a replacement
+for Low's optimized spectral-amplification cost model; it demonstrates why a 99%
+absolute error claim cannot inherit a standard-deviation cost unchanged.
 
 The QPE statement is conditional on an exact eigenstate, controlled walk and QFT.
 The full claim remains false even for a hypothetical passing energy budget until

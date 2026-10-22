@@ -40,13 +40,13 @@ rotation words, numerical certificate and checker source by SHA-256.
 | Signed correction normalization, Ha | 32.3961 | 22.5048 |
 | Previous combined normalization, Ha | 272.0330 | 250.8893 |
 | New combined normalization, Ha | 90.7401 | 202.2343 |
-| Base rotation/preprocessing bound, mHa | <0.050967 | <0.044918 |
+| Base rotation/preprocessing bound, mHa | <0.045101 | <0.036262 |
 | Signed factorization residual bound, mHa | <0.078630 | <0.079019 |
-| Correction rotation/eigenpair bound, mHa | <0.031760 | <0.026297 |
-| **Explicit combined Hamiltonian bound, mHa** | **<0.161357** | **<0.150233** |
+| Correction rotation/eigenpair bound, mHa | <0.024743 | <0.020381 |
+| **Explicit combined Hamiltonian bound, mHa** | **<0.148472** | **<0.135661** |
 | Actual combined coefficient-encoding bound, mHa | <0.015704 | <0.028465 |
 | Conditional QPE allocation, mHa | 1 | 1 |
-| **Total budget, mHa** | **<1.177060** | **<1.178698** |
+| **Total budget, mHa** | **<1.164175** | **<1.164126** |
 
 Error bounds in this table are rounded upward; normalizations are display values.
 Factor counts and entry counts describe different objects: each signed factor
@@ -58,8 +58,22 @@ The operator bound also bounds the ground-energy difference on the stated sector
 by the min-max principle, without assuming a ground state or gap. This bounds
 the distance of the **new corrected** Hamiltonian from the target. It neither bounds
 ground-energy accuracy of the original published factors nor computes a ground
-energy. The remaining approximately 0.423/0.421 mHa is unspent systematic-error
+energy. The remaining approximately 0.435/0.435 mHa is unspent systematic-error
 margin, not a certificate for a synthesis scheme that has not been implemented.
+
+**Methodology changes (2026-10-22).** The base and correction rotation bounds now
+use the audit's certified nuclear-norm bound (`nuclear_norm_upper`: an
+approximate-diagonalization certificate taken together with the entrywise and
+`sqrt(N)` Frobenius bounds), which lowered the explicit combined Hamiltonian
+bounds from 0.161357/0.150233 to 0.148472/0.135661 mHa and the totals from
+1.177060/1.178698 to 1.164175/1.164126 mHa. The conditional 99% QPE plan uses
+the audit's sharper textbook tail bound (`L = 22` bins; 25/26 -> 24/25 phase
+bits). The certificates were regenerated on the released artifacts: the base
+payloads, signed factors, emitted programs and rotation words are byte-identical
+to the `femoco-research-signed-walk-v1` assets, and the factorization residual,
+normalizations, layout checks, encoding errors and resource bounds are unchanged.
+`signed_df.py --proposal` now accepts a saved `*-signed.npz` directly, and an
+existing base payload at the artifacts path is re-validated rather than replaced.
 
 ## Representation and interval certificate
 
@@ -269,8 +283,8 @@ recovering useful spectral amplification is necessary for a competitive design.
 This is not a lower bound on other possible implementations.
 
 Separately, the audit's conservative **99% absolute-error** textbook-QPE plan
-uses 25/26 phase bits and 33,554,431/67,108,863 controlled walks, for
-2,310,658,781,953 / 8,008,704,601,557 Toffolis at these step bounds. It assumes an
+uses 24/25 phase bits and 16,777,215/33,554,431 controlled walks, for
+1,155,329,356,545 / 4,004,352,241,109 Toffolis at these step bounds. It assumes an
 exact eigenstate, controlled walk and QFT. It must not be compared directly with
 Low's standard-deviation cost as though the success guarantees were identical.
 Ground-state preparation/selection, physical synthesis (including preparation

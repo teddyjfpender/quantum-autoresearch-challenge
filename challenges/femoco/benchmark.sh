@@ -9,8 +9,9 @@
 #      links src/walk) in its own target dir.
 #   3. Run build_circuit under bubblewrap: read-only filesystem, no network, all capabilities
 #      dropped, unprivileged uid, writable only in a throwaway scratch dir (its cwd) where it
-#      emits ops.bin, lanemap.bin and family.out.json. Also run it in its own process group
-#      and kill the whole group on exit so a forked child cannot survive and tamper afterward.
+#      emits ops.bin, lanemap.bin and family.out.json, in its own pid namespace with a fresh
+#      /proc (bwrap is its init: nothing it starts outlives it, and it sees no host process).
+#      Also run it in its own process group and kill the whole group on exit as a second net.
 #      (Linux uses bubblewrap; macOS uses sandbox-exec; if neither is available it falls back
 #      to an unconfined local-dev run.)
 #   4. Verify all three files exist. If build_circuit exited early or crashed, one is missing
@@ -161,10 +162,10 @@ if command -v bwrap >/dev/null 2>&1; then
   fi
   run_build=(
     "${bw[@]}"
-      --ro-bind / / --dev /dev --ro-bind /proc /proc
+      --ro-bind / / --dev /dev --proc /proc
       --bind "${ops_scratch}" "${ops_scratch}" --chdir "${ops_scratch}"
       --setenv TMPDIR "${ops_scratch}" --setenv FEMOCO_ROOT "${repo_root}"
-      --unshare-user --unshare-net --unshare-ipc --unshare-uts --unshare-cgroup
+      --unshare-user --unshare-pid --unshare-net --unshare-ipc --unshare-uts --unshare-cgroup
       --cap-drop ALL --new-session --die-with-parent
       --uid 65534 --gid 65534
       -- "${build_circuit_bin}"
