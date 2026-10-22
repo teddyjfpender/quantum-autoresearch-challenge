@@ -21,14 +21,14 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 277,
- "ledgerHead": "1b49b2a38377dfe74865c331b51ec76f540f461bd0623e9272219e78ee351a6c",
+ "ledgerRows": 278,
+ "ledgerHead": "07a7c6d4be1e35f563954f5569f05a2dac3521bbb5070346b048334cdf318445",
  "tracks": [
   {
    "track": "reiher",
    "title": "Reiher active space (54 orbitals)",
    "spec": "reiher-sa-est-v1",
-   "circuits": 148,
+   "circuits": 149,
    "best": {
     "unixTime": 1791561484,
     "track": "reiher",
@@ -85,7 +85,7 @@
      "id": "rank-scheduled",
      "name": "Rank-scheduled delivery",
      "parent": "onehot-split",
-     "circuits": 87,
+     "circuits": 88,
      "firstUnixTime": 1790937749,
      "elite": {
       "unixTime": 1791561484,
@@ -1456,76 +1456,28 @@
      "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq105_1, keep 8+8, blocks 3/3"
     },
     {
-     "unixTime": 1790939349,
+     "unixTime": 1792691992,
      "track": "reiher",
      "architecture": "rank-scheduled",
-     "toffoli": 10068.478,
+     "toffoli": 9820.51,
      "qubits": 420,
-     "toffoliTimesQubits": 4228760.76,
-     "score": 4228760.76,
+     "toffoliTimesQubits": 4124614.2,
+     "score": 4124614.2,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "b89b5640bb3db50bd562c4b6d4c1ad451b0d4d2c408692774f62605fb38f1145",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "da9c838df7955e21fe67a020ca2b99df2b745dab73b9a45afc72f7d79c8fee46",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "f14490492a6e07b5a77ad5ab63b20ba61f2aeb1a",
+     "pr": 25,
      "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
+     "model": "Claude Mythos 5.1",
      "harness": "Claude Code",
-     "submission": "reiher/rdr-r3q120b-m8",
-     "kind": "historical",
+     "submission": "reiher/lowc-r3fq125-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq120_1, keep 8+8, blocks 3/3"
-    },
-    {
-     "unixTime": 1790939349,
-     "track": "reiher",
-     "architecture": "rank-scheduled",
-     "toffoli": 9858.478,
-     "qubits": 435,
-     "toffoliTimesQubits": 4288437.93,
-     "score": 4288437.93,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "df05936e0a3a1d187beeeffc8362dea88cea47a845cd1704186cedde483407d0",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "reiher/rdr-r3q135b-m8",
-     "kind": "historical",
-     "standing": [
-      "front"
-     ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq135_1, keep 8+8, blocks 3/3"
-    },
-    {
-     "unixTime": 1790937749,
-     "track": "reiher",
-     "architecture": "rank-scheduled",
-     "toffoli": 9852.459,
-     "qubits": 448,
-     "toffoliTimesQubits": 4413901.632,
-     "score": 4413901.632,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "47ed974dfb9cfafbbbc86bc5e143ef2f884f6b52aadd93a7d8f04f292d2b00fa",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "reiher/rdr-r3q150-m8",
-     "kind": "historical",
-     "standing": [
-      "front"
-     ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky3zabCHKVIDXtNBWsq150, keep 8+8, blocks 3/3"
+     "note": "Rank-scheduled delivery with folded inner read and hosted index at budget 125: sa-toff imchxgrdky3zabCHKVIXtNBWs+-_q125_1.edu, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790939349,
