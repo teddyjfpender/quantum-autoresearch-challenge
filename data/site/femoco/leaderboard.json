@@ -21,8 +21,8 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 282,
- "ledgerHead": "e2e0598c0c9d0ddf00553e1d3216f9947ca4c0d498d69d0f9eec43acacf9d6cc",
+ "ledgerRows": 283,
+ "ledgerHead": "d8974baaded43b0c74f8dbbf3c45c1dded2023eba9fc6321b1bab6e70a9473b6",
  "tracks": [
   {
    "track": "reiher",
@@ -2164,7 +2164,7 @@
    "track": "li",
    "title": "Li active space (76 orbitals)",
    "spec": "li-sa-est-v1",
-   "circuits": 130,
+   "circuits": 131,
    "best": {
     "unixTime": 1791555788,
     "track": "li",
@@ -2220,7 +2220,7 @@
      "id": "onehot-split",
      "name": "Split one-hot with paired corrections",
      "parent": "onehot",
-     "circuits": 77,
+     "circuits": 78,
      "firstUnixTime": 1790414311,
      "elite": {
       "unixTime": 1791555788,
@@ -3356,76 +3356,28 @@
      "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHKVIXJtNOBWPsU+_~.eh4, keep 8+8, blocks 3/2"
     },
     {
-     "unixTime": 1790965281,
+     "unixTime": 1792692271,
      "track": "li",
      "architecture": "onehot-split",
-     "toffoli": 19791.448,
+     "toffoli": 19557.569,
      "qubits": 424,
-     "toffoliTimesQubits": 8391573.952,
-     "score": 8391573.952,
+     "toffoliTimesQubits": 8292409.256,
+     "score": 8292409.256,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "831604c2ba5dbeaab532c13a86c64b24fce9493f832f70caff613551e2797648",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "5dc8f5adc37acaed6964bbaa0393883354e20681c8946b9c589e282e17ea64bd",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "3ca303413b8b4b66f93573618d485fbd72720e93",
+     "pr": 30,
      "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
+     "model": "Claude Mythos 5.1",
      "harness": "Claude Code",
-     "submission": "li/kl-l5fhe-m8",
-     "kind": "historical",
+     "submission": "li/lowc-l5fw-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPsU+-_.eh4, keep 8+8, blocks 3/2"
-    },
-    {
-     "unixTime": 1790963522,
-     "track": "li",
-     "architecture": "rank-scheduled",
-     "toffoli": 19717.55,
-     "qubits": 447,
-     "toffoliTimesQubits": 8813744.85,
-     "score": 8813744.85,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "c2834b4fcc6cd760dda6c12d5dbf98d4e216303195746d96b5a4be7342dd64e9",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "li/kn-l5fhq30-m9",
-     "kind": "historical",
-     "standing": [
-      "front"
-     ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q30_1, keep 9+9, blocks 3/2"
-    },
-    {
-     "unixTime": 1790963522,
-     "track": "li",
-     "architecture": "rank-scheduled",
-     "toffoli": 19571.567,
-     "qubits": 450,
-     "toffoliTimesQubits": 8807205.15,
-     "score": 8807205.15,
-     "samples": 524288,
-     "engine": "reference-4096+sliced-524288",
-     "opsSha256": "454c6d521465af04c882df1996e5e7103749cd5b1e897200d07b94bd50eea114",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
-     "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
-     "harness": "Claude Code",
-     "submission": "li/kn-l5fhq36-m8",
-     "kind": "historical",
-     "standing": [
-      "front"
-     ],
-     "note": "Rank-scheduled delivery: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPs+-_q36_1, keep 8+8, blocks 3/2"
+     "note": "Five-group split one-hot with the composed alias witnesses: sa-toff imchxgrdky5zabCHKVIXJtRNOBWPsU+-_.eh4bfijklu, keep 8+8, blocks 3/3"
     },
     {
      "unixTime": 1790963522,
