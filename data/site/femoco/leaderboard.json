@@ -21,14 +21,14 @@
   ]
  },
  "ledger": "challenges/femoco/results.tsv",
- "ledgerRows": 285,
- "ledgerHead": "5c951f1b0c7bfc1b593047e6f2ee2c2f8a0bd2ec5c26402c1cfb6275bcbdf65c",
+ "ledgerRows": 286,
+ "ledgerHead": "afc95ebb7fa95de96dfd80fd23ebdcb67fa938e841c94c4d588bbff14d9a4309",
  "tracks": [
   {
    "track": "reiher",
    "title": "Reiher active space (54 orbitals)",
    "spec": "reiher-sa-est-v1",
-   "circuits": 152,
+   "circuits": 153,
    "best": {
     "unixTime": 1791561484,
     "track": "reiher",
@@ -85,7 +85,7 @@
      "id": "rank-scheduled",
      "name": "Rank-scheduled delivery",
      "parent": "onehot-split",
-     "circuits": 89,
+     "circuits": 90,
      "firstUnixTime": 1790937749,
      "elite": {
       "unixTime": 1791561484,
@@ -1289,28 +1289,28 @@
      "note": "Rank-scheduled delivery on the G = 3 point at 298 qubits"
     },
     {
-     "unixTime": 1790929788,
+     "unixTime": 1792710652,
      "track": "reiher",
-     "architecture": "onehot-split",
-     "toffoli": 12659.411,
-     "qubits": 311,
-     "toffoliTimesQubits": 3937076.821,
-     "score": 3937076.821,
+     "architecture": "rank-scheduled",
+     "toffoli": 12589.469,
+     "qubits": 306,
+     "toffoliTimesQubits": 3852377.514,
+     "score": 3852377.514,
      "samples": 524288,
      "engine": "reference-4096+sliced-524288",
-     "opsSha256": "75b14ffb910a4887021b15588909fd312e50f02984d3453eab9040ee59074d12",
-     "verifierSha256": "077abe9f1a5c24db173fe89406ed36055e0d597eb44b2751817e130d74cd31e6",
-     "commit": "genesis",
-     "pr": null,
+     "opsSha256": "f84a24398686dc0962352b6e990d5eae7a6ca693d958db6dd401bb756026333b",
+     "verifierSha256": "3c76f6f3243392260c10ad75dbbdbb2600525236439275463cb03f69876c77c1",
+     "commit": "deefea5fbe5694ab0dce6732396a1ee7a0e42c79",
+     "pr": 26,
      "author": "teddyjfpender",
-     "model": "Claude Opus 5.5",
+     "model": "Claude Mythos 5.1",
      "harness": "Claude Code",
-     "submission": "reiher/rp-r3y-m8",
-     "kind": "historical",
+     "submission": "reiher/lowq-r3gq15-m8",
+     "kind": "submission",
      "standing": [
       "front"
      ],
-     "note": "Split one-hot with paired corrections: sa-toff imchxgrdky3zabCHKVITXSRNOBW, keep 8+8, blocks 2/2"
+     "note": "Rank-scheduled delivery at budget 15 with padding runs, four-group item one-hot and hosted index: sa-toff imchxgrdky3zabCHVITXSNOBWs_q15_1.11.p, keep 8+8, blocks 2/2"
     },
     {
      "unixTime": 1791561484,
