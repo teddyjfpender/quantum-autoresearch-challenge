@@ -663,7 +663,11 @@ pub fn evaluate_opts(
         facts,
         outcome_coverage,
         reflection,
-        tracker_tolerance: tracker_tolerance(inp.tracker.is_some(), layout.system, &lm.lambda_decl()),
+        tracker_tolerance: tracker_tolerance(
+            inp.tracker.is_some(),
+            layout.system,
+            &lm.lambda_decl(),
+        ),
     })
 }
 
@@ -675,8 +679,9 @@ pub fn tracker_tolerance(tracked: bool, system_qubits: usize, lambda: &Exact) ->
         return 0.0;
     }
     let n = system_qubits as f64;
-    let per_lane = std::f64::consts::FRAC_PI_2 * n.sqrt() * (2.0 * n * crate::sim::gaussian::AD_TOL)
-        / 8f64.sqrt();
+    let per_lane =
+        std::f64::consts::FRAC_PI_2 * n.sqrt() * (2.0 * n * crate::sim::gaussian::AD_TOL)
+            / 8f64.sqrt();
     lambda.to_f64() * per_lane
 }
 

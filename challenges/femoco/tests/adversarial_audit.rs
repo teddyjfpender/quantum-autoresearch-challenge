@@ -168,7 +168,10 @@ fn toffolis_under_fresh_outcomes_are_charged_by_their_probability() {
         let got = ev.toffoli - base.toffoli;
         // Binomial noise over K_FLAT lanes.
         let sd = (2.0 * 2.0 * 0.5f64.powi(j as i32) / K_FLAT as f64).sqrt();
-        assert!((got - expect).abs() < 5.0 * sd + 1e-9, "j = {j}: {got} vs {expect}");
+        assert!(
+            (got - expect).abs() < 5.0 * sd + 1e-9,
+            "j = {j}: {got} vs {expect}"
+        );
     }
 }
 
@@ -243,7 +246,10 @@ fn reflect_register_with_a_duplicate_qubit_is_rejected() {
     ops[r].r_target = 99;
     ops.splice(0..0, register(99, &qs));
     let e = eval_ops(&s, &lm, &ops, &NESTED_AXES, K_NESTED).expect_err("must be rejected");
-    assert!(e.contains("must act on exactly the inner uniform register"), "{e}");
+    assert!(
+        e.contains("must act on exactly the inner uniform register"),
+        "{e}"
+    );
 }
 
 /// A register is read with its final contents: `AppendToRegister` ops after a `Givens` that

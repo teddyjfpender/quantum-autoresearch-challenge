@@ -2212,7 +2212,11 @@ mod sa {
                 s["below_chemical_accuracy"],
                 ev.certified_bound() < femoco_walk::score::CHEMICAL_ACCURACY_HA
             );
-            for key in ["bound_certified", "certified_bound_mHa", "below_chemical_accuracy"] {
+            for key in [
+                "bound_certified",
+                "certified_bound_mHa",
+                "below_chemical_accuracy",
+            ] {
                 s.insert(key.into(), limits[key].clone());
             }
             let cond = s.insert(

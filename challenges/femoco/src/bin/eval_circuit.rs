@@ -488,7 +488,9 @@ fn run(
     match reflection {
         ReflectionCheck::Off => {}
         ReflectionCheck::Report => {
-            println!("  reflection  : static Hermiticity check, report (spec/SAMPLING.md section 4)");
+            println!(
+                "  reflection  : static Hermiticity check, report (spec/SAMPLING.md section 4)"
+            );
         }
         ReflectionCheck::Require => println!(
             "  reflection  : static Hermiticity check, required{} (spec/SAMPLING.md section 4)",
