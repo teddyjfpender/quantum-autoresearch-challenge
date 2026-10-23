@@ -1,0 +1,142 @@
+{
+  "schema": "femoco-encoded-coefficients-audit-v1",
+  "coefficient_source_sha256": {
+    "artifacts.py": "2dcf19dc644d44d0c32a8abbb279f650431b70fea27d6d046705179e0027c8e5",
+    "exact.py": "9df83518e5407c57a9cf73c58550b6bcace0d43a52ab8979c9a2020ff352c1fa"
+  },
+  "authenticated_ledger_result": false,
+  "certifies_energy_error": false,
+  "chemical_accuracy_certified": false,
+  "results": [
+    {
+      "submission": "reiher/outer-hi-reconstruct-r1",
+      "spec": "reiher-sa-est-v1",
+      "circuit_digests": {
+        "ops": "a939d204d2fa8706c6f126f99b00cace0d4813eadf57fadc1fba2586b8f677c9",
+        "lanemap": "8ed559d79996a3425d970c566a1bfb6ebfd5d72918da129adfc58b5c5a542758",
+        "family": "204e996c829b0d287c97afce76b09019e34569b13aa5ceca1f3a5cd4f9d1ea3a"
+      },
+      "payload_sha256": "ad1a2a48390ee8548ff9c4580788b58139196d77bef50e054824d7d457239e02",
+      "source_manifest_sha256": "328069e1b3d1eb691d4a5b15c9b2604356ba3b93962dca9b7cd3bdb264c5cbfc",
+      "coefficients": {
+        "status": "proved",
+        "arithmetic": "exact rational (binary64 inputs treated as dyadics)",
+        "ordered_off_diagonal_terms": 802116,
+        "lambda_payload": {
+          "exact": "144452684779959284450563171221/2475880078570760549798248448",
+          "display_Ha": 58.343974746687564
+        },
+        "lambda_declared": {
+          "exact": "144452684779959284450563171221/2475880078570760549798248448",
+          "display_Ha": 58.343974746687564
+        },
+        "payload_identity": {
+          "exact": "-33343007401244977664292575463753/2475880078570760549798248448",
+          "display_Ha": -13467.133440684549
+        },
+        "E_SOS": {
+          "exact": "-3980215611841555528127051/295147905179352825856",
+          "display_Ha": -13485.495041622924
+        },
+        "off_diagonal_coefficient_l1_Ha": {
+          "exact": "3250991778185488511170280239946762505499/21778071482940061661655974875633165533184",
+          "display_Ha": 0.14927822147760722
+        },
+        "identity_shift_Ha": {
+          "exact": "24178032047219289012301432125544674763/21778071482940061661655974875633165533184",
+          "display_Ha": 0.0011102007845900977
+        },
+        "encoded_to_payload_norm_upper_Ha": {
+          "exact": "1637584905116353900091290836036153590131/10889035741470030830827987437816582766592",
+          "display_Ha": 0.1503884222621973
+        },
+        "rigorous_0p1_mHa_coefficient_rule_met": false,
+        "certifies_energy_error": false
+      },
+      "sampled_screen": {
+        "engine": "sliced",
+        "samples": 4096,
+        "passed": true,
+        "standalone_evaluator_sha256": "8808f3803c9c36597771c0047f79df042c3100f9f783908063a192174a3f7587",
+        "symbolic_input_sha256": "83e218bbf8704affd0eabf6dedd388978b8395cb2c83a2d08fc0e6ed59b2302d",
+        "streamed_export_byte_identity_checked": true
+      },
+      "chemistry_evidence": {
+        "report": "energy-reiher.json",
+        "sha256": "86126655abf0d30e6160c9788b6ff3e73a3b3da20db89cf2b4c4e7c0ef8cebb9",
+        "reused_committed_interval_results": true,
+        "original_integrals_recomputed_in_this_audit": false,
+        "factorization_operator_norm_upper_Ha": "284041665241100247444274544673559042129/1329227995784915872903807060280344576",
+        "factorization_any_scalar_shift_norm_lower_Ha": "64654451423227883488386284747626112933/1361129467683753853853498429727072845824",
+        "rotation_and_preprocessing_upper_Ha": "1152820863436019312578789126314571261765/21778071482940061661655974875633165533184",
+        "ground_energy_accuracy_decided": false
+      }
+    },
+    {
+      "submission": "li/composed-alias-m8",
+      "spec": "li-sa-est-v1",
+      "circuit_digests": {
+        "ops": "22ed4a7645fb09ed6582e198f19be3e20fc54654c715db71f800e83c03aaefe0",
+        "lanemap": "ddb59e497bbe56e407cea3d67882c851cb82d06d6de67a24c31d259d46634624",
+        "family": "365285405bb23d4409a73a4e6ec4cfc577b5a193c5d0269b00c7bd40a5eeecf5"
+      },
+      "payload_sha256": "3755d76721666a8ce6eb6c211aa8763617ed4453e3d1012d035440ad9593ea82",
+      "source_manifest_sha256": "f54e371c10b51eb94ca85293ac7b470e10acdd9736487ff6ebb7070576e674f8",
+      "coefficients": {
+        "status": "proved",
+        "arithmetic": "exact rational (binary64 inputs treated as dyadics)",
+        "ordered_off_diagonal_terms": 3736654,
+        "lambda_payload": {
+          "exact": "3645348901122036324068622370439313/20282409603651670423947251286016",
+          "display_Ha": 179.7295771240969
+        },
+        "lambda_declared": {
+          "exact": "3645348901122036324068622370439313/20282409603651670423947251286016",
+          "display_Ha": 179.7295771240969
+        },
+        "payload_identity": {
+          "exact": "-22008920249724814652142016873517679/20282409603651670423947251286016",
+          "display_Ha": -1085.123546945936
+        },
+        "E_SOS": {
+          "exact": "-1295567774823898759251/1152921504606846976",
+          "display_Ha": -1123.7259168530254
+        },
+        "off_diagonal_coefficient_l1_Ha": {
+          "exact": "309760084207205549945471982664982415334848681/356811923176489970264571492362373784095686656",
+          "display_Ha": 0.8681326606173663
+        },
+        "identity_shift_Ha": {
+          "exact": "668731747446686036241205918056531466769013/178405961588244985132285746181186892047843328",
+          "display_Ha": 0.00374837108296917
+        },
+        "encoded_to_payload_norm_upper_Ha": {
+          "exact": "311097547702098922017954394501095478268386707/356811923176489970264571492362373784095686656",
+          "display_Ha": 0.8718810317003355
+        },
+        "rigorous_0p1_mHa_coefficient_rule_met": false,
+        "certifies_energy_error": false
+      },
+      "sampled_screen": {
+        "engine": "sliced",
+        "samples": 4096,
+        "passed": true,
+        "standalone_evaluator_sha256": "8808f3803c9c36597771c0047f79df042c3100f9f783908063a192174a3f7587",
+        "symbolic_input_sha256": "d82108cb8f91366168c7f230899435c2a1c81a817a95b884e9587132126fb93b",
+        "streamed_export_byte_identity_checked": true
+      },
+      "chemistry_evidence": {
+        "report": "energy-li.json",
+        "sha256": "2befb7db83fae029a56edcc10aedf16bfc62a80829aed075bd5f88873cff925a",
+        "reused_committed_interval_results": true,
+        "original_integrals_recomputed_in_this_audit": false,
+        "factorization_operator_norm_upper_Ha": "94587820517263028511660941077914621835/1329227995784915872903807060280344576",
+        "factorization_any_scalar_shift_norm_lower_Ha": "232374597160671676757097380246813104697/10889035741470030830827987437816582766592",
+        "rotation_and_preprocessing_upper_Ha": "8023924960375585979833359386327859044865/21778071482940061661655974875633165533184",
+        "ground_energy_accuracy_decided": false
+      }
+    }
+  ],
+  "source_base_commit": "179903550f1a565d7b802ac33cf2517e7188afef",
+  "source_modified": true
+}
