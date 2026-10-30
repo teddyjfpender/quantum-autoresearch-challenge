@@ -1,0 +1,45 @@
+name: FeMoco Lean controller proofs
+
+on:
+  pull_request:
+    paths:
+      - "challenges/femoco/lean/**"
+      - "tests/test_lean_controller.py"
+      - ".github/workflows/femoco-lean.yml"
+  push:
+    branches: [main]
+    paths:
+      - "challenges/femoco/lean/**"
+      - "tests/test_lean_controller.py"
+      - ".github/workflows/femoco-lean.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: femoco-lean-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install pinned Lean distribution
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 https://github.com/leanprover/lean4/releases/download/v4.28.0/lean-4.28.0-linux.tar.zst -o "$RUNNER_TEMP/lean.tar.zst"
+          echo 'ceb3a3f844f7aebf63245e2b51c28d5b0ed38942c19f93cf3febd520302160bd  '"$RUNNER_TEMP/lean.tar.zst" | sha256sum --check
+          tar --no-same-owner --zstd -xf "$RUNNER_TEMP/lean.tar.zst" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/lean-4.28.0-linux/bin" >> "$GITHUB_PATH"
+      - name: Compile proofs with warnings as errors
+        working-directory: challenges/femoco/lean
+        run: lake --wfail build
+      - name: Replay kernels, audit axioms, and reject adversarial binaries
+        env:
+          FEMOCO_LEAN_REQUIRED: "1"
+        run: python3 -m unittest discover -s tests -p test_lean_controller.py -v

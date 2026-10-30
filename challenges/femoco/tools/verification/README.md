@@ -6,6 +6,15 @@ This does not add a rigorous bound for the original DFTHC approximation or the f
 precision rotation networks. Estimated tracks and their historical rows remain separate.
 The contract epoch is `femoco-sa-rigorous-v2`.
 
+## Lean controller sidecar
+
+The optional [Lean package](../../lean/README.md) proves soundness of a Boolean-polynomial
+controller interpreter and checks complete supported `FEMOOPS1` gadget programs, including
+all-input/all-outcome phase restoration, reset cleanliness and static resource bounds.
+Certificates bind the complete byte list through a decoder checked in Lean and undergo
+independent kernel replay and axiom auditing. It does not yet certify a full Reiher/Li
+walk, system-operator equivalence or chemistry accuracy, and does not change judge acceptance.
+
 ## Evidence layers
 
 | Layer | Domain | Evidence | Limit |
