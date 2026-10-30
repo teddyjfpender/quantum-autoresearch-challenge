@@ -1,0 +1,6 @@
+name = "femoco_verification"
+version = "0.1.0"
+defaultTargets = ["FeMoco"]
+
+[[lean_lib]]
+name = "FeMoco"
